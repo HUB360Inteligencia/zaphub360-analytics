@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Edit, Trash2, Copy, Eye, MessageSquare, FileText } from 'lucide-react';
+import { MessageSquare, FileText } from 'lucide-react';
+import { TemplateActions } from './TemplateActions';
 
 interface Template {
   id: string; // Changed from number to string to match Supabase UUID
@@ -29,10 +30,12 @@ interface Category {
 interface TemplateCardProps {
   template: Template;
   category?: Category;
+  categories: Category[];
   onPreview: (template: Template) => void;
+  onUse?: (template: Template) => void;
 }
 
-export const TemplateCard = ({ template, category, onPreview }: TemplateCardProps) => {
+export const TemplateCard = ({ template, category, categories, onPreview, onUse }: TemplateCardProps) => {
   const IconComponent = category?.icon || FileText;
   
   return (
@@ -104,25 +107,16 @@ export const TemplateCard = ({ template, category, onPreview }: TemplateCardProp
 
         {/* Actions */}
         <div className="flex justify-between items-center pt-2 border-t">
-          <div className="flex gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => onPreview(template)}
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm">
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm">
-              <Copy className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm">
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+          <TemplateActions 
+            template={template}
+            categories={categories}
+            onPreview={onPreview}
+          />
+          <Button 
+            size="sm" 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => onUse?.(template)}
+          >
             <MessageSquare className="w-4 h-4 mr-2" />
             Usar
           </Button>

@@ -13,7 +13,7 @@ import { TemplatePreview } from '@/components/templates/TemplatePreview';
 import { useTemplates } from '@/hooks/useTemplates';
 
 const Templates = () => {
-  const { templates, isLoading, createTemplate } = useTemplates();
+  const { templates, isLoading } = useTemplates();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -78,13 +78,10 @@ const Templates = () => {
             <DialogHeader>
               <DialogTitle>Criar Novo Template</DialogTitle>
             </DialogHeader>
-            <TemplateForm categories={categories} />
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button>Salvar Template</Button>
-            </div>
+            <TemplateForm 
+              categories={categories} 
+              onSuccess={() => setIsCreateDialogOpen(false)}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -140,6 +137,7 @@ const Templates = () => {
                   variables: template.variables || []
                 }}
                 category={category}
+                categories={categories}
                 onPreview={setPreviewTemplate}
               />
             );
