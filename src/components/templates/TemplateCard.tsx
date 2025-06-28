@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Edit, Trash2, Copy, Eye, MessageSquare, FileText } from 'lucide-react';
 
 interface Template {
-  id: number;
+  id: string; // Changed from number to string to match Supabase UUID
   name: string;
   description: string;
   category: string;
