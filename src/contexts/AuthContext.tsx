@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .from('profiles')
         .update({
           organization_id: orgData.id,
-          role: 'admin',
+          role: 'client',
           full_name: user.user_metadata?.full_name || null,
         })
         .eq('id', user.id);
@@ -169,10 +169,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         if (session?.user) {
           // Check if this is a new user (just signed up)
-          if (event === 'SIGNED_UP') {
+          if (event === 'SIGNED_IN') {
+            // For new signups, we'll handle this in the profile creation
             setTimeout(() => {
-              handleNewUser(session.user);
-            }, 1000); // Small delay to ensure profile is created by trigger
+              fetchProfile(session.user.id);
+            }, 100);
           } else {
             // Existing user, fetch profile
             setTimeout(() => {
