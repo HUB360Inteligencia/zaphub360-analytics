@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -207,9 +206,11 @@ const Campaigns = () => {
                   const sent = metrics.sent || 0;
                   const delivered = metrics.delivered || 0;
                   const deliveryRate = sent > 0 ? (delivered / sent) * 100 : 0;
-                  const totalContacts = Array.isArray(campaign.target_contacts?.segments) 
-                    ? campaign.target_contacts.segments.length * 1000 // Mock calculation
-                    : 1000;
+                  
+                  // Safely access target_contacts with proper type casting
+                  const targetContacts = campaign.target_contacts as { segments?: string[] } | null;
+                  const segmentsCount = targetContacts?.segments?.length || 0;
+                  const totalContacts = segmentsCount * 1000; // Mock calculation
 
                   return (
                     <TableRow key={campaign.id} className="hover:bg-slate-50">
@@ -235,7 +236,7 @@ const Campaigns = () => {
                           <div className="w-full bg-slate-200 rounded-full h-2">
                             <div 
                               className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${(sent / totalContacts) * 100}%` }}
+                              style={{ width: `${totalContacts > 0 ? (sent / totalContacts) * 100 : 0}%` }}
                             />
                           </div>
                         </div>

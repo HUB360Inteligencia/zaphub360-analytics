@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useTemplates } from '@/hooks/useTemplates';
-import { useCampaigns } from '@/hooks/useCampaigns';
+import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -94,14 +94,16 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
     }
 
     try {
-      const campaignData = {
+      const campaignData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'> = {
         name: values.name,
         description: values.description,
         template_id: values.template_id,
         target_contacts: { segments: values.segments },
-        scheduled_at: values.send_immediately ? null : selectedDate?.toISOString(),
-        status: values.send_immediately ? 'active' : 'scheduled',
+        scheduled_at: values.send_immediately ? null : selectedDate?.toISOString() || null,
+        status: (values.send_immediately ? 'active' : 'scheduled') as Campaign['status'],
         organization_id: organization.id,
+        started_at: null,
+        completed_at: null,
         metrics: { sent: 0, delivered: 0, read: 0, failed: 0 },
       };
 
