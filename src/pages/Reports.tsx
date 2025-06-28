@@ -13,7 +13,7 @@ import {
 import { 
   TrendingUp, TrendingDown, Eye, MessageSquare, Send, 
   CheckCircle, Users, Calendar, Download, Filter,
-  Activity, Target, Zap, Clock, Loader2
+  Activity, Target, Zap, Clock, Loader2, Tag
 } from 'lucide-react';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useTemplates } from '@/hooks/useTemplates';

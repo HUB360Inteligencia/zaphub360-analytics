@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,13 @@ import { Users, MessageSquare, TrendingUp, Clock, Send, Eye, CheckCircle, AlertC
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useCampaigns } from '@/hooks/useCampaigns';
+
+interface CampaignMetrics {
+  sent?: number;
+  delivered?: number;
+  read?: number;
+  failed?: number;
+}
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState('7d');
@@ -30,16 +36,19 @@ const Dashboard = () => {
   if (!analytics) return null;
 
   // Preparar dados das campanhas recentes para exibição
-  const recentCampaigns = campaigns.slice(0, 4).map(campaign => ({
-    id: campaign.id,
-    name: campaign.name,
-    status: campaign.status === 'active' ? 'Ativa' : 
-            campaign.status === 'completed' ? 'Concluída' : 
-            campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho',
-    sent: campaign.metrics?.sent || 0,
-    progress: campaign.status === 'completed' ? 100 : 
-              campaign.status === 'active' ? Math.floor(Math.random() * 80) + 20 : 0
-  }));
+  const recentCampaigns = campaigns.slice(0, 4).map(campaign => {
+    const metrics = campaign.metrics as CampaignMetrics | null;
+    return {
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status === 'active' ? 'Ativa' : 
+              campaign.status === 'completed' ? 'Concluída' : 
+              campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho',
+      sent: metrics?.sent || 0,
+      progress: campaign.status === 'completed' ? 100 : 
+                campaign.status === 'active' ? Math.floor(Math.random() * 80) + 20 : 0
+    };
+  });
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">

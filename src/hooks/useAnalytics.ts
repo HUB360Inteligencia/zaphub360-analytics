@@ -28,6 +28,13 @@ export interface AnalyticsData {
   }[];
 }
 
+interface CampaignMetrics {
+  sent?: number;
+  delivered?: number;
+  read?: number;
+  failed?: number;
+}
+
 export const useAnalytics = () => {
   const { organization } = useAuth();
 
@@ -59,7 +66,7 @@ export const useAnalytics = () => {
       // Buscar campanhas
       const { data: campaigns } = await supabase
         .from('campaigns')
-        .select('status, metrics')
+        .select('name, status, metrics')
         .eq('organization_id', organization.id);
 
       // Buscar mensagens
@@ -110,13 +117,16 @@ export const useAnalytics = () => {
         color: tag.color,
       })) || [];
 
-      const campaignPerformance = campaigns?.slice(0, 4).map(campaign => ({
-        name: campaign.name || 'Campanha',
-        sent: campaign.metrics?.sent || Math.floor(Math.random() * 500),
-        delivered: campaign.metrics?.delivered || Math.floor(Math.random() * 450),
-        read: campaign.metrics?.read || Math.floor(Math.random() * 300),
-        responded: Math.floor(Math.random() * 50),
-      })) || [];
+      const campaignPerformance = campaigns?.slice(0, 4).map(campaign => {
+        const metrics = campaign.metrics as CampaignMetrics | null;
+        return {
+          name: campaign.name || 'Campanha',
+          sent: metrics?.sent || Math.floor(Math.random() * 500),
+          delivered: metrics?.delivered || Math.floor(Math.random() * 450),
+          read: metrics?.read || Math.floor(Math.random() * 300),
+          responded: Math.floor(Math.random() * 50),
+        };
+      }) || [];
 
       return {
         totalContacts,

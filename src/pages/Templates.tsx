@@ -131,6 +131,7 @@ const Templates = () => {
                 key={template.id}
                 template={{
                   ...template,
+                  description: template.category || 'Template de mensagem',
                   usageCount: template.usage_count || 0,
                   createdAt: template.created_at,
                   lastUsed: template.updated_at,
