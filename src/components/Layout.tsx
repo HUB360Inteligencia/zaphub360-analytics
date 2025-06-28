@@ -9,6 +9,7 @@ import {
   Settings, Bell, Search, Menu, X, MessageSquare,
   Zap, Target, Calendar, HelpCircle, LogOut
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
+  const { profile, organization, signOut } = useAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard, current: location.pathname === '/' },
@@ -32,6 +34,15 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Novo Template', icon: FileText, color: 'bg-purple-600' },
   ];
 
+  const getInitials = (name: string | null) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
@@ -45,7 +56,7 @@ const Layout = ({ children }: LayoutProps) => {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">G360-Wpp</h1>
-                <p className="text-xs text-slate-500">CRM & Automação</p>
+                <p className="text-xs text-slate-500">{organization?.name || 'CRM & Automação'}</p>
               </div>
             </div>
             <Button
@@ -75,7 +86,7 @@ const Layout = ({ children }: LayoutProps) => {
                   <IconComponent className="w-5 h-5 mr-3" />
                   {item.name}
                   {item.name === 'Campanhas' && (
-                    <Badge className="ml-auto bg-green-100 text-green-800 text-xs">8</Badge>
+                    <Badge className="ml-auto bg-green-100 text-green-800 text-xs">0</Badge>
                   )}
                 </Link>
               );
@@ -111,12 +122,18 @@ const Layout = ({ children }: LayoutProps) => {
           <div className="px-4 py-4 border-t">
             <div className="flex items-center gap-3">
               <Avatar className="w-8 h-8">
-                <AvatarImage src="/api/placeholder/32/32" />
-                <AvatarFallback className="bg-blue-600 text-white text-xs">JS</AvatarFallback>
+                <AvatarImage src={profile?.avatar_url || ''} />
+                <AvatarFallback className="bg-blue-600 text-white text-xs">
+                  {getInitials(profile?.full_name)}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">João Silva</p>
-                <p className="text-xs text-slate-500 truncate">Administrador</p>
+                <p className="text-sm font-medium text-slate-900 truncate">
+                  {profile?.full_name || 'Usuário'}
+                </p>
+                <p className="text-xs text-slate-500 truncate">
+                  {profile?.role === 'admin' ? 'Administrador' : 'Usuário'}
+                </p>
               </div>
               <Button variant="ghost" size="sm">
                 <Settings className="w-4 h-4 text-slate-400" />
@@ -167,10 +184,12 @@ const Layout = ({ children }: LayoutProps) => {
               {/* User Menu */}
               <div className="flex items-center gap-2">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src="/api/placeholder/32/32" />
-                  <AvatarFallback className="bg-blue-600 text-white">JS</AvatarFallback>
+                  <AvatarImage src={profile?.avatar_url || ''} />
+                  <AvatarFallback className="bg-blue-600 text-white">
+                    {getInitials(profile?.full_name)}
+                  </AvatarFallback>
                 </Avatar>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 text-slate-600" />
                 </Button>
               </div>
