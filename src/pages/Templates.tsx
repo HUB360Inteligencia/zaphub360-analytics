@@ -1,22 +1,25 @@
+
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Search, Plus, Calendar, Megaphone, Gift, Users, BarChart3 } from 'lucide-react';
+import { Search, Plus, Calendar, Megaphone, Gift, Users, BarChart3, Loader2 } from 'lucide-react';
 import { StatsCards } from '@/components/templates/StatsCards';
 import { CategoryFilter } from '@/components/templates/CategoryFilter';
 import { TemplateCard } from '@/components/templates/TemplateCard';
 import { TemplateForm } from '@/components/templates/TemplateForm';
 import { TemplatePreview } from '@/components/templates/TemplatePreview';
+import { useTemplates } from '@/hooks/useTemplates';
 
 const Templates = () => {
+  const { templates, isLoading, createTemplate } = useTemplates();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
 
-  // Mock data - em produção seria do Supabase
+  // Categorias padrão
   const categories = [
     { id: 'eventos', name: 'Eventos', icon: Calendar, color: '#2563EB' },
     { id: 'informativo', name: 'Informativo', icon: Megaphone, color: '#7C3AED' },
@@ -25,156 +28,36 @@ const Templates = () => {
     { id: 'atendimento', name: 'Atendimento', icon: Users, color: '#D97706' }
   ];
 
-  const templates = [
-    {
-      id: 1,
-      name: 'Convite para Evento',
-      description: 'Template para convidar contatos para eventos políticos',
-      category: 'eventos',
-      content: `Olá {{nome}}! 🎉
-
-Você está convidado(a) para nosso evento especial:
-
-📅 **{{evento_nome}}**
-📍 Local: {{local}}
-🕒 Data: {{data}} às {{horario}}
-
-Sua presença é muito importante para nós! 
-
-Para confirmar sua participação, responda esta mensagem com SIM.
-
-Esperamos você lá!
-
-Atenciosamente,
-{{assinatura}}`,
-      variables: ['nome', 'evento_nome', 'local', 'data', 'horario', 'assinatura'],
-      usageCount: 45,
-      createdAt: '2024-01-10',
-      lastUsed: '2024-01-15',
-      isActive: true,
-      tags: ['evento', 'convite', 'politica']
-    },
-    {
-      id: 2,
-      name: 'Newsletter Semanal',
-      description: 'Informativo semanal com principais notícias',
-      category: 'informativo',
-      content: `📰 **Newsletter Semanal** - {{semana}}
-
-Olá {{nome}}, confira os principais acontecimentos:
-
-🔸 **{{titulo_1}}**
-{{resumo_1}}
-
-🔸 **{{titulo_2}}**
-{{resumo_2}}
-
-🔸 **{{titulo_3}}**
-{{resumo_3}}
-
-📱 Siga nossas redes sociais para mais atualizações!
-
-{{assinatura}}`,
-      variables: ['nome', 'semana', 'titulo_1', 'resumo_1', 'titulo_2', 'resumo_2', 'titulo_3', 'resumo_3', 'assinatura'],
-      usageCount: 128,
-      createdAt: '2024-01-05',
-      lastUsed: '2024-01-14',
-      isActive: true,
-      tags: ['newsletter', 'informativo', 'semanal']
-    },
-    {
-      id: 3,
-      name: 'Pesquisa de Satisfação',
-      description: 'Template para coletar feedback dos cidadãos',
-      category: 'feedback',
-      content: `Olá {{nome}}! 📊
-
-Sua opinião é muito importante para nós!
-
-Gostaríamos de saber como você avalia nosso trabalho em {{area_atuacao}}.
-
-Por favor, responda com uma nota de 1 a 10:
-
-1️⃣ Muito insatisfeito
-🔟 Muito satisfeito
-
-Também pode deixar um comentário com sugestões!
-
-Obrigado pela colaboração!
-
-{{assinatura}}`,
-      variables: ['nome', 'area_atuacao', 'assinatura'],
-      usageCount: 67,
-      createdAt: '2024-01-08',
-      lastUsed: '2024-01-12',
-      isActive: true,
-      tags: ['pesquisa', 'feedback', 'satisfacao']
-    },
-    {
-      id: 4,
-      name: 'Promoção Especial',
-      description: 'Template para campanhas promocionais',
-      category: 'marketing',
-      content: `🎁 **OFERTA ESPECIAL** para você, {{nome}}!
-
-{{descricao_promocao}}
-
-✨ **{{beneficio_principal}}**
-💰 Desconto: {{porcentagem_desconto}}%
-⏰ Válido até: {{data_validade}}
-
-Para aproveitar, acesse: {{link}}
-Ou responda esta mensagem!
-
-Não perca essa oportunidade!
-
-{{assinatura}}`,
-      variables: ['nome', 'descricao_promocao', 'beneficio_principal', 'porcentagem_desconto', 'data_validade', 'link', 'assinatura'],
-      usageCount: 23,
-      createdAt: '2024-01-12',
-      lastUsed: '2024-01-13',
-      isActive: true,
-      tags: ['promocao', 'marketing', 'desconto']
-    },
-    {
-      id: 5,
-      name: 'Confirmação de Presença',
-      description: 'Template para confirmação de participação em reuniões',
-      category: 'eventos',
-      content: `Oi {{nome}}! ✅
-
-Lembrando sobre nossa reunião:
-
-📋 **{{titulo_reuniao}}**
-📅 Data: {{data}}
-🕒 Horário: {{horario}}
-📍 Local: {{local}}
-
-Por favor, confirme sua presença respondendo:
-✅ SIM - Estarei presente
-❌ NÃO - Não poderei comparecer
-
-Aguardamos seu retorno!
-
-{{assinatura}}`,
-      variables: ['nome', 'titulo_reuniao', 'data', 'horario', 'local', 'assinatura'],
-      usageCount: 89,
-      createdAt: '2024-01-06',
-      lastUsed: '2024-01-11',
-      isActive: true,
-      tags: ['confirmacao', 'reuniao', 'presenca']
-    }
-  ];
-
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+                         template.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         template.template_tags?.some(tag => 
+                           tag.tag.toLowerCase().includes(searchTerm.toLowerCase())
+                         );
     const matchesCategory = categoryFilter === 'all' || template.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
   const getCategoryById = (categoryId: string) => categories.find(cat => cat.id === categoryId);
+
+  // Calcular estatísticas
+  const totalTemplates = templates.length;
+  const activeTemplates = templates.length; // Todos são considerados ativos por padrão
+  const mostUsedTemplate = templates.reduce((max, template) => 
+    (template.usage_count || 0) > (max.usage_count || 0) ? template : max, 
+    templates[0] || { name: 'N/A', usage_count: 0 }
+  );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <p className="text-slate-600">Carregando templates...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -208,10 +91,10 @@ Aguardamos seu retorno!
 
       {/* Stats Cards */}
       <StatsCards
-        totalTemplates={templates.length}
-        activeTemplates={templates.filter(t => t.isActive).length}
-        mostUsedTemplate="Newsletter"
-        mostUsedCount={128}
+        totalTemplates={totalTemplates}
+        activeTemplates={activeTemplates}
+        mostUsedTemplate={mostUsedTemplate.name}
+        mostUsedCount={mostUsedTemplate.usage_count || 0}
         categoriesCount={categories.length}
       />
 
@@ -229,7 +112,7 @@ Aguardamos seu retorno!
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
-              placeholder="Buscar templates por nome, descrição ou tags..."
+              placeholder="Buscar templates por nome, conteúdo ou tags..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -239,19 +122,56 @@ Aguardamos seu retorno!
       </Card>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTemplates.map((template) => {
-          const category = getCategoryById(template.category);
-          return (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              category={category}
-              onPreview={setPreviewTemplate}
-            />
-          );
-        })}
-      </div>
+      {filteredTemplates.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTemplates.map((template) => {
+            const category = getCategoryById(template.category || '');
+            return (
+              <TemplateCard
+                key={template.id}
+                template={{
+                  ...template,
+                  usageCount: template.usage_count || 0,
+                  createdAt: template.created_at,
+                  lastUsed: template.updated_at,
+                  isActive: true,
+                  tags: template.template_tags?.map(t => t.tag) || [],
+                  variables: template.variables || []
+                }}
+                category={category}
+                onPreview={setPreviewTemplate}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="bg-white border-0 shadow-sm">
+          <CardContent className="p-12 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                <Search className="w-8 h-8 text-slate-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                  {searchTerm || categoryFilter !== 'all' ? 'Nenhum template encontrado' : 'Nenhum template criado'}
+                </h3>
+                <p className="text-slate-600 mb-4">
+                  {searchTerm || categoryFilter !== 'all' 
+                    ? 'Tente ajustar os filtros de busca para encontrar templates.'
+                    : 'Comece criando seu primeiro template de mensagem para automatizar suas comunicações.'
+                  }
+                </p>
+                {!searchTerm && categoryFilter === 'all' && (
+                  <Button onClick={() => setIsCreateDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Criar Primeiro Template
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Preview Dialog */}
       <TemplatePreview

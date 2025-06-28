@@ -10,80 +10,35 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Plus, Filter, Download, Upload, Edit, Trash2, Tag, Users, Phone, Mail } from 'lucide-react';
+import { Search, Plus, Filter, Download, Upload, Edit, Trash2, Tag, Users, Phone, Mail, Loader2 } from 'lucide-react';
+import { useContacts } from '@/hooks/useContacts';
+import { useTags } from '@/hooks/useTags';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Contacts = () => {
+  const { organization } = useAuth();
+  const { contacts, isLoading: contactsLoading, createContact, updateContact, deleteContact } = useContacts();
+  const { tags, isLoading: tagsLoading } = useTags();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState('all');
-  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-  // Mock data - em produção seria do Supabase
-  const tags = [
-    { id: 'eleitores', name: 'Eleitores', color: '#2563EB', count: 4800 },
-    { id: 'apoiadores', name: 'Apoiadores', color: '#7C3AED', count: 3200 },
-    { id: 'liderancas', name: 'Lideranças', color: '#DC2626', count: 2100 },
-    { id: 'midia', name: 'Mídia', color: '#059669', count: 890 },
-    { id: 'empresarios', name: 'Empresários', color: '#D97706', count: 675 }
-  ];
-
-  const contacts = [
-    {
-      id: 1,
-      name: 'João Silva',
-      phone: '(11) 99999-1234',
-      email: 'joao@email.com',
-      company: 'Empresa ABC',
-      tags: ['eleitores', 'apoiadores'],
-      status: 'Ativo',
-      lastContact: '2024-01-15',
-      createdAt: '2024-01-10'
-    },
-    {
-      id: 2,
-      name: 'Maria Santos',
-      phone: '(11) 88888-5678',
-      email: 'maria@email.com',
-      company: 'Prefeitura Local',
-      tags: ['liderancas'],
-      status: 'Ativo',
-      lastContact: '2024-01-14',
-      createdAt: '2024-01-08'
-    },
-    {
-      id: 3,
-      name: 'Carlos Oliveira',
-      phone: '(11) 77777-9012',
-      email: 'carlos@jornal.com',
-      company: 'Jornal da Cidade',
-      tags: ['midia'],
-      status: 'Ativo',
-      lastContact: '2024-01-13',
-      createdAt: '2024-01-05'
-    },
-    {
-      id: 4,
-      name: 'Ana Costa',
-      phone: '(11) 66666-3456',
-      email: 'ana@loja.com',
-      company: 'Loja do Bairro',
-      tags: ['empresarios', 'apoiadores'],
-      status: 'Inativo',
-      lastContact: '2024-01-10',
-      createdAt: '2024-01-03'
-    }
-  ];
-
+  // Filtrar contatos baseado na busca e tag selecionada
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          contact.phone.includes(searchTerm) ||
-                         contact.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTag = selectedTag === 'all' || contact.tags.includes(selectedTag);
+                         (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesTag = selectedTag === 'all' || 
+                      contact.tags?.some(tag => tag.id === selectedTag);
+    
     return matchesSearch && matchesTag;
   });
 
-  const handleSelectContact = (contactId: number) => {
+  const handleSelectContact = (contactId: string) => {
     setSelectedContacts(prev => 
       prev.includes(contactId) 
         ? prev.filter(id => id !== contactId)
@@ -99,7 +54,44 @@ const Contacts = () => {
     }
   };
 
-  const getTagById = (tagId: string) => tags.find(tag => tag.id === tagId);
+  const handleCreateContact = async (formData: FormData) => {
+    const name = formData.get('name') as string;
+    const phone = formData.get('phone') as string;
+    const email = formData.get('email') as string;
+    const company = formData.get('company') as string;
+    const notes = formData.get('notes') as string;
+
+    if (!name || !phone || !organization?.id) return;
+
+    await createContact.mutateAsync({
+      name,
+      phone,
+      email: email || undefined,
+      company: company || undefined,
+      notes: notes || undefined,
+      status: 'active',
+      organization_id: organization.id,
+    });
+
+    setIsCreateDialogOpen(false);
+  };
+
+  // Contadores para estatísticas
+  const totalContacts = contacts.length;
+  const activeContacts = contacts.filter(c => c.status === 'active').length;
+  const contactsWithEmail = contacts.filter(c => c.email).length;
+  const totalTags = tags.length;
+
+  if (contactsLoading || tagsLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <p className="text-slate-600">Carregando contatos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -150,45 +142,42 @@ const Contacts = () => {
               <DialogHeader>
                 <DialogTitle>Criar Novo Contato</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Nome *</Label>
-                  <Input id="name" placeholder="Nome completo" className="mt-1" />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Telefone *</Label>
-                  <Input id="phone" placeholder="(11) 99999-9999" className="mt-1" />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="email@exemplo.com" className="mt-1" />
-                </div>
-                <div>
-                  <Label htmlFor="company">Empresa</Label>
-                  <Input id="company" placeholder="Nome da empresa" className="mt-1" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Tags</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {tags.map(tag => (
-                      <div key={tag.id} className="flex items-center space-x-2">
-                        <Checkbox id={tag.id} />
-                        <Label htmlFor={tag.id} className="text-sm">{tag.name}</Label>
-                      </div>
-                    ))}
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handleCreateContact(formData);
+              }}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Nome *</Label>
+                    <Input id="name" name="name" placeholder="Nome completo" className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">Telefone *</Label>
+                    <Input id="phone" name="phone" placeholder="(11) 99999-9999" className="mt-1" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" placeholder="email@exemplo.com" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="company">Empresa</Label>
+                    <Input id="company" name="company" placeholder="Nome da empresa" className="mt-1" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="notes">Observações</Label>
+                    <Textarea id="notes" name="notes" placeholder="Observações sobre o contato..." className="mt-1" />
                   </div>
                 </div>
-                <div className="col-span-2">
-                  <Label htmlFor="notes">Observações</Label>
-                  <Textarea id="notes" placeholder="Observações sobre o contato..." className="mt-1" />
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createContact.isPending}>
+                    {createContact.isPending ? 'Salvando...' : 'Salvar Contato'}
+                  </Button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button>Salvar Contato</Button>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -201,7 +190,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Total de Contatos</p>
-                <p className="text-2xl font-bold text-slate-900">{contacts.length.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-slate-900">{totalContacts.toLocaleString()}</p>
               </div>
               <Users className="w-8 h-8 text-blue-600" />
             </div>
@@ -213,9 +202,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Contatos Ativos</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {contacts.filter(c => c.status === 'Ativo').length}
-                </p>
+                <p className="text-2xl font-bold text-slate-900">{activeContacts}</p>
               </div>
               <Phone className="w-8 h-8 text-green-600" />
             </div>
@@ -227,9 +214,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Com Email</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {contacts.filter(c => c.email).length}
-                </p>
+                <p className="text-2xl font-bold text-slate-900">{contactsWithEmail}</p>
               </div>
               <Mail className="w-8 h-8 text-purple-600" />
             </div>
@@ -241,7 +226,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Tags Ativas</p>
-                <p className="text-2xl font-bold text-slate-900">{tags.length}</p>
+                <p className="text-2xl font-bold text-slate-900">{totalTags}</p>
               </div>
               <Tag className="w-8 h-8 text-orange-600" />
             </div>
@@ -259,20 +244,26 @@ const Contacts = () => {
               onClick={() => setSelectedTag('all')}
               className={selectedTag === 'all' ? 'bg-slate-900' : ''}
             >
-              Todos ({contacts.length})
+              Todos ({totalContacts})
             </Button>
-            {tags.map(tag => (
-              <Button
-                key={tag.id}
-                variant={selectedTag === tag.id ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedTag(tag.id)}
-                className={selectedTag === tag.id ? '' : 'hover:bg-slate-50'}
-                style={selectedTag === tag.id ? { backgroundColor: tag.color } : {}}
-              >
-                {tag.name} ({tag.count})
-              </Button>
-            ))}
+            {tags.map(tag => {
+              const tagContactCount = contacts.filter(contact => 
+                contact.tags?.some(t => t.id === tag.id)
+              ).length;
+              
+              return (
+                <Button
+                  key={tag.id}
+                  variant={selectedTag === tag.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedTag(tag.id)}
+                  className={selectedTag === tag.id ? '' : 'hover:bg-slate-50'}
+                  style={selectedTag === tag.id ? { backgroundColor: tag.color } : {}}
+                >
+                  {tag.name} ({tagContactCount})
+                </Button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -344,7 +335,7 @@ const Contacts = () => {
               <TableRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedContacts.length === filteredContacts.length}
+                    checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
@@ -354,7 +345,7 @@ const Contacts = () => {
                 <TableHead>Empresa</TableHead>
                 <TableHead>Tags</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Último Contato</TableHead>
+                <TableHead>Criado em</TableHead>
                 <TableHead className="w-16">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -369,32 +360,29 @@ const Contacts = () => {
                   </TableCell>
                   <TableCell className="font-medium">{contact.name}</TableCell>
                   <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                  <TableCell>{contact.email}</TableCell>
-                  <TableCell>{contact.company}</TableCell>
+                  <TableCell>{contact.email || '-'}</TableCell>
+                  <TableCell>{contact.company || '-'}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {contact.tags.map(tagId => {
-                        const tag = getTagById(tagId);
-                        return tag ? (
-                          <Badge
-                            key={tagId}
-                            variant="outline"
-                            className="text-xs"
-                            style={{ borderColor: tag.color, color: tag.color }}
-                          >
-                            {tag.name}
-                          </Badge>
-                        ) : null;
-                      })}
+                      {contact.tags?.map(tag => (
+                        <Badge
+                          key={tag.id}
+                          variant="outline"
+                          className="text-xs"
+                          style={{ borderColor: tag.color, color: tag.color }}
+                        >
+                          {tag.name}
+                        </Badge>
+                      ))}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={contact.status === 'Ativo' ? 'default' : 'secondary'}>
-                      {contact.status}
+                    <Badge variant={contact.status === 'active' ? 'default' : 'secondary'}>
+                      {contact.status === 'active' ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-slate-600">
-                    {new Date(contact.lastContact).toLocaleDateString('pt-BR')}
+                    {new Date(contact.created_at).toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm">
@@ -405,6 +393,12 @@ const Contacts = () => {
               ))}
             </TableBody>
           </Table>
+          
+          {filteredContacts.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-slate-500">Nenhum contato encontrado</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

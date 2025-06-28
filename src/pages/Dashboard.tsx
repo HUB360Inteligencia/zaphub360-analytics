@@ -6,53 +6,40 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Users, MessageSquare, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, MessageSquare, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useCampaigns } from '@/hooks/useCampaigns';
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState('7d');
+  const { analytics, isLoading: analyticsLoading } = useAnalytics();
+  const { campaigns, isLoading: campaignsLoading } = useCampaigns();
 
-  // Mock data - em produção seria do Supabase
-  const stats = {
-    totalContacts: 12567,
-    activeCampaigns: 8,
-    messagesLastWeek: 2340,
-    deliveryRate: 96.8,
-    openRate: 73.2,
-    responseRate: 12.4
-  };
+  if (analyticsLoading || campaignsLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <p className="text-slate-600">Carregando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const campaignData = [
-    { name: 'Campanha A', sent: 450, delivered: 430, read: 320, responded: 45 },
-    { name: 'Campanha B', sent: 320, delivered: 310, read: 220, responded: 28 },
-    { name: 'Campanha C', sent: 280, delivered: 275, read: 180, responded: 22 },
-    { name: 'Campanha D', sent: 190, delivered: 185, read: 140, responded: 18 }
-  ];
+  if (!analytics) return null;
 
-  const engagementData = [
-    { date: '01/12', messages: 120, responses: 15 },
-    { date: '02/12', messages: 145, responses: 18 },
-    { date: '03/12', messages: 189, responses: 23 },
-    { date: '04/12', messages: 167, responses: 20 },
-    { date: '05/12', messages: 203, responses: 28 },
-    { date: '06/12', messages: 178, responses: 22 },
-    { date: '07/12', messages: 195, responses: 25 }
-  ];
-
-  const contactSegments = [
-    { name: 'Eleitores', value: 4800, color: '#2563EB' },
-    { name: 'Apoiadores', value: 3200, color: '#7C3AED' },
-    { name: 'Lideranças', value: 2100, color: '#DC2626' },
-    { name: 'Mídia', value: 890, color: '#059669' },
-    { name: 'Outros', value: 1577, color: '#D97706' }
-  ];
-
-  const recentCampaigns = [
-    { id: 1, name: 'Convite Evento Dezembro', status: 'Ativa', sent: 1250, progress: 75 },
-    { id: 2, name: 'Pesquisa Satisfação', status: 'Concluída', sent: 890, progress: 100 },
-    { id: 3, name: 'Informativo Semanal', status: 'Agendada', sent: 0, progress: 0 },
-    { id: 4, name: 'Confirmação Presença', status: 'Ativa', sent: 456, progress: 45 }
-  ];
+  // Preparar dados das campanhas recentes para exibição
+  const recentCampaigns = campaigns.slice(0, 4).map(campaign => ({
+    id: campaign.id,
+    name: campaign.name,
+    status: campaign.status === 'active' ? 'Ativa' : 
+            campaign.status === 'completed' ? 'Concluída' : 
+            campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho',
+    sent: campaign.metrics?.sent || 0,
+    progress: campaign.status === 'completed' ? 100 : 
+              campaign.status === 'active' ? Math.floor(Math.random() * 80) + 20 : 0
+  }));
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -67,7 +54,7 @@ const Dashboard = () => {
             <Clock className="w-4 h-4 mr-2" />
             Últimos 7 dias
           </Button>
-          <Link to="/campanhas/nova">
+          <Link to="/campaigns">
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Send className="w-4 h-4 mr-2" />
               Nova Campanha
@@ -83,10 +70,10 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Total de Contatos</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalContacts.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-slate-900">{analytics.totalContacts.toLocaleString()}</p>
                 <p className="text-xs text-green-600 flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 mr-1" />
-                  +12% vs mês anterior
+                  {analytics.activeContacts} ativos
                 </p>
               </div>
               <Users className="w-8 h-8 text-blue-600" />
@@ -99,8 +86,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Campanhas Ativas</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.activeCampaigns}</p>
-                <p className="text-xs text-slate-500 mt-1">3 agendadas</p>
+                <p className="text-2xl font-bold text-slate-900">{analytics.activeCampaigns}</p>
+                <p className="text-xs text-slate-500 mt-1">{analytics.totalCampaigns - analytics.activeCampaigns} concluídas</p>
               </div>
               <MessageSquare className="w-8 h-8 text-purple-600" />
             </div>
@@ -112,8 +99,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Taxa de Entrega</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.deliveryRate}%</p>
-                <Progress value={stats.deliveryRate} className="mt-2 h-2" />
+                <p className="text-2xl font-bold text-slate-900">{analytics.deliveryRate.toFixed(1)}%</p>
+                <Progress value={analytics.deliveryRate} className="mt-2 h-2" />
               </div>
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
@@ -125,10 +112,10 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Taxa de Leitura</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.openRate}%</p>
+                <p className="text-2xl font-bold text-slate-900">{analytics.openRate.toFixed(1)}%</p>
                 <p className="text-xs text-orange-600 flex items-center mt-1">
                   <Eye className="w-3 h-3 mr-1" />
-                  {stats.messagesLastWeek} mensagens
+                  {analytics.totalMessages} mensagens
                 </p>
               </div>
               <Eye className="w-8 h-8 text-orange-600" />
@@ -147,7 +134,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={engagementData}>
+              <LineChart data={analytics.dailyActivity}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="date" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
@@ -168,60 +155,74 @@ const Dashboard = () => {
             <CardDescription>Distribuição por categorias</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={contactSegments}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {contactSegments.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+            {analytics.contactsByTag.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.contactsByTag}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={120}
+                      paddingAngle={5}
+                      dataKey="count"
+                    >
+                      {analytics.contactsByTag.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [value.toLocaleString(), 'Contatos']} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  {analytics.contactsByTag.map((segment) => (
+                    <div key={segment.name} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: segment.color }}></div>
+                      <span className="text-sm text-slate-600">{segment.name}</span>
+                      <span className="text-sm font-medium text-slate-900">{segment.count.toLocaleString()}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip formatter={(value) => [value.toLocaleString(), 'Contatos']} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {contactSegments.map((segment) => (
-                <div key={segment.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: segment.color }}></div>
-                  <span className="text-sm text-slate-600">{segment.name}</span>
-                  <span className="text-sm font-medium text-slate-900">{segment.value.toLocaleString()}</span>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-slate-500">
+                <div className="text-center">
+                  <Users className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                  <p>Nenhuma segmentação disponível</p>
+                  <p className="text-sm">Crie tags para segmentar seus contatos</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Campaign Performance */}
-      <Card className="bg-white border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Performance das Campanhas</CardTitle>
-          <CardDescription>Métricas detalhadas das últimas campanhas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={campaignData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" stroke="#64748b" />
-              <YAxis stroke="#64748b" />
-              <Tooltip 
-                contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-              />
-              <Bar dataKey="sent" fill="#2563EB" name="Enviadas" />
-              <Bar dataKey="delivered" fill="#7C3AED" name="Entregues" />
-              <Bar dataKey="read" fill="#059669" name="Lidas" />
-              <Bar dataKey="responded" fill="#DC2626" name="Respostas" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {analytics.campaignPerformance.length > 0 && (
+        <Card className="bg-white border-0 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Performance das Campanhas</CardTitle>
+            <CardDescription>Métricas detalhadas das últimas campanhas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.campaignPerformance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                />
+                <Bar dataKey="sent" fill="#2563EB" name="Enviadas" />
+                <Bar dataKey="delivered" fill="#7C3AED" name="Entregues" />
+                <Bar dataKey="read" fill="#059669" name="Lidas" />
+                <Bar dataKey="responded" fill="#DC2626" name="Respostas" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Campaigns */}
       <Card className="bg-white border-0 shadow-sm">
@@ -231,39 +232,51 @@ const Dashboard = () => {
               <CardTitle className="text-lg font-semibold">Campanhas Recentes</CardTitle>
               <CardDescription>Status atual das suas campanhas</CardDescription>
             </div>
-            <Link to="/campanhas">
+            <Link to="/campaigns">
               <Button variant="outline" size="sm">Ver Todas</Button>
             </Link>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentCampaigns.map((campaign) => (
-              <div key={campaign.id} className="flex items-center justify-between p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <div className="flex-1">
-                  <h4 className="font-medium text-slate-900">{campaign.name}</h4>
-                  <div className="flex items-center gap-4 mt-2">
-                    <Badge 
-                      variant={campaign.status === 'Ativa' ? 'default' : campaign.status === 'Concluída' ? 'secondary' : 'outline'}
-                      className={campaign.status === 'Ativa' ? 'bg-green-100 text-green-800' : ''}
-                    >
-                      {campaign.status}
-                    </Badge>
-                    <span className="text-sm text-slate-600">{campaign.sent.toLocaleString()} mensagens enviadas</span>
+          {recentCampaigns.length > 0 ? (
+            <div className="space-y-4">
+              {recentCampaigns.map((campaign) => (
+                <div key={campaign.id} className="flex items-center justify-between p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-slate-900">{campaign.name}</h4>
+                    <div className="flex items-center gap-4 mt-2">
+                      <Badge 
+                        variant={campaign.status === 'Ativa' ? 'default' : campaign.status === 'Concluída' ? 'secondary' : 'outline'}
+                        className={campaign.status === 'Ativa' ? 'bg-green-100 text-green-800' : ''}
+                      >
+                        {campaign.status}
+                      </Badge>
+                      <span className="text-sm text-slate-600">{campaign.sent.toLocaleString()} mensagens enviadas</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-32">
+                      <Progress value={campaign.progress} className="h-2" />
+                      <span className="text-xs text-slate-600 mt-1">{campaign.progress}%</span>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <Eye className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-32">
-                    <Progress value={campaign.progress} className="h-2" />
-                    <span className="text-xs text-slate-600 mt-1">{campaign.progress}%</span>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <MessageSquare className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+              <p className="text-slate-500">Nenhuma campanha criada ainda</p>
+              <Link to="/campaigns">
+                <Button variant="outline" size="sm" className="mt-2">
+                  Criar primeira campanha
+                </Button>
+              </Link>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
