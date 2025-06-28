@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -282,11 +281,11 @@ Aguardamos seu retorno!
                   <Label>Variáveis Detectadas</Label>
                   <div className="mt-2 p-4 bg-slate-50 rounded-lg">
                     <p className="text-sm text-slate-600 mb-2">
-                      As variáveis serão detectadas automaticamente quando você usar o formato {{variavel}}
+                      As variáveis serão detectadas automaticamente quando você usar o formato {"{{variavel}}"}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700">{{nome}}</Badge>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700">{{evento}}</Badge>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700">{"{{nome}}"}</Badge>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700">{"{{evento}}"}</Badge>
                     </div>
                   </div>
                 </div>
