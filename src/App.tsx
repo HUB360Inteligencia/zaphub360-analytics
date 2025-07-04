@@ -11,6 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Campaigns from "./pages/Campaigns";
 import Templates from "./pages/Templates";
+import Events from "./pages/Events";
+import EventForm from "./pages/EventForm";
 import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -51,6 +53,27 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Templates />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/events" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Events />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/events/new" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EventForm />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/events/:id/edit" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EventForm />
                 </Layout>
               </ProtectedRoute>
             } />

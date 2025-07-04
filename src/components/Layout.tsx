@@ -25,6 +25,7 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Contatos', href: '/contacts', icon: Users, current: location.pathname === '/contacts' },
     { name: 'Campanhas', href: '/campaigns', icon: Send, current: location.pathname === '/campaigns' },
     { name: 'Templates', href: '/templates', icon: FileText, current: location.pathname === '/templates' },
+    { name: 'Eventos', href: '/events', icon: Calendar, current: location.pathname.startsWith('/events') },
     { name: 'Relatórios', href: '/reports', icon: BarChart3, current: location.pathname === '/reports' },
   ];
 

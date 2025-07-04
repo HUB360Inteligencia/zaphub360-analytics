@@ -161,6 +161,157 @@ export type Database = {
           },
         ]
       }
+      event_messages: {
+        Row: {
+          contact_name: string | null
+          contact_phone: string
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          event_id: string
+          id: string
+          message_content: string
+          organization_id: string
+          read_at: string | null
+          responded_at: string | null
+          retry_count: number | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          contact_name?: string | null
+          contact_phone: string
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_id: string
+          id?: string
+          message_content: string
+          organization_id: string
+          read_at?: string | null
+          responded_at?: string | null
+          retry_count?: number | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          contact_name?: string | null
+          contact_phone?: string
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          event_id?: string
+          id?: string
+          message_content?: string
+          organization_id?: string
+          read_at?: string | null
+          responded_at?: string | null
+          retry_count?: number | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          event_date: string | null
+          event_id: string
+          id: string
+          image_filename: string | null
+          instance_id: string | null
+          location: string | null
+          message_image: string | null
+          message_text: string
+          name: string
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string | null
+          event_id: string
+          id?: string
+          image_filename?: string | null
+          instance_id?: string | null
+          location?: string | null
+          message_image?: string | null
+          message_text: string
+          name: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_date?: string | null
+          event_id?: string
+          id?: string
+          image_filename?: string | null
+          instance_id?: string | null
+          location?: string | null
+          message_image?: string | null
+          message_text?: string
+          name?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instances: {
+        Row: {
+          api_key: string | null
+          api_url: string | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          phone_number: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          api_url?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          phone_number: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          api_url?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          phone_number?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           created_at: string
