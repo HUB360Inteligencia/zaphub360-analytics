@@ -212,6 +212,7 @@ export type Database = {
         Row: {
           campanha: string | null
           contato: string | null
+          content: string | null
           created_at: string
           evento: string | null
           id: number
@@ -222,6 +223,7 @@ export type Database = {
         Insert: {
           campanha?: string | null
           contato?: string | null
+          content?: string | null
           created_at?: string
           evento?: string | null
           id?: number
@@ -232,6 +234,7 @@ export type Database = {
         Update: {
           campanha?: string | null
           contato?: string | null
+          content?: string | null
           created_at?: string
           evento?: string | null
           id?: number
@@ -247,9 +250,11 @@ export type Database = {
           content: string
           created_at: string
           created_by: string | null
+          event_id: string | null
           id: string
           name: string
           organization_id: string
+          time_delay: number | null
           updated_at: string
           usage_count: number | null
           variables: string[] | null
@@ -259,9 +264,11 @@ export type Database = {
           content: string
           created_at?: string
           created_by?: string | null
+          event_id?: string | null
           id?: string
           name: string
           organization_id: string
+          time_delay?: number | null
           updated_at?: string
           usage_count?: number | null
           variables?: string[] | null
@@ -271,9 +278,11 @@ export type Database = {
           content?: string
           created_at?: string
           created_by?: string | null
+          event_id?: string | null
           id?: string
           name?: string
           organization_id?: string
+          time_delay?: number | null
           updated_at?: string
           usage_count?: number | null
           variables?: string[] | null
@@ -296,13 +305,16 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           error_message: string | null
+          evento_nome: string | null
           id: string
+          instância: string | null
           organization_id: string
           read_at: string | null
           retry_count: number | null
           sent_at: string | null
           status: string
           template_id: string | null
+          whatsapp: string | null
           whatsapp_message_id: string | null
         }
         Insert: {
@@ -312,13 +324,16 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           error_message?: string | null
+          evento_nome?: string | null
           id?: string
+          instância?: string | null
           organization_id: string
           read_at?: string | null
           retry_count?: number | null
           sent_at?: string | null
           status?: string
           template_id?: string | null
+          whatsapp?: string | null
           whatsapp_message_id?: string | null
         }
         Update: {
@@ -328,13 +343,16 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           error_message?: string | null
+          evento_nome?: string | null
           id?: string
+          instância?: string | null
           organization_id?: string
           read_at?: string | null
           retry_count?: number | null
           sent_at?: string | null
           status?: string
           template_id?: string | null
+          whatsapp?: string | null
           whatsapp_message_id?: string | null
         }
         Relationships: [

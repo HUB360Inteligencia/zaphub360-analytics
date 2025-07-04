@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useErrorHandler } from './useErrorHandler';
 
 export interface Template {
   id: string;
@@ -20,11 +21,15 @@ export interface Template {
 export const useTemplates = () => {
   const { organization } = useAuth();
   const queryClient = useQueryClient();
+  const { handleError, validateRequired } = useErrorHandler();
 
   const templatesQuery = useQuery({
     queryKey: ['templates', organization?.id],
     queryFn: async () => {
-      if (!organization?.id) return [];
+      if (!organization?.id) {
+        console.warn('No organization ID available for templates query');
+        return [];
+      }
       
       const { data, error } = await supabase
         .from('message_templates')
@@ -35,17 +40,47 @@ export const useTemplates = () => {
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching templates:', error);
+        throw error;
+      }
+      
+      // Validate and sanitize data
+      const validTemplates = (data || []).map(template => ({
+        ...template,
+        variables: template.variables || [],
+        usage_count: template.usage_count || 0,
+        category: template.category || 'Vendas',
+        template_tags: template.template_tags || []
+      }));
+      
+      return validTemplates;
     },
     enabled: !!organization?.id,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const createTemplate = useMutation({
     mutationFn: async (templateData: Omit<Template, 'id' | 'created_at' | 'updated_at' | 'template_tags'>) => {
+      // Validate required fields
+      if (!validateRequired(templateData, ['name', 'content', 'organization_id'])) {
+        throw new Error('Campos obrigatórios não preenchidos');
+      }
+
+      // Sanitize data
+      const sanitizedData = {
+        ...templateData,
+        name: templateData.name.trim(),
+        content: templateData.content.trim(),
+        category: templateData.category || 'Vendas',
+        variables: templateData.variables || [],
+        usage_count: 0
+      };
+
       const { data, error } = await supabase
         .from('message_templates')
-        .insert(templateData)
+        .insert(sanitizedData)
         .select()
         .single();
 
@@ -57,8 +92,7 @@ export const useTemplates = () => {
       toast.success('Template criado com sucesso!');
     },
     onError: (error) => {
-      console.error('Erro ao criar template:', error);
-      toast.error('Erro ao criar template');
+      handleError(error, 'Criar template');
     },
   });
 

@@ -54,16 +54,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, retryCount = 0) => {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
+        // If profile doesn't exist and this is first retry, wait and try again
+        if (profileError.code === 'PGRST116' && retryCount < 3) {
+          setTimeout(() => fetchProfile(userId, retryCount + 1), 1000);
+          return;
+        }
+        return;
+      }
+
+      // If no profile found, it might be a new user
+      if (!profileData && retryCount < 3) {
+        setTimeout(() => fetchProfile(userId, retryCount + 1), 1000);
+        return;
+      }
+
+      if (!profileData) {
+        console.warn('No profile found for user:', userId);
         return;
       }
 
@@ -75,11 +91,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .from('organizations')
           .select('*')
           .eq('id', profileData.organization_id)
-          .single();
+          .maybeSingle();
 
         if (orgError) {
           console.error('Error fetching organization:', orgError);
-        } else {
+        } else if (orgData) {
           setOrganization(orgData);
         }
       }
@@ -161,25 +177,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
         
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Check if this is a new user (just signed up)
-          if (event === 'SIGNED_IN') {
-            // For new signups, we'll handle this in the profile creation
-            setTimeout(() => {
+          // Check if this is a new user by attempting to fetch their profile first
+          setTimeout(async () => {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id, organization_id')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            if (!existingProfile || !existingProfile.organization_id) {
+              // New user or user without organization - set up their account
+              handleNewUser(session.user);
+            } else {
+              // Existing user, fetch their profile
               fetchProfile(session.user.id);
-            }, 100);
-          } else {
-            // Existing user, fetch profile
-            setTimeout(() => {
-              fetchProfile(session.user.id);
-            }, 100);
-          }
+            }
+          }, 100);
         } else {
           // No session, clear profile data
           setProfile(null);
