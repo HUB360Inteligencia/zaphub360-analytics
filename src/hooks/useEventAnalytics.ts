@@ -44,56 +44,51 @@ export const useEventAnalytics = (eventId?: string) => {
         };
       }
 
-      // Buscar dados dos contatos do evento (mais preciso que event_messages)
-      let contactsQuery = supabase
-        .from('new_contact_event')
+      // Buscar dados das mensagens do evento usando UUID direto
+      let messagesQuery = supabase
+        .from('event_messages')
         .select('*')
         .eq('organization_id', organization.id);
 
-      let eventData = null;
       if (eventId) {
-        // Buscar o event_id string da tabela events
-        const { data: eventDataResult } = await supabase
-          .from('events')
-          .select('event_id')
-          .eq('id', eventId)
-          .single();
-
-        eventData = eventDataResult;
-        if (eventData?.event_id) {
-          // Converter event_id string para numeric para comparar com new_contact_event
-          const eventIdNumeric = parseInt(eventData.event_id);
-          contactsQuery = contactsQuery.eq('event_id', eventIdNumeric);
-        }
+        messagesQuery = messagesQuery.eq('event_id', eventId);
       }
 
-      const { data: contacts, error } = await contactsQuery;
+      const { data: messages, error } = await messagesQuery;
 
       if (error) {
         console.error('Error fetching event analytics:', error);
         throw error;
       }
 
-      const totalMessages = contacts?.length || 0;
-      const deliveredMessages = contacts?.filter(c => c.status_envio === 'enviado').length || 0;
-      const readMessages = contacts?.filter(c => c.status_envio === 'lido').length || 0;
-      const responseMessages = contacts?.filter(c => c.status_envio === 'respondido').length || 0;
+      // Normalizar status
+      const normalizeStatus = (status: string): string => {
+        const statusMapping: Record<string, string> = {
+          'fila': 'fila',
+          'true': 'enviado',
+          'READ': 'lido',
+          'delivered': 'enviado',
+          'sent': 'enviado',
+          'read': 'lido',
+          'responded': 'respondido',
+          'failed': 'erro'
+        };
+        return statusMapping[status] || status.toLowerCase();
+      };
+
+      const normalizedMessages = (messages || []).map(msg => ({
+        ...msg,
+        status: normalizeStatus(msg.status)
+      }));
+
+      const totalMessages = normalizedMessages.length;
+      const deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+      const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
+      const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
 
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
       const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
-
-      // Buscar dados de atividade por horário da tabela event_messages
-      let messagesQuery = supabase
-        .from('event_messages')
-        .select('sent_at, read_at, responded_at')
-        .eq('organization_id', organization.id);
-
-      if (eventId && eventData?.event_id) {
-        messagesQuery = messagesQuery.eq('event_id', eventId);
-      }
-
-      const { data: messages } = await messagesQuery;
 
       const hourlyData = new Map();
       
@@ -140,8 +135,8 @@ export const useEventAnalytics = (eventId?: string) => {
 
       // Distribuição por status
       const statusCounts = new Map();
-      contacts?.forEach(contact => {
-        const status = contact.status_envio || 'pendente';
+      normalizedMessages?.forEach(message => {
+        const status = message.status || 'pendente';
         statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
       });
 

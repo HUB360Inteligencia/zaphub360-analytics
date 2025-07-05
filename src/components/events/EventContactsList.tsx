@@ -22,7 +22,7 @@ interface EventContactsListProps {
 }
 
 const contactSchema = z.object({
-  celular: z.string().min(10, 'Número deve ter pelo menos 10 dígitos'),
+  contact_phone: z.string().min(10, 'Número deve ter pelo menos 10 dígitos'),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -37,7 +37,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
-      celular: '',
+      contact_phone: '',
     },
   });
 
@@ -63,9 +63,9 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = !search || 
-      contact.celular?.includes(search);
+      contact.contact_phone?.includes(search);
     
-    const matchesStatus = statusFilter === 'todos' || contact.status_envio === statusFilter;
+    const matchesStatus = statusFilter === 'todos' || contact.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -73,7 +73,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const onSubmit = async (data: ContactFormData) => {
     try {
       await createEventContact.mutateAsync({
-        celular: data.celular,
+        celular: data.contact_phone,
         evento: eventName,
         event_id: eventId,
         responsavel_cadastro: 'manual'
@@ -89,9 +89,9 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
     const csvContent = [
       ['Telefone', 'Status', 'Responsável', 'Data Cadastro'].join(','),
       ...filteredContacts.map(contact => [
-        contact.celular || '',
-        contact.status_envio,
-        contact.responsavel_cadastro || '',
+        contact.contact_phone || '',
+        contact.status,
+        contact.contact_name || '',
         format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })
       ].join(','))
     ].join('\n');
@@ -183,7 +183,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                       <FormField
                         control={form.control}
-                        name="celular"
+                        name="contact_phone"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Telefone</FormLabel>
@@ -269,15 +269,15 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   </TableRow>
                 ) : (
                   filteredContacts.map((contact) => (
-                    <TableRow key={contact.id_contact_event}>
+                    <TableRow key={contact.id}>
                       <TableCell className="font-medium">
-                        {contact.celular || 'Sem telefone'}
+                        {contact.contact_phone || 'Sem telefone'}
                       </TableCell>
                       <TableCell>
-                        {getStatusBadge(contact.status_envio)}
+                        {getStatusBadge(contact.status)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {contact.responsavel_cadastro || 'Desconhecido'}
+                        {contact.contact_name || 'Sistema'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
@@ -286,7 +286,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteEventContact.mutate(contact.id_contact_event)}
+                          onClick={() => deleteEventContact.mutate(contact.id)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
