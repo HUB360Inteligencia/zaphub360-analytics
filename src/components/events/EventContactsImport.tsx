@@ -51,7 +51,7 @@ const EventContactsImport = ({ eventId, eventName }: EventContactsImportProps) =
 
   const parseContacts = (text: string) => {
     const lines = text.trim().split('\n').filter(line => line.trim());
-    const contacts: Array<{ name: string; celular: string }> = [];
+    const contacts: Array<{ celular: string }> = [];
     const errors: ContactError[] = [];
 
     lines.forEach((line, index) => {
@@ -59,51 +59,10 @@ const EventContactsImport = ({ eventId, eventName }: EventContactsImportProps) =
       if (!trimmedLine) return;
 
       // Tentar diferentes formatos de linha
-      let name = '';
       let phone = '';
-
-      // Formato: "Nome - Telefone" ou "Nome, Telefone"
-      if (trimmedLine.includes(' - ')) {
-        const parts = trimmedLine.split(' - ');
-        name = parts[0]?.trim() || '';
-        phone = parts[1]?.trim() || '';
-      } else if (trimmedLine.includes(', ')) {
-        const parts = trimmedLine.split(', ');
-        name = parts[0]?.trim() || '';
-        phone = parts[1]?.trim() || '';
-      } else if (trimmedLine.includes(',')) {
-        const parts = trimmedLine.split(',');
-        name = parts[0]?.trim() || '';
-        phone = parts[1]?.trim() || '';
-      } else {
-        // Apenas telefone
-        const phoneMatch = trimmedLine.match(/[\d\(\)\s\-\+]+/);
-        if (phoneMatch && phoneMatch[0].replace(/\D/g, '').length >= 10) {
-          phone = phoneMatch[0];
-          name = trimmedLine.replace(phoneMatch[0], '').trim() || 'Contato sem nome';
-        } else {
-          errors.push({
-            line: index + 1,
-            contact: trimmedLine,
-            error: 'Formato não reconhecido. Use: Nome - Telefone ou Nome, Telefone'
-          });
-          return;
-        }
-      }
-
-      // Validações
-      if (!name) {
-        name = 'Contato sem nome';
-      }
-
-      if (!phone) {
-        errors.push({
-          line: index + 1,
-          contact: trimmedLine,
-          error: 'Telefone não encontrado'
-        });
-        return;
-      }
+      
+      // Formato: apenas telefone
+      phone = trimmedLine;
 
       if (!validatePhone(phone)) {
         errors.push({
@@ -115,7 +74,6 @@ const EventContactsImport = ({ eventId, eventName }: EventContactsImportProps) =
       }
 
       contacts.push({
-        name: name.slice(0, 100), // Limitar tamanho do nome
         celular: formatPhone(phone)
       });
     });
@@ -136,7 +94,6 @@ const EventContactsImport = ({ eventId, eventName }: EventContactsImportProps) =
     for (const contact of contacts) {
       try {
         await createEventContact.mutateAsync({
-          name: contact.name,
           celular: contact.celular,
           evento: eventName,
           event_id: eventId,
@@ -146,7 +103,7 @@ const EventContactsImport = ({ eventId, eventName }: EventContactsImportProps) =
       } catch (error) {
         importErrors.push({
           line: 0,
-          contact: `${contact.name} - ${contact.celular}`,
+          contact: contact.celular,
           error: 'Erro ao salvar no banco de dados'
         });
       }
@@ -167,12 +124,12 @@ const EventContactsImport = ({ eventId, eventName }: EventContactsImportProps) =
   };
 
   const copyExample = () => {
-    const example = `João Silva - (41) 99999-1111
-Maria Santos, 41987654321
-Pedro Oliveira - +55 41 98765-4321
-Ana Costa, (41) 91234-5678
+    const example = `(41) 99999-1111
+41987654321
++55 41 98765-4321
+(41) 91234-5678
 41999887766
-Carlos Mendes - 41 9 8877-6655`;
+41 9 8877-6655`;
     
     navigator.clipboard.writeText(example);
   };
@@ -206,7 +163,7 @@ Carlos Mendes - 41 9 8877-6655`;
                   Cole os contatos (um por linha):
                 </label>
                 <Textarea
-                  placeholder="João Silva - (41) 99999-1111&#10;Maria Santos, 41987654321&#10;Pedro Oliveira - +55 41 98765-4321"
+                  placeholder="(41) 99999-1111&#10;41987654321&#10;+55 41 98765-4321"
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   rows={10}
@@ -264,7 +221,7 @@ Carlos Mendes - 41 9 8877-6655`;
               <CardHeader>
                 <CardTitle className="text-lg">Formatos Aceitos</CardTitle>
                 <CardDescription>
-                  Você pode usar qualquer um destes formatos, um contato por linha:
+                  Você pode usar qualquer telefone, um por linha:
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

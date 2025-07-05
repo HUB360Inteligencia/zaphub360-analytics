@@ -22,7 +22,6 @@ interface EventContactsListProps {
 }
 
 const contactSchema = z.object({
-  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   celular: z.string().min(10, 'Número deve ter pelo menos 10 dígitos'),
 });
 
@@ -38,7 +37,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
-      name: '',
       celular: '',
     },
   });
@@ -65,7 +63,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = !search || 
-      contact.name?.toLowerCase().includes(search.toLowerCase()) ||
       contact.celular?.includes(search);
     
     const matchesStatus = statusFilter === 'todos' || contact.status_envio === statusFilter;
@@ -76,7 +73,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const onSubmit = async (data: ContactFormData) => {
     try {
       await createEventContact.mutateAsync({
-        name: data.name,
         celular: data.celular,
         evento: eventName,
         event_id: eventId,
@@ -91,9 +87,8 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const exportContacts = () => {
     const csvContent = [
-      ['Nome', 'Telefone', 'Status', 'Responsável', 'Data Cadastro'].join(','),
+      ['Telefone', 'Status', 'Responsável', 'Data Cadastro'].join(','),
       ...filteredContacts.map(contact => [
-        contact.name || '',
         contact.celular || '',
         contact.status_envio,
         contact.responsavel_cadastro || '',
@@ -188,19 +183,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                       <FormField
                         control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nome do contato" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
                         name="celular"
                         render={({ field }) => (
                           <FormItem>
@@ -240,7 +222,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nome ou telefone..."
+                  placeholder="Buscar por telefone..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-10"
@@ -268,7 +250,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Responsável</TableHead>
@@ -279,7 +260,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               <TableBody>
                 {filteredContacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       {search || statusFilter !== 'todos' 
                         ? 'Nenhum contato encontrado com os filtros aplicados'
                         : 'Nenhum contato cadastrado ainda'
@@ -290,9 +271,8 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   filteredContacts.map((contact) => (
                     <TableRow key={contact.id_contact_event}>
                       <TableCell className="font-medium">
-                        {contact.name || 'Sem nome'}
+                        {contact.celular || 'Sem telefone'}
                       </TableCell>
-                      <TableCell>{contact.celular || 'Sem telefone'}</TableCell>
                       <TableCell>
                         {getStatusBadge(contact.status_envio)}
                       </TableCell>

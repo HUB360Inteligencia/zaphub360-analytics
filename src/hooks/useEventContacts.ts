@@ -62,12 +62,13 @@ export const useEventContacts = (eventId?: string) => {
           return [];
         }
 
-        // Buscar contatos usando o event_id string
+        // Buscar contatos usando o event_id convertido para numeric
+        const eventIdNumeric = parseInt(eventData.event_id);
         const { data, error } = await supabase
           .from('new_contact_event')
           .select('*')
           .eq('organization_id', organization.id)
-          .eq('event_id', eventData.event_id)
+          .eq('event_id', eventIdNumeric)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -110,8 +111,7 @@ export const useEventContacts = (eventId?: string) => {
   });
 
   const createEventContact = useMutation({
-    mutationFn: async (contactData: {
-      name: string;
+  mutationFn: async (contactData: {
       celular: string;
       evento: string;
       event_id: string;
@@ -148,10 +148,9 @@ export const useEventContacts = (eventId?: string) => {
       const { data, error } = await supabase
         .from('new_contact_event')
         .insert({
-          name: contactData.name.trim(),
           celular: formatPhone(contactData.celular),
           evento: contactData.evento,
-          event_id: eventData.event_id, // Usar o event_id string
+          event_id: parseInt(eventData.event_id), // Converter para numeric
           organization_id: organization.id,
           responsavel_cadastro: contactData.responsavel_cadastro || 'manual',
           status_envio: 'pendente'

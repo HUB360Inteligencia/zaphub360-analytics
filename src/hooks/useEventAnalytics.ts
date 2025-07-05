@@ -50,16 +50,20 @@ export const useEventAnalytics = (eventId?: string) => {
         .select('*')
         .eq('organization_id', organization.id);
 
+      let eventData = null;
       if (eventId) {
         // Buscar o event_id string da tabela events
-        const { data: eventData } = await supabase
+        const { data: eventDataResult } = await supabase
           .from('events')
           .select('event_id')
           .eq('id', eventId)
           .single();
 
+        eventData = eventDataResult;
         if (eventData?.event_id) {
-          contactsQuery = contactsQuery.eq('event_id', eventData.event_id);
+          // Converter event_id string para numeric para comparar com new_contact_event
+          const eventIdNumeric = parseInt(eventData.event_id);
+          contactsQuery = contactsQuery.eq('event_id', eventIdNumeric);
         }
       }
 
@@ -79,7 +83,18 @@ export const useEventAnalytics = (eventId?: string) => {
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
       const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
 
-      // Agrupar por hora para atividade horária baseado em created_at
+      // Buscar dados de atividade por horário da tabela event_messages
+      let messagesQuery = supabase
+        .from('event_messages')
+        .select('sent_at, read_at, responded_at')
+        .eq('organization_id', organization.id);
+
+      if (eventId && eventData?.event_id) {
+        messagesQuery = messagesQuery.eq('event_id', eventId);
+      }
+
+      const { data: messages } = await messagesQuery;
+
       const hourlyData = new Map();
       
       // Inicializar todas as horas com 0
@@ -88,23 +103,27 @@ export const useEventAnalytics = (eventId?: string) => {
         hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
       }
 
-      contacts?.forEach(contact => {
-        const hour = new Date(contact.created_at).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
+      // Processar dados das mensagens por timestamp real
+      messages?.forEach(message => {
+        if (message.sent_at) {
+          const hour = new Date(message.sent_at).getHours();
+          const key = `${hour.toString().padStart(2, '0')}:00`;
+          const data = hourlyData.get(key);
+          if (data) data.envio++;
+        }
         
-        const data = hourlyData.get(key);
-        if (data) {
-          // Simular distribuição baseada no status
-          if (contact.status_envio === 'enviado') {
-            data.envio++;
-          } else if (contact.status_envio === 'lido') {
-            data.envio++;
-            data.leitura++;
-          } else if (contact.status_envio === 'respondido') {
-            data.envio++;
-            data.leitura++;
-            data.resposta++;
-          }
+        if (message.read_at) {
+          const hour = new Date(message.read_at).getHours();
+          const key = `${hour.toString().padStart(2, '0')}:00`;
+          const data = hourlyData.get(key);
+          if (data) data.leitura++;
+        }
+        
+        if (message.responded_at) {
+          const hour = new Date(message.responded_at).getHours();
+          const key = `${hour.toString().padStart(2, '0')}:00`;
+          const data = hourlyData.get(key);
+          if (data) data.resposta++;
         }
       });
 
