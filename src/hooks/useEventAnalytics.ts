@@ -44,69 +44,95 @@ export const useEventAnalytics = (eventId?: string) => {
         };
       }
 
-      let query = supabase
-        .from('event_messages')
+      // Buscar dados dos contatos do evento (mais preciso que event_messages)
+      let contactsQuery = supabase
+        .from('new_contact_event')
         .select('*')
         .eq('organization_id', organization.id);
 
       if (eventId) {
-        query = query.eq('event_id', eventId);
+        // Buscar o event_id string da tabela events
+        const { data: eventData } = await supabase
+          .from('events')
+          .select('event_id')
+          .eq('id', eventId)
+          .single();
+
+        if (eventData?.event_id) {
+          contactsQuery = contactsQuery.eq('event_id', eventData.event_id);
+        }
       }
 
-      const { data: messages, error } = await query;
+      const { data: contacts, error } = await contactsQuery;
 
       if (error) {
         console.error('Error fetching event analytics:', error);
         throw error;
       }
 
-      const totalMessages = messages?.length || 0;
-      const deliveredMessages = messages?.filter(m => m.delivered_at).length || 0;
-      const readMessages = messages?.filter(m => m.read_at).length || 0;
-      const responseMessages = messages?.filter(m => m.responded_at).length || 0;
+      const totalMessages = contacts?.length || 0;
+      const deliveredMessages = contacts?.filter(c => c.status_envio === 'enviado').length || 0;
+      const readMessages = contacts?.filter(c => c.status_envio === 'lido').length || 0;
+      const responseMessages = contacts?.filter(c => c.status_envio === 'respondido').length || 0;
 
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
       const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
 
-      // Agrupar por hora para atividade horária
+      // Agrupar por hora para atividade horária baseado em created_at
       const hourlyData = new Map();
-      messages?.forEach(message => {
-        if (!message.sent_at) return;
-        
-        const hour = new Date(message.sent_at).getHours();
+      
+      // Inicializar todas as horas com 0
+      for (let i = 0; i < 24; i++) {
+        const hour = `${i.toString().padStart(2, '0')}:00`;
+        hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
+      }
+
+      contacts?.forEach(contact => {
+        const hour = new Date(contact.created_at).getHours();
         const key = `${hour.toString().padStart(2, '0')}:00`;
         
-        if (!hourlyData.has(key)) {
-          hourlyData.set(key, { messages: 0, delivered: 0, read: 0, responded: 0 });
-        }
-        
         const data = hourlyData.get(key);
-        data.messages++;
-        if (message.delivered_at) data.delivered++;
-        if (message.read_at) data.read++;
-        if (message.responded_at) data.responded++;
+        if (data) {
+          // Simular distribuição baseada no status
+          if (contact.status_envio === 'enviado') {
+            data.envio++;
+          } else if (contact.status_envio === 'lido') {
+            data.envio++;
+            data.leitura++;
+          } else if (contact.status_envio === 'respondido') {
+            data.envio++;
+            data.leitura++;
+            data.resposta++;
+          }
+        }
       });
 
       const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
         hour,
-        ...data
+        messages: data.envio, // Manter compatibilidade
+        delivered: data.envio, // Manter compatibilidade
+        read: data.leitura,
+        responded: data.resposta,
+        envio: data.envio,
+        leitura: data.leitura,
+        resposta: data.resposta
       })).sort((a, b) => a.hour.localeCompare(b.hour));
 
       // Distribuição por status
       const statusCounts = new Map();
-      messages?.forEach(message => {
-        const status = message.status || 'unknown';
+      contacts?.forEach(contact => {
+        const status = contact.status_envio || 'pendente';
         statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
       });
 
       const statusColors = {
-        queued: '#6B7280',
-        sent: '#3B82F6',
-        delivered: '#10B981',
-        read: '#8B5CF6',
-        failed: '#EF4444',
-        unknown: '#9CA3AF'
+        fila: '#6B7280',
+        pendente: '#6B7280',
+        enviado: '#3B82F6',
+        lido: '#8B5CF6',
+        respondido: '#10B981',
+        erro: '#EF4444'
       };
 
       const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({

@@ -170,6 +170,7 @@ export type Database = {
           error_message: string | null
           event_id: string
           id: string
+          id_wpp_msg: string | null
           message_content: string
           organization_id: string
           read_at: string | null
@@ -186,6 +187,7 @@ export type Database = {
           error_message?: string | null
           event_id: string
           id?: string
+          id_wpp_msg?: string | null
           message_content: string
           organization_id: string
           read_at?: string | null
@@ -202,6 +204,7 @@ export type Database = {
           error_message?: string | null
           event_id?: string
           id?: string
+          id_wpp_msg?: string | null
           message_content?: string
           organization_id?: string
           read_at?: string | null
@@ -541,9 +544,9 @@ export type Database = {
         Row: {
           celular: string | null
           created_at: string
-          event_id: string | null
+          event_id: number | null
           evento: string | null
-          id: number
+          id_contact_event: number
           name: string | null
           organization_id: string | null
           responsavel_cadastro: string | null
@@ -553,9 +556,9 @@ export type Database = {
         Insert: {
           celular?: string | null
           created_at?: string
-          event_id?: string | null
+          event_id?: number | null
           evento?: string | null
-          id?: number
+          id_contact_event?: number
           name?: string | null
           organization_id?: string | null
           responsavel_cadastro?: string | null
@@ -565,24 +568,16 @@ export type Database = {
         Update: {
           celular?: string | null
           created_at?: string
-          event_id?: string | null
+          event_id?: number | null
           evento?: string | null
-          id?: number
+          id_contact_event?: number
           name?: string | null
           organization_id?: string | null
           responsavel_cadastro?: string | null
           status_envio?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "new_contact_event_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       organizations: {
         Row: {

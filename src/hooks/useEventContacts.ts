@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useErrorHandler } from './useErrorHandler';
 
 export interface EventContact {
-  id: number;
+  id_contact_event: number;
   name: string | null;
   celular: string | null;
   evento: string | null;
@@ -16,6 +16,22 @@ export interface EventContact {
   created_at: string;
   updated_at: string | null;
 }
+
+// Mapeamento de status do webhook para sistema brasileiro
+const statusMapping: Record<string, string> = {
+  'Fila': 'fila',
+  'True': 'enviado',
+  'READ': 'lido',
+  'pendente': 'pendente',
+  'enviado': 'enviado',
+  'lido': 'lido',
+  'respondido': 'respondido',
+  'erro': 'erro'
+};
+
+const normalizeStatus = (status: string): string => {
+  return statusMapping[status] || status.toLowerCase();
+};
 
 export const useEventContacts = (eventId?: string) => {
   const { organization } = useAuth();
@@ -29,24 +45,64 @@ export const useEventContacts = (eventId?: string) => {
         return [];
       }
 
-      let query = supabase
-        .from('new_contact_event')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
-
       if (eventId) {
-        query = query.eq('event_id', eventId);
+        // Buscar o event_id string da tabela events usando o UUID
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .select('event_id')
+          .eq('id', eventId)
+          .single();
+
+        if (eventError) {
+          console.error('Error fetching event:', eventError);
+          throw eventError;
+        }
+
+        if (!eventData?.event_id) {
+          return [];
+        }
+
+        // Buscar contatos usando o event_id string
+        const { data, error } = await supabase
+          .from('new_contact_event')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .eq('event_id', eventData.event_id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching event contacts:', error);
+          throw error;
+        }
+
+        // Normalizar status dos contatos
+        const normalizedData = (data || []).map(contact => ({
+          ...contact,
+          status_envio: normalizeStatus(contact.status_envio || 'pendente')
+        }));
+
+        return normalizedData;
+      } else {
+        // Buscar todos os contatos da organização
+        const { data, error } = await supabase
+          .from('new_contact_event')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching event contacts:', error);
+          throw error;
+        }
+
+        // Normalizar status dos contatos
+        const normalizedData = (data || []).map(contact => ({
+          ...contact,
+          status_envio: normalizeStatus(contact.status_envio || 'pendente')
+        }));
+
+        return normalizedData;
       }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching event contacts:', error);
-        throw error;
-      }
-
-      return data || [];
     },
     enabled: !!organization?.id,
     retry: 3,
@@ -64,6 +120,15 @@ export const useEventContacts = (eventId?: string) => {
       if (!organization?.id) {
         throw new Error('Organization not found');
       }
+
+      // Buscar o event_id string da tabela events
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('event_id')
+        .eq('id', contactData.event_id)
+        .single();
+
+      if (eventError) throw eventError;
 
       // Formatar número no padrão DDI+DDD+número
       const formatPhone = (phone: string) => {
@@ -86,7 +151,7 @@ export const useEventContacts = (eventId?: string) => {
           name: contactData.name.trim(),
           celular: formatPhone(contactData.celular),
           evento: contactData.evento,
-          event_id: contactData.event_id,
+          event_id: eventData.event_id, // Usar o event_id string
           organization_id: organization.id,
           responsavel_cadastro: contactData.responsavel_cadastro || 'manual',
           status_envio: 'pendente'
@@ -111,7 +176,7 @@ export const useEventContacts = (eventId?: string) => {
       const { data, error } = await supabase
         .from('new_contact_event')
         .update({ status_envio: status })
-        .eq('id', id)
+        .eq('id_contact_event', id)
         .select()
         .single();
 
@@ -131,7 +196,7 @@ export const useEventContacts = (eventId?: string) => {
       const { error } = await supabase
         .from('new_contact_event')
         .delete()
-        .eq('id', id);
+        .eq('id_contact_event', id);
 
       if (error) throw error;
     },
@@ -155,9 +220,9 @@ export const useEventContacts = (eventId?: string) => {
 
     return {
       total,
+      fila: byStatus.fila || 0,
       pendente: byStatus.pendente || 0,
       enviado: byStatus.enviado || 0,
-      entregue: byStatus.entregue || 0,
       lido: byStatus.lido || 0,
       respondido: byStatus.respondido || 0,
       erro: byStatus.erro || 0,

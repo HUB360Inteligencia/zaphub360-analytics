@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { useEvents, useEvent } from '@/hooks/useEvents';
 import { useEventAnalytics } from '@/hooks/useEventAnalytics';
+import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsList from '@/components/events/EventContactsList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -26,6 +27,9 @@ const EventDetails = () => {
   const navigate = useNavigate();
   const { data: event, isLoading: eventLoading, error } = useEvent(id || '');
   const { analytics, isLoading: analyticsLoading } = useEventAnalytics(id);
+  const { getContactStats } = useEventContacts(id);
+
+  const contactStats = getContactStats();
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -136,14 +140,57 @@ const EventDetails = () => {
         </CardContent>
       </Card>
 
+      {/* Progress Bar */}
+      {contactStats.total > 0 && (
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Progresso do Evento</h3>
+                <span className="text-sm text-muted-foreground">
+                  {contactStats.enviado} de {contactStats.total} enviados
+                </span>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Enviados</span>
+                  <span>{Math.round((contactStats.enviado / contactStats.total) * 100)}%</span>
+                </div>
+                <Progress value={Math.round((contactStats.enviado / contactStats.total) * 100)} className="h-3" />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">{contactStats.fila}</div>
+                  <div className="text-xs text-muted-foreground">Na Fila</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">{contactStats.enviado}</div>
+                  <div className="text-xs text-muted-foreground">Enviados</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-purple-600">{contactStats.lido}</div>
+                  <div className="text-xs text-muted-foreground">Lidos</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-emerald-600">{contactStats.respondido}</div>
+                  <div className="text-xs text-muted-foreground">Respondidos</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total de Mensagens</p>
-                <p className="text-2xl font-bold text-card-foreground">{analytics?.totalMessages || 0}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total de Contatos</p>
+                <p className="text-2xl font-bold text-card-foreground">{contactStats.total}</p>
               </div>
               <Send className="w-8 h-8 text-primary" />
             </div>
@@ -155,7 +202,9 @@ const EventDetails = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
-                <p className="text-2xl font-bold text-card-foreground">{analytics?.deliveryRate.toFixed(1) || 0}%</p>
+                <p className="text-2xl font-bold text-card-foreground">
+                  {contactStats.total > 0 ? Math.round((contactStats.enviado / contactStats.total) * 100) : 0}%
+                </p>
               </div>
               <CheckCircle className="w-8 h-8 text-primary" />
             </div>
@@ -167,7 +216,9 @@ const EventDetails = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Taxa de Leitura</p>
-                <p className="text-2xl font-bold text-card-foreground">{analytics?.readRate.toFixed(1) || 0}%</p>
+                <p className="text-2xl font-bold text-card-foreground">
+                  {contactStats.enviado > 0 ? Math.round((contactStats.lido / contactStats.enviado) * 100) : 0}%
+                </p>
               </div>
               <Eye className="w-8 h-8 text-primary" />
             </div>
@@ -179,7 +230,9 @@ const EventDetails = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Taxa de Resposta</p>
-                <p className="text-2xl font-bold text-card-foreground">{analytics?.responseRate.toFixed(1) || 0}%</p>
+                <p className="text-2xl font-bold text-card-foreground">
+                  {contactStats.lido > 0 ? Math.round((contactStats.respondido / contactStats.lido) * 100) : 0}%
+                </p>
               </div>
               <MessageSquare className="w-8 h-8 text-primary" />
             </div>
@@ -205,7 +258,7 @@ const EventDetails = () => {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-                <CardDescription>Distribuição de mensagens por hora</CardDescription>
+                <CardDescription>Envio, Leitura e 1ª Resposta por hora</CardDescription>
               </CardHeader>
               <CardContent>
                 {analytics?.hourlyActivity?.length > 0 ? (
@@ -221,8 +274,9 @@ const EventDetails = () => {
                           borderRadius: '8px' 
                         }}
                       />
-                      <Line type="monotone" dataKey="messages" stroke="hsl(var(--primary))" strokeWidth={3} name="Mensagens" />
-                      <Line type="monotone" dataKey="delivered" stroke="hsl(var(--accent))" strokeWidth={2} name="Entregues" />
+                      <Line type="monotone" dataKey="envio" stroke="#3B82F6" strokeWidth={3} name="Envio" />
+                      <Line type="monotone" dataKey="leitura" stroke="#10B981" strokeWidth={2} name="Leitura" />
+                      <Line type="monotone" dataKey="resposta" stroke="#8B5CF6" strokeWidth={2} name="1ª Resposta" />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (

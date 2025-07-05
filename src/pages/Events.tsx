@@ -4,12 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Calendar, MapPin, MoreHorizontal, Plus, Search, Filter, Eye, Edit, Trash2, Loader2, ExternalLink } from 'lucide-react';
+import { Calendar, MapPin, MoreHorizontal, Plus, Search, Filter, Eye, Edit, Trash2, Loader2, ExternalLink, Send } from 'lucide-react';
 import { useEvents } from '@/hooks/useEvents';
+import { useEventContacts } from '@/hooks/useEventContacts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+import EventCard from '@/components/events/EventCard';
 
 const Events = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,11 +44,6 @@ const Events = () => {
     );
   };
 
-  const handleDelete = async (eventId: string) => {
-    if (confirm('Tem certeza que deseja excluir este evento?')) {
-      deleteEvent.mutate(eventId);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -107,105 +106,11 @@ const Events = () => {
       {filteredEvents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEvents.map((event) => (
-            <Card key={event.id} className="bg-card border-border hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg font-semibold text-card-foreground line-clamp-1">
-                      {event.name}
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      ID: {event.event_id}
-                    </CardDescription>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`/events/${event.id}`}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver Detalhes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to={`/events/${event.id}/edit`}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Editar
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Link de Disparo
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-destructive"
-                        onClick={() => handleDelete(event.id)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Status */}
-                <div className="flex justify-between items-center">
-                  {getStatusBadge(event.status)}
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(event.created_at), 'dd/MM/yy', { locale: ptBR })}
-                  </span>
-                </div>
-
-                {/* Event Details */}
-                <div className="space-y-2">
-                  {event.event_date && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {format(new Date(event.event_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </div>
-                  )}
-                  {event.location && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      <span className="line-clamp-1">{event.location}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Message Preview */}
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {event.message_text}
-                  </p>
-                  {event.message_image && (
-                    <div className="mt-2">
-                      <span className="text-xs text-muted-foreground">📷 Imagem anexada</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild className="flex-1">
-                    <Link to={`/events/${event.id}`}>
-                      <Eye className="w-4 h-4 mr-1" />
-                      Ver
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild className="flex-1">
-                    <Link to={`/events/${event.id}/edit`}>
-                      <Edit className="w-4 h-4 mr-1" />
-                      Editar
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <EventCard 
+              key={event.id} 
+              event={event} 
+              onDelete={(eventId) => deleteEvent.mutate(eventId)}
+            />
           ))}
         </div>
       ) : (

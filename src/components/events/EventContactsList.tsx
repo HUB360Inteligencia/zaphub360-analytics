@@ -47,9 +47,9 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      fila: { label: 'Fila', variant: 'outline' as const, className: 'text-muted-foreground' },
       pendente: { label: 'Pendente', variant: 'outline' as const, className: 'text-muted-foreground' },
       enviado: { label: 'Enviado', variant: 'secondary' as const, className: 'bg-blue-100 text-blue-800' },
-      entregue: { label: 'Entregue', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
       lido: { label: 'Lido', variant: 'default' as const, className: 'bg-purple-100 text-purple-800' },
       respondido: { label: 'Respondido', variant: 'default' as const, className: 'bg-emerald-100 text-emerald-800' },
       erro: { label: 'Erro', variant: 'destructive' as const, className: 'bg-red-100 text-red-800' },
@@ -253,9 +253,9 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="fila">Fila</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="enviado">Enviado</SelectItem>
-                <SelectItem value="entregue">Entregue</SelectItem>
                 <SelectItem value="lido">Lido</SelectItem>
                 <SelectItem value="respondido">Respondido</SelectItem>
                 <SelectItem value="erro">Erro</SelectItem>
@@ -288,7 +288,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   </TableRow>
                 ) : (
                   filteredContacts.map((contact) => (
-                    <TableRow key={contact.id}>
+                    <TableRow key={contact.id_contact_event}>
                       <TableCell className="font-medium">
                         {contact.name || 'Sem nome'}
                       </TableCell>
@@ -306,7 +306,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteEventContact.mutate(contact.id)}
+                          onClick={() => deleteEventContact.mutate(contact.id_contact_event)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="w-4 h-4" />
