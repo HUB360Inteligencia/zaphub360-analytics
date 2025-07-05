@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, ExternalLink, Send, CheckCircle, Eye, MessageSquare, 
-  Calendar, MapPin, Copy, Loader2, TrendingUp, Activity
+  Calendar, MapPin, Copy, Loader2, TrendingUp, Activity, Users
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { useEvents, useEvent } from '@/hooks/useEvents';
 import { useEventAnalytics } from '@/hooks/useEventAnalytics';
+import EventContactsList from '@/components/events/EventContactsList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -186,115 +187,136 @@ const EventDetails = () => {
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Hourly Activity */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-            <CardDescription>Distribuição de mensagens por hora</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {analytics?.hourlyActivity?.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={analytics.hourlyActivity}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))', 
-                      borderRadius: '8px' 
-                    }}
-                  />
-                  <Line type="monotone" dataKey="messages" stroke="hsl(var(--primary))" strokeWidth={3} name="Mensagens" />
-                  <Line type="monotone" dataKey="delivered" stroke="hsl(var(--accent))" strokeWidth={2} name="Entregues" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-72 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                  <p>Nenhuma atividade registrada</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Tabs */}
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="contacts">
+            <Users className="w-4 h-4 mr-2" />
+            Contatos
+          </TabsTrigger>
+          <TabsTrigger value="message">Mensagem</TabsTrigger>
+        </TabsList>
 
-        {/* Status Distribution */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Distribuição por Status</CardTitle>
-            <CardDescription>Status das mensagens enviadas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {analytics?.statusDistribution?.length > 0 ? (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={analytics.statusDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="count"
-                    >
-                      {analytics.statusDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [value, 'Mensagens']} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2">
-                  {analytics.statusDistribution.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                        <span className="text-sm capitalize">{item.status}</span>
-                      </div>
-                      <span className="text-sm font-medium">{item.count}</span>
+        <TabsContent value="analytics" className="space-y-6">
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Hourly Activity */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
+                <CardDescription>Distribuição de mensagens por hora</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics?.hourlyActivity?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={analytics.hourlyActivity}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))', 
+                          borderRadius: '8px' 
+                        }}
+                      />
+                      <Line type="monotone" dataKey="messages" stroke="hsl(var(--primary))" strokeWidth={3} name="Mensagens" />
+                      <Line type="monotone" dataKey="delivered" stroke="hsl(var(--accent))" strokeWidth={2} name="Entregues" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-72 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
+                      <p>Nenhuma atividade registrada</p>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="h-72 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                  <p>Nenhum dado de status disponível</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-      {/* Message Preview */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Mensagem do Evento</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-muted p-4 rounded-lg">
-            <p className="text-sm whitespace-pre-wrap">{event.message_text}</p>
-            {event.message_image && (
-              <div className="mt-3">
-                <img 
-                  src={event.message_image} 
-                  alt="Imagem do evento" 
-                  className="max-w-full h-auto rounded-lg border border-border"
-                  style={{ maxHeight: '200px' }}
-                />
-              </div>
-            )}
+            {/* Status Distribution */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Distribuição por Status</CardTitle>
+                <CardDescription>Status das mensagens enviadas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics?.statusDistribution?.length > 0 ? (
+                  <div className="space-y-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={analytics.statusDistribution}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="count"
+                        >
+                          {analytics.statusDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => [value, 'Mensagens']} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="space-y-2">
+                      {analytics.statusDistribution.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                            <span className="text-sm capitalize">{item.status}</span>
+                          </div>
+                          <span className="text-sm font-medium">{item.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-72 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <TrendingUp className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
+                      <p>Nenhum dado de status disponível</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="contacts">
+          <EventContactsList eventId={event.id} eventName={event.name} />
+        </TabsContent>
+
+        <TabsContent value="message">
+          {/* Message Preview */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Mensagem do Evento</CardTitle>
+              <CardDescription>Preview da mensagem que será enviada aos contatos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm whitespace-pre-wrap">{event.message_text}</p>
+                {event.message_image && (
+                  <div className="mt-3">
+                    <img 
+                      src={event.message_image} 
+                      alt="Imagem do evento" 
+                      className="max-w-full h-auto rounded-lg border border-border"
+                      style={{ maxHeight: '200px' }}
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

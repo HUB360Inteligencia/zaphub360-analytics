@@ -541,28 +541,48 @@ export type Database = {
         Row: {
           celular: string | null
           created_at: string
+          event_id: string | null
           evento: string | null
           id: number
           name: string | null
+          organization_id: string | null
           responsavel_cadastro: string | null
+          status_envio: string | null
+          updated_at: string | null
         }
         Insert: {
           celular?: string | null
           created_at?: string
+          event_id?: string | null
           evento?: string | null
           id?: number
           name?: string | null
+          organization_id?: string | null
           responsavel_cadastro?: string | null
+          status_envio?: string | null
+          updated_at?: string | null
         }
         Update: {
           celular?: string | null
           created_at?: string
+          event_id?: string | null
           evento?: string | null
           id?: number
           name?: string | null
+          organization_id?: string | null
           responsavel_cadastro?: string | null
+          status_envio?: string | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "new_contact_event_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organizations: {
         Row: {
