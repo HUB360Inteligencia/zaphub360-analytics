@@ -13,6 +13,7 @@ import Campaigns from "./pages/Campaigns";
 import Templates from "./pages/Templates";
 import Events from "./pages/Events";
 import EventForm from "./pages/EventForm";
+import EventDetails from "./pages/EventDetails";
 import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -67,6 +68,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <EventForm />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/events/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EventDetails />
                 </Layout>
               </ProtectedRoute>
             } />

@@ -161,3 +161,41 @@ export const useEvents = () => {
     refetch: eventsQuery.refetch,
   };
 };
+
+export const useEvent = (eventId: string) => {
+  const { organization } = useAuth();
+
+  return useQuery({
+    queryKey: ['event', organization?.id, eventId],
+    queryFn: async () => {
+      if (!organization?.id || !eventId) {
+        return null;
+      }
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select(`
+          *,
+          instances (
+            id,
+            name,
+            phone_number,
+            status
+          )
+        `)
+        .eq('id', eventId)
+        .eq('organization_id', organization.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching event:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!organization?.id && !!eventId,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+};
