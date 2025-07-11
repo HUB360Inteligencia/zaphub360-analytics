@@ -42,11 +42,23 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         };
       }
 
-      // Buscar dados da view pública usando event_id (string)
+      // Primeiro, buscar o UUID do evento usando event_id
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('event_id', eventId)
+        .single();
+
+      if (eventError) {
+        console.error('Error fetching event for analytics:', eventError);
+        throw eventError;
+      }
+
+      // Buscar dados das mensagens usando o UUID do evento
       const { data: messages, error } = await supabase
-        .from('public_event_analytics')
+        .from('event_messages')
         .select('*')
-        .eq('event_id', eventId);
+        .eq('event_id', eventData.id);
 
       if (error) {
         console.error('Error fetching public event analytics:', error);

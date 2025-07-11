@@ -10,11 +10,11 @@ import {
   PieChart, Pie, Cell 
 } from 'recharts';
 import { usePublicEventAnalytics } from '@/hooks/usePublicEventAnalytics';
-import { useEvent } from '@/hooks/useEvents';
+import { usePublicEvent } from '@/hooks/usePublicEvent';
 
 const PublicEventStatus = () => {
   const { eventId } = useParams<{ eventId: string }>();
-  const { data: event, isLoading: eventLoading } = useEvent(eventId || '');
+  const { data: event, isLoading: eventLoading } = usePublicEvent(eventId);
   const { analytics, isLoading: analyticsLoading } = usePublicEventAnalytics(eventId);
 
   if (eventLoading || analyticsLoading) {
