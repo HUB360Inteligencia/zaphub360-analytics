@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,7 @@ import EventDetails from "./pages/EventDetails";
 import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import PublicEventStatus from "./pages/PublicEventStatus";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +29,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            {/* Public Event Status Route - Must be before catch-all */}
+            <Route path="/public/event/:eventId" element={<PublicEventStatus />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>

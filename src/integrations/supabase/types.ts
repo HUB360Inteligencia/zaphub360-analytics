@@ -739,7 +739,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_event_analytics: {
+        Row: {
+          created_at: string | null
+          delivered_at: string | null
+          event_id: string | null
+          read_at: string | null
+          responded_at: string | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivered_at?: string | null
+          event_id?: string | null
+          read_at?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delivered_at?: string | null
+          event_id?: string | null
+          read_at?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       expire_old_invitations: {

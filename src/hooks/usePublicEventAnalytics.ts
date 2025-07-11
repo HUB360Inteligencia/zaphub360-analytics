@@ -1,0 +1,171 @@
+
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface EventAnalytics {
+  totalMessages: number;
+  deliveredMessages: number;
+  readMessages: number;
+  responseMessages: number;
+  deliveryRate: number;
+  readRate: number;
+  responseRate: number;
+  hourlyActivity: Array<{
+    hour: string;
+    messages: number;
+    delivered: number;
+    read: number;
+    responded: number;
+  }>;
+  statusDistribution: Array<{
+    status: string;
+    count: number;
+    color: string;
+  }>;
+}
+
+export const usePublicEventAnalytics = (eventId?: string) => {
+  const eventAnalyticsQuery = useQuery({
+    queryKey: ['public-event-analytics', eventId],
+    queryFn: async (): Promise<EventAnalytics> => {
+      if (!eventId) {
+        return {
+          totalMessages: 0,
+          deliveredMessages: 0,
+          readMessages: 0,
+          responseMessages: 0,
+          deliveryRate: 0,
+          readRate: 0,
+          responseRate: 0,
+          hourlyActivity: [],
+          statusDistribution: []
+        };
+      }
+
+      // Buscar dados da view pública usando event_id (string)
+      const { data: messages, error } = await supabase
+        .from('public_event_analytics')
+        .select('*')
+        .eq('event_id', eventId);
+
+      if (error) {
+        console.error('Error fetching public event analytics:', error);
+        throw error;
+      }
+
+      // Normalizar status
+      const normalizeStatus = (status: string): string => {
+        const statusMapping: Record<string, string> = {
+          'fila': 'fila',
+          'queued': 'fila',
+          'true': 'enviado',
+          'READ': 'lido',
+          'delivered': 'enviado',
+          'sent': 'enviado',
+          'read': 'lido',
+          'responded': 'respondido',
+          'failed': 'erro'
+        };
+        return statusMapping[status] || status.toLowerCase();
+      };
+
+      const normalizedMessages = (messages || []).map(msg => ({
+        ...msg,
+        status: normalizeStatus(msg.status)
+      }));
+
+      const totalMessages = normalizedMessages.length;
+      const deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+      const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
+      const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
+
+      const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
+      const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
+      const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
+
+      const hourlyData = new Map();
+      
+      // Inicializar todas as horas com 0
+      for (let i = 0; i < 24; i++) {
+        const hour = `${i.toString().padStart(2, '0')}:00`;
+        hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
+      }
+
+      // Processar dados das mensagens por timestamp real
+      messages?.forEach(message => {
+        if (message.sent_at) {
+          const hour = new Date(message.sent_at).getHours();
+          const key = `${hour.toString().padStart(2, '0')}:00`;
+          const data = hourlyData.get(key);
+          if (data) data.envio++;
+        }
+        
+        if (message.read_at) {
+          const hour = new Date(message.read_at).getHours();
+          const key = `${hour.toString().padStart(2, '0')}:00`;
+          const data = hourlyData.get(key);
+          if (data) data.leitura++;
+        }
+        
+        if (message.responded_at) {
+          const hour = new Date(message.responded_at).getHours();
+          const key = `${hour.toString().padStart(2, '0')}:00`;
+          const data = hourlyData.get(key);
+          if (data) data.resposta++;
+        }
+      });
+
+      const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
+        hour,
+        messages: data.envio,
+        delivered: data.envio,
+        read: data.leitura,
+        responded: data.resposta
+      })).sort((a, b) => a.hour.localeCompare(b.hour));
+
+      // Distribuição por status
+      const statusCounts = new Map();
+      normalizedMessages?.forEach(message => {
+        const status = message.status || 'pendente';
+        statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+      });
+
+      const statusColors = {
+        fila: '#6B7280',
+        pendente: '#6B7280',
+        enviado: '#3B82F6',
+        lido: '#8B5CF6',
+        respondido: '#10B981',
+        erro: '#EF4444'
+      };
+
+      const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({
+        status,
+        count,
+        color: statusColors[status as keyof typeof statusColors] || '#9CA3AF'
+      }));
+
+      return {
+        totalMessages,
+        deliveredMessages,
+        readMessages,
+        responseMessages,
+        deliveryRate,
+        readRate,
+        responseRate,
+        hourlyActivity,
+        statusDistribution
+      };
+    },
+    enabled: !!eventId,
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
+  return {
+    analytics: eventAnalyticsQuery.data,
+    isLoading: eventAnalyticsQuery.isLoading,
+    error: eventAnalyticsQuery.error,
+    refetch: eventAnalyticsQuery.refetch,
+  };
+};
