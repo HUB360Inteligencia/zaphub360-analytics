@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,15 +8,20 @@ export interface EventAnalytics {
   deliveredMessages: number;
   readMessages: number;
   responseMessages: number;
+  queuedMessages: number;
   deliveryRate: number;
   readRate: number;
   responseRate: number;
+  progressRate: number;
   hourlyActivity: Array<{
     hour: string;
     messages: number;
     delivered: number;
     read: number;
     responded: number;
+    envio: number;
+    leitura: number;
+    resposta: number;
   }>;
   statusDistribution: Array<{
     status: string;
@@ -36,9 +42,11 @@ export const useEventAnalytics = (eventId?: string) => {
           deliveredMessages: 0,
           readMessages: 0,
           responseMessages: 0,
+          queuedMessages: 0,
           deliveryRate: 0,
           readRate: 0,
           responseRate: 0,
+          progressRate: 0,
           hourlyActivity: [],
           statusDistribution: []
         };
@@ -65,6 +73,7 @@ export const useEventAnalytics = (eventId?: string) => {
       const normalizeStatus = (status: string): string => {
         const statusMapping: Record<string, string> = {
           'fila': 'fila',
+          'queued': 'fila',
           'true': 'enviado',
           'READ': 'lido',
           'delivered': 'enviado',
@@ -82,9 +91,18 @@ export const useEventAnalytics = (eventId?: string) => {
       }));
 
       const totalMessages = normalizedMessages.length;
-      const deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+      const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
       const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
+      
+      // CORREÇÃO: Enviados agora inclui enviado + lido
+      const deliveredMessages = normalizedMessages.filter(m => 
+        m.status === 'enviado' || m.status === 'lido'
+      ).length;
+
+      // CORREÇÃO: Progresso é total - na fila
+      const progressMessages = normalizedMessages.filter(m => m.status !== 'fila').length;
+      const progressRate = totalMessages > 0 ? (progressMessages / totalMessages) * 100 : 0;
 
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
@@ -124,8 +142,8 @@ export const useEventAnalytics = (eventId?: string) => {
 
       const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
         hour,
-        messages: data.envio, // Manter compatibilidade
-        delivered: data.envio, // Manter compatibilidade
+        messages: data.envio,
+        delivered: data.envio,
         read: data.leitura,
         responded: data.resposta,
         envio: data.envio,
@@ -160,9 +178,11 @@ export const useEventAnalytics = (eventId?: string) => {
         deliveredMessages,
         readMessages,
         responseMessages,
+        queuedMessages,
         deliveryRate,
         readRate,
         responseRate,
+        progressRate,
         hourlyActivity,
         statusDistribution
       };

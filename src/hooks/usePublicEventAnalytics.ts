@@ -7,9 +7,11 @@ export interface EventAnalytics {
   deliveredMessages: number;
   readMessages: number;
   responseMessages: number;
+  queuedMessages: number;
   deliveryRate: number;
   readRate: number;
   responseRate: number;
+  progressRate: number;
   hourlyActivity: Array<{
     hour: string;
     messages: number;
@@ -34,9 +36,11 @@ export const usePublicEventAnalytics = (eventId?: string) => {
           deliveredMessages: 0,
           readMessages: 0,
           responseMessages: 0,
+          queuedMessages: 0,
           deliveryRate: 0,
           readRate: 0,
           responseRate: 0,
+          progressRate: 0,
           hourlyActivity: [],
           statusDistribution: []
         };
@@ -87,9 +91,18 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       }));
 
       const totalMessages = normalizedMessages.length;
-      const deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+      const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
       const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
+      
+      // CORREÇÃO: Enviados agora inclui enviado + lido
+      const deliveredMessages = normalizedMessages.filter(m => 
+        m.status === 'enviado' || m.status === 'lido'
+      ).length;
+
+      // CORREÇÃO: Progresso é total - na fila
+      const progressMessages = normalizedMessages.filter(m => m.status !== 'fila').length;
+      const progressRate = totalMessages > 0 ? (progressMessages / totalMessages) * 100 : 0;
 
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
@@ -162,9 +175,11 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         deliveredMessages,
         readMessages,
         responseMessages,
+        queuedMessages,
         deliveryRate,
         readRate,
         responseRate,
+        progressRate,
         hourlyActivity,
         statusDistribution
       };

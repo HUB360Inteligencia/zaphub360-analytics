@@ -71,16 +71,16 @@ const PublicEventStatus = () => {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Progresso Geral</h3>
                 <span className="text-sm text-muted-foreground">
-                  {analytics.deliveredMessages} de {analytics.totalMessages} enviados
+                  {analytics.totalMessages - analytics.queuedMessages} de {analytics.totalMessages} processados
                 </span>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Mensagens Enviadas</span>
-                  <span>{Math.round(analytics.deliveryRate)}%</span>
+                  <span>Progresso (Total - Na Fila)</span>
+                  <span>{Math.round(analytics.progressRate)}%</span>
                 </div>
-                <Progress value={analytics.deliveryRate} className="h-3" />
+                <Progress value={analytics.progressRate} className="h-3" />
               </div>
             </div>
           </CardContent>
@@ -104,7 +104,7 @@ const PublicEventStatus = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
+                  <p className="text-sm font-medium text-muted-foreground">Enviados (Env + Lido)</p>
                   <p className="text-2xl font-bold text-card-foreground">
                     {Math.round(analytics.deliveryRate)}%
                   </p>
