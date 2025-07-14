@@ -9,6 +9,7 @@ export interface PublicEvent {
   event_date: string | null;
   location: string | null;
   message_text: string;
+  message_image: string | null;
   status: string;
 }
 
@@ -23,7 +24,7 @@ export const usePublicEvent = (eventId?: string) => {
       // Buscar evento por event_id (string) ao invés de UUID
       const { data: event, error } = await supabase
         .from('events')
-        .select('id, event_id, name, event_date, location, message_text, status')
+        .select('id, event_id, name, event_date, location, message_text, message_image, status')
         .eq('event_id', eventId)
         .single();
 
