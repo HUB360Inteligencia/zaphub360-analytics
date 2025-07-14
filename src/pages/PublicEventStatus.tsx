@@ -1,34 +1,55 @@
 
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Send, CheckCircle, Eye, MessageSquare, Activity, TrendingUp, Calendar
+  Calendar, MapPin, Loader2, TrendingUp, Activity, 
+  Send, CheckCircle, Eye, MessageSquare 
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { usePublicEventAnalytics } from '@/hooks/usePublicEventAnalytics';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
+import { usePublicEventAnalytics } from '@/hooks/usePublicEventAnalytics';
+import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const PublicEventStatus = () => {
   const { eventId } = useParams<{ eventId: string }>();
-  const { data: event, isLoading: eventLoading } = usePublicEvent(eventId);
+  const { data: event, isLoading: eventLoading } = usePublicEvent(eventId || '');
   const { analytics, isLoading: analyticsLoading } = usePublicEventAnalytics(eventId);
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
+      active: { label: 'Ativo', variant: 'default' as const, className: 'bg-primary/10 text-primary' },
+      completed: { label: 'Concluído', variant: 'secondary' as const, className: 'bg-primary/10 text-primary' },
+      cancelled: { label: 'Cancelado', variant: 'destructive' as const, className: 'bg-destructive/10 text-destructive' },
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        {config.label}
+      </Badge>
+    );
+  };
 
   if (eventLoading || analyticsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Carregando informações do evento...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando status do evento...</p>
         </div>
       </div>
     );
   }
 
-  if (!event || !analytics) {
+  if (!event) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -40,60 +61,95 @@ const PublicEventStatus = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-card border-b border-border">
-        <div className="container mx-auto px-6 py-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-foreground mb-2">{event.name}</h1>
-            <p className="text-muted-foreground">Status do Evento em Tempo Real</p>
-            {event.event_date && (
-              <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                {new Date(event.event_date).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: '2-digit', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </div>
-            )}
-          </div>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-foreground">{event.name}</h1>
+          <p className="text-muted-foreground">Status público do evento em tempo real</p>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8 space-y-8">
-        {/* Progress Overview */}
+        {/* Event Info */}
         <Card className="bg-card border-border">
           <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Progresso Geral</h3>
-                <span className="text-sm text-muted-foreground">
-                  {analytics.totalMessages - analytics.queuedMessages} de {analytics.totalMessages} processados
-                </span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Status</p>
+                {getStatusBadge(event.status)}
               </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Progresso (Total - Na Fila)</span>
-                  <span>{Math.round(analytics.progressRate)}%</span>
+              {event.event_date && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Data do Evento</p>
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <Calendar className="w-4 h-4" />
+                    {format(new Date(event.event_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </div>
                 </div>
-                <Progress value={analytics.progressRate} className="h-3" />
-              </div>
+              )}
+              {event.location && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Local</p>
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4" />
+                    {event.location}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Progress Bar */}
+        {analytics && analytics.totalMessages > 0 && (
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold mb-2">Progresso do Evento</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {analytics.totalMessages - analytics.queuedMessages} de {analytics.totalMessages} mensagens processadas
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progresso (Total - Na Fila)</span>
+                    <span>{Math.round(analytics.progressRate)}%</span>
+                  </div>
+                  <Progress value={analytics.progressRate} className="h-4" />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{analytics.queuedMessages}</div>
+                    <div className="text-xs text-muted-foreground">Na Fila</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{analytics.deliveredMessages}</div>
+                    <div className="text-xs text-muted-foreground">Enviados</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{analytics.readMessages}</div>
+                    <div className="text-xs text-muted-foreground">Lidos</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-emerald-600">{analytics.responseMessages}</div>
+                    <div className="text-xs text-muted-foreground">Respondidos</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total de Contatos</p>
-                  <p className="text-2xl font-bold text-card-foreground">{analytics.totalMessages}</p>
+                  <p className="text-2xl font-bold text-card-foreground">{analytics?.totalMessages || 0}</p>
                 </div>
                 <Send className="w-8 h-8 text-primary" />
               </div>
@@ -104,9 +160,9 @@ const PublicEventStatus = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Enviados (Env + Lido)</p>
+                  <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
                   <p className="text-2xl font-bold text-card-foreground">
-                    {Math.round(analytics.deliveryRate)}%
+                    {analytics ? Math.round(analytics.deliveryRate) : 0}%
                   </p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-primary" />
@@ -120,7 +176,7 @@ const PublicEventStatus = () => {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Taxa de Leitura</p>
                   <p className="text-2xl font-bold text-card-foreground">
-                    {Math.round(analytics.readRate)}%
+                    {analytics ? Math.round(analytics.readRate) : 0}%
                   </p>
                 </div>
                 <Eye className="w-8 h-8 text-primary" />
@@ -134,7 +190,7 @@ const PublicEventStatus = () => {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Taxa de Resposta</p>
                   <p className="text-2xl font-bold text-card-foreground">
-                    {Math.round(analytics.responseRate)}%
+                    {analytics ? Math.round(analytics.responseRate) : 0}%
                   </p>
                 </div>
                 <MessageSquare className="w-8 h-8 text-primary" />
@@ -143,16 +199,16 @@ const PublicEventStatus = () => {
           </Card>
         </div>
 
-        {/* Charts */}
+        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Hourly Activity */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-              <CardDescription>Envio, Leitura e Resposta por hora</CardDescription>
+              <CardDescription>Distribuição de envios, leituras e respostas ao longo do dia</CardDescription>
             </CardHeader>
             <CardContent>
-              {analytics.hourlyActivity?.length > 0 ? (
+              {analytics?.hourlyActivity?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.hourlyActivity}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -165,16 +221,16 @@ const PublicEventStatus = () => {
                         borderRadius: '8px' 
                       }}
                     />
-                    <Line type="monotone" dataKey="messages" stroke="#3B82F6" strokeWidth={3} name="Envio" />
-                    <Line type="monotone" dataKey="read" stroke="#10B981" strokeWidth={2} name="Leitura" />
-                    <Line type="monotone" dataKey="responded" stroke="#8B5CF6" strokeWidth={2} name="Resposta" />
+                    <Line type="monotone" dataKey="messages" stroke="#3B82F6" strokeWidth={3} name="Envios" />
+                    <Line type="monotone" dataKey="read" stroke="#10B981" strokeWidth={2} name="Leituras" />
+                    <Line type="monotone" dataKey="responded" stroke="#8B5CF6" strokeWidth={2} name="Respostas" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-72 flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
                     <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                    <p>Nenhuma atividade registrada</p>
+                    <p>Nenhuma atividade registrada ainda</p>
                   </div>
                 </div>
               )}
@@ -185,10 +241,10 @@ const PublicEventStatus = () => {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Distribuição por Status</CardTitle>
-              <CardDescription>Status das mensagens enviadas</CardDescription>
+              <CardDescription>Status atual das mensagens do evento</CardDescription>
             </CardHeader>
             <CardContent>
-              {analytics.statusDistribution?.length > 0 ? (
+              {analytics?.statusDistribution?.length > 0 ? (
                 <div className="space-y-4">
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
@@ -232,12 +288,33 @@ const PublicEventStatus = () => {
           </Card>
         </div>
 
-        {/* Footer */}
-        <div className="text-center py-8 border-t border-border">
-          <p className="text-sm text-muted-foreground">
-            Dados atualizados em tempo real • {new Date().toLocaleTimeString('pt-BR')}
-          </p>
-        </div>
+        {/* Sentiment Analysis */}
+        {analytics && (
+          <SentimentAnalysisCard sentimentAnalysis={analytics.sentimentAnalysis} />
+        )}
+
+        {/* Message Preview */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Mensagem do Evento</CardTitle>
+            <CardDescription>Prévia da mensagem enviada aos participantes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted p-6 rounded-lg">
+              <p className="text-sm whitespace-pre-wrap">{event.message_text}</p>
+              {event.message_image && (
+                <div className="mt-4">
+                  <img 
+                    src={event.message_image} 
+                    alt="Imagem do evento" 
+                    className="max-w-full h-auto rounded-lg border border-border"
+                    style={{ maxHeight: '300px' }}
+                  />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

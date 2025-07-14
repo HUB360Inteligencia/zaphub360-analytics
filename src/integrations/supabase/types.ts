@@ -182,6 +182,7 @@ export type Database = {
           responded_at: string | null
           retry_count: number | null
           sent_at: string | null
+          sentiment: string | null
           status: string
         }
         Insert: {
@@ -199,6 +200,7 @@ export type Database = {
           responded_at?: string | null
           retry_count?: number | null
           sent_at?: string | null
+          sentiment?: string | null
           status?: string
         }
         Update: {
@@ -216,6 +218,7 @@ export type Database = {
           responded_at?: string | null
           retry_count?: number | null
           sent_at?: string | null
+          sentiment?: string | null
           status?: string
         }
         Relationships: [
@@ -794,6 +797,10 @@ export type Database = {
       is_saas_admin: {
         Args: { user_id?: string }
         Returns: boolean
+      }
+      map_existing_sentiments: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

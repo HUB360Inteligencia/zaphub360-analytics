@@ -28,6 +28,19 @@ export interface EventAnalytics {
     count: number;
     color: string;
   }>;
+  sentimentAnalysis: {
+    superEngajado: number;
+    positivo: number;
+    neutro: number;
+    negativo: number;
+    distribution: Array<{
+      sentiment: string;
+      count: number;
+      percentage: number;
+      color: string;
+      emoji: string;
+    }>;
+  };
 }
 
 export const useEventAnalytics = (eventId?: string) => {
@@ -48,7 +61,14 @@ export const useEventAnalytics = (eventId?: string) => {
           responseRate: 0,
           progressRate: 0,
           hourlyActivity: [],
-          statusDistribution: []
+          statusDistribution: [],
+          sentimentAnalysis: {
+            superEngajado: 0,
+            positivo: 0,
+            neutro: 0,
+            negativo: 0,
+            distribution: []
+          }
         };
       }
 
@@ -107,6 +127,47 @@ export const useEventAnalytics = (eventId?: string) => {
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
       const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
+
+      // Análise de sentimento
+      const sentimentCounts = {
+        super_engajado: normalizedMessages.filter(m => m.sentiment === 'super_engajado').length,
+        positivo: normalizedMessages.filter(m => m.sentiment === 'positivo').length,
+        neutro: normalizedMessages.filter(m => m.sentiment === 'neutro').length,
+        negativo: normalizedMessages.filter(m => m.sentiment === 'negativo').length,
+      };
+
+      const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
+
+      const sentimentDistribution = [
+        {
+          sentiment: 'Super Engajado',
+          count: sentimentCounts.super_engajado,
+          percentage: sentimentTotal > 0 ? (sentimentCounts.super_engajado / sentimentTotal) * 100 : 0,
+          color: '#FF6B35',
+          emoji: '🔥'
+        },
+        {
+          sentiment: 'Positivo',
+          count: sentimentCounts.positivo,
+          percentage: sentimentTotal > 0 ? (sentimentCounts.positivo / sentimentTotal) * 100 : 0,
+          color: '#10B981',
+          emoji: '😊'
+        },
+        {
+          sentiment: 'Neutro',
+          count: sentimentCounts.neutro,
+          percentage: sentimentTotal > 0 ? (sentimentCounts.neutro / sentimentTotal) * 100 : 0,
+          color: '#6B7280',
+          emoji: '😐'
+        },
+        {
+          sentiment: 'Negativo',
+          count: sentimentCounts.negativo,
+          percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0,
+          color: '#DC2626',
+          emoji: '😞'
+        }
+      ];
 
       const hourlyData = new Map();
       
@@ -184,7 +245,14 @@ export const useEventAnalytics = (eventId?: string) => {
         responseRate,
         progressRate,
         hourlyActivity,
-        statusDistribution
+        statusDistribution,
+        sentimentAnalysis: {
+          superEngajado: sentimentCounts.super_engajado,
+          positivo: sentimentCounts.positivo,
+          neutro: sentimentCounts.neutro,
+          negativo: sentimentCounts.negativo,
+          distribution: sentimentDistribution
+        }
       };
     },
     enabled: !!organization?.id,

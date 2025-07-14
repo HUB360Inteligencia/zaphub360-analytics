@@ -19,6 +19,7 @@ import { useEvents, useEvent } from '@/hooks/useEvents';
 import { useEventAnalytics } from '@/hooks/useEventAnalytics';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsList from '@/components/events/EventContactsList';
+import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -341,6 +342,11 @@ const EventDetails = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Sentiment Analysis */}
+          {analytics && (
+            <SentimentAnalysisCard sentimentAnalysis={analytics.sentimentAnalysis} />
+          )}
         </TabsContent>
 
         <TabsContent value="contacts">

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,9 +11,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Download, Trash2, Users } from 'lucide-react';
+import { Plus, Search, Download, Trash2, Users, TrendingUp } from 'lucide-react';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsImport from './EventContactsImport';
+import SentimentSelect from './SentimentSelect';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -30,9 +32,10 @@ type ContactFormData = z.infer<typeof contactSchema>;
 const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
+  const [sentimentFilter, setSentimentFilter] = useState<string>('todos');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  const { contacts, isLoading, createEventContact, deleteEventContact, getContactStats } = useEventContacts(eventId);
+  const { contacts, isLoading, createEventContact, deleteEventContact, updateContactSentiment, getContactStats } = useEventContacts(eventId);
   
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -61,13 +64,35 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
     );
   };
 
+  const getSentimentBadge = (sentiment?: string) => {
+    if (!sentiment) return null;
+    
+    const sentimentConfig = {
+      super_engajado: { label: 'Super Engajado', emoji: '🔥', className: 'bg-orange-100 text-orange-800' },
+      positivo: { label: 'Positivo', emoji: '😊', className: 'bg-green-100 text-green-800' },
+      neutro: { label: 'Neutro', emoji: '😐', className: 'bg-gray-100 text-gray-800' },
+      negativo: { label: 'Negativo', emoji: '😞', className: 'bg-red-100 text-red-800' },
+    };
+    
+    const config = sentimentConfig[sentiment as keyof typeof sentimentConfig];
+    if (!config) return null;
+    
+    return (
+      <Badge variant="outline" className={config.className}>
+        <span className="mr-1">{config.emoji}</span>
+        {config.label}
+      </Badge>
+    );
+  };
+
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = !search || 
       contact.contact_phone?.includes(search);
     
     const matchesStatus = statusFilter === 'todos' || contact.status === statusFilter;
+    const matchesSentiment = sentimentFilter === 'todos' || contact.sentiment === sentimentFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesSentiment;
   });
 
   const onSubmit = async (data: ContactFormData) => {
@@ -87,10 +112,11 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const exportContacts = () => {
     const csvContent = [
-      ['Telefone', 'Status', 'Responsável', 'Data Cadastro'].join(','),
+      ['Telefone', 'Status', 'Sentimento', 'Responsável', 'Data Cadastro'].join(','),
       ...filteredContacts.map(contact => [
         contact.contact_phone || '',
         contact.status,
+        contact.sentiment || '',
         contact.contact_name || '',
         format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })
       ].join(','))
@@ -147,6 +173,57 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               </CardContent>
             </Card>
           ))}
+      </div>
+
+      {/* Sentiment Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔥</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Super Engajado</p>
+                <p className="text-lg font-bold text-orange-600">{stats.superEngajado}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">😊</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Positivo</p>
+                <p className="text-lg font-bold text-green-600">{stats.positivo}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">😐</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Neutro</p>
+                <p className="text-lg font-bold text-gray-600">{stats.neutro}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">😞</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Negativo</p>
+                <p className="text-lg font-bold text-red-600">{stats.negativo}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Controls */}
@@ -234,13 +311,25 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="todos">Todos Status</SelectItem>
                 <SelectItem value="fila">Fila</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="enviado">Enviado</SelectItem>
                 <SelectItem value="lido">Lido</SelectItem>
                 <SelectItem value="respondido">Respondido</SelectItem>
                 <SelectItem value="erro">Erro</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Sentimento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos Sentimentos</SelectItem>
+                <SelectItem value="super_engajado">🔥 Super Engajado</SelectItem>
+                <SelectItem value="positivo">😊 Positivo</SelectItem>
+                <SelectItem value="neutro">😐 Neutro</SelectItem>
+                <SelectItem value="negativo">😞 Negativo</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -252,6 +341,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                 <TableRow>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Sentimento</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Data Cadastro</TableHead>
                   <TableHead className="w-12"></TableHead>
@@ -260,8 +350,8 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               <TableBody>
                 {filteredContacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      {search || statusFilter !== 'todos' 
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      {search || statusFilter !== 'todos' || sentimentFilter !== 'todos'
                         ? 'Nenhum contato encontrado com os filtros aplicados'
                         : 'Nenhum contato cadastrado ainda'
                       }
@@ -275,6 +365,18 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(contact.status)}
+                      </TableCell>
+                      <TableCell>
+                        <SentimentSelect
+                          value={contact.sentiment}
+                          onValueChange={(sentiment) => 
+                            updateContactSentiment.mutate({ 
+                              contactId: contact.id, 
+                              sentiment 
+                            })
+                          }
+                          disabled={updateContactSentiment.isPending}
+                        />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {contact.contact_name || 'Sistema'}

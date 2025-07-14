@@ -1,86 +1,57 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useErrorHandler } from './useErrorHandler';
 
 export interface EventContact {
   id: string;
-  contact_name: string | null;
   contact_phone: string;
-  event_id: string;
+  contact_name?: string;
   status: string;
+  sentiment?: string;
   created_at: string;
-  sent_at: string | null;
-  read_at: string | null;
-  responded_at: string | null;
 }
 
-// Mapeamento de status do webhook para sistema brasileiro
-const statusMapping: Record<string, string> = {
-  'Fila': 'fila',
-  'True': 'enviado',
-  'READ': 'lido',
-  'pendente': 'pendente',
-  'enviado': 'enviado',
-  'lido': 'lido',
-  'respondido': 'respondido',
-  'erro': 'erro'
-};
-
-const normalizeStatus = (status: string): string => {
-  return statusMapping[status] || status.toLowerCase();
-};
+export interface ContactStats {
+  total: number;
+  fila: number;
+  pendente: number;
+  enviado: number;
+  lido: number;
+  respondido: number;
+  erro: number;
+  // Estatísticas de sentimento
+  superEngajado: number;
+  positivo: number;
+  neutro: number;
+  negativo: number;
+}
 
 export const useEventContacts = (eventId?: string) => {
   const { organization } = useAuth();
   const queryClient = useQueryClient();
-  const { handleError } = useErrorHandler();
 
-  const eventContactsQuery = useQuery({
-    queryKey: ['event-contacts', organization?.id, eventId],
-    queryFn: async () => {
-      if (!organization?.id) {
-        return [];
-      }
+  const contactsQuery = useQuery({
+    queryKey: ['event-contacts', eventId],
+    queryFn: async (): Promise<EventContact[]> => {
+      if (!eventId || !organization?.id) return [];
 
-      // Buscar mensagens do evento usando UUID direto
-      let messagesQuery = supabase
+      const { data: messages, error } = await supabase
         .from('event_messages')
-        .select('*')
-        .eq('organization_id', organization.id);
-
-      if (eventId) {
-        messagesQuery = messagesQuery.eq('event_id', eventId);
-      }
-
-      messagesQuery = messagesQuery.order('created_at', { ascending: false });
-
-      const { data, error } = await messagesQuery;
+        .select('id, contact_phone, contact_name, status, sentiment, created_at')
+        .eq('event_id', eventId)
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching event contacts:', error);
         throw error;
       }
 
-      // Normalizar status das mensagens
-      const normalizedData = (data || []).map(message => ({
-        id: message.id,
-        contact_name: message.contact_name,
-        contact_phone: message.contact_phone,
-        event_id: message.event_id,
-        status: normalizeStatus(message.status || 'pendente'),
-        created_at: message.created_at,
-        sent_at: message.sent_at,
-        read_at: message.read_at,
-        responded_at: message.responded_at
-      }));
-
-      return normalizedData;
+      return messages || [];
     },
-    enabled: !!organization?.id,
-    retry: 3,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    enabled: !!eventId && !!organization?.id,
   });
 
   const createEventContact = useMutation({
@@ -88,41 +59,39 @@ export const useEventContacts = (eventId?: string) => {
       celular: string;
       evento: string;
       event_id: string;
-      responsavel_cadastro?: string;
+      responsavel_cadastro: string;
     }) => {
-      if (!organization?.id) {
-        throw new Error('Organization not found');
-      }
-
-      // Formatar número no padrão DDI+DDD+número
-      const formatPhone = (phone: string) => {
-        const cleaned = phone.replace(/\D/g, '');
-        if (cleaned.length === 11 && cleaned.startsWith('55')) {
-          return cleaned;
-        }
-        if (cleaned.length === 11) {
-          return '55' + cleaned;
-        }
-        if (cleaned.length === 10) {
-          return '5541' + cleaned;
-        }
-        return cleaned;
-      };
+      if (!organization?.id) throw new Error('Organization not found');
 
       const { data, error } = await supabase
-        .from('event_messages')
+        .from('new_contact_event')
         .insert({
-          contact_phone: formatPhone(contactData.celular),
-          contact_name: contactData.responsavel_cadastro || 'manual',
-          event_id: contactData.event_id,
+          celular: contactData.celular,
+          evento: contactData.evento,
+          event_id: parseInt(contactData.event_id),
           organization_id: organization.id,
-          message_content: contactData.evento,
-          status: 'queued'
+          responsavel_cadastro: contactData.responsavel_cadastro,
+          status_envio: 'fila'
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Também inserir na tabela event_messages
+      const { error: messageError } = await supabase
+        .from('event_messages')
+        .insert({
+          event_id: contactData.event_id,
+          contact_phone: contactData.celular,
+          contact_name: '',
+          message_content: '',
+          organization_id: organization.id,
+          status: 'fila'
+        });
+
+      if (messageError) throw messageError;
+
       return data;
     },
     onSuccess: () => {
@@ -130,36 +99,17 @@ export const useEventContacts = (eventId?: string) => {
       toast.success('Contato adicionado com sucesso!');
     },
     onError: (error) => {
-      handleError(error, 'Adicionar contato');
-    },
-  });
-
-  const updateContactStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { data, error } = await supabase
-        .from('event_messages')
-        .update({ status: status })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['event-contacts'] });
-    },
-    onError: (error) => {
-      handleError(error, 'Atualizar status do contato');
+      console.error('Error creating contact:', error);
+      toast.error('Erro ao adicionar contato');
     },
   });
 
   const deleteEventContact = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (contactId: string) => {
       const { error } = await supabase
         .from('event_messages')
         .delete()
-        .eq('id', id);
+        .eq('id', contactId);
 
       if (error) throw error;
     },
@@ -168,38 +118,57 @@ export const useEventContacts = (eventId?: string) => {
       toast.success('Contato removido com sucesso!');
     },
     onError: (error) => {
-      handleError(error, 'Remover contato');
+      console.error('Error deleting contact:', error);
+      toast.error('Erro ao remover contato');
     },
   });
 
-  const getContactStats = () => {
-    const contacts = eventContactsQuery.data || [];
-    const total = contacts.length;
-    const byStatus = contacts.reduce((acc, contact) => {
-      const status = contact.status || 'pendente';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  const updateContactSentiment = useMutation({
+    mutationFn: async ({ contactId, sentiment }: { contactId: string; sentiment: string }) => {
+      const { error } = await supabase
+        .from('event_messages')
+        .update({ sentiment })
+        .eq('id', contactId);
 
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['event-contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['event-analytics'] });
+      toast.success('Sentimento atualizado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Error updating sentiment:', error);
+      toast.error('Erro ao atualizar sentimento');
+    },
+  });
+
+  const getContactStats = (): ContactStats => {
+    const contacts = contactsQuery.data || [];
+    
     return {
-      total,
-      fila: byStatus.fila || 0,
-      pendente: byStatus.pendente || 0,
-      enviado: byStatus.enviado || 0,
-      lido: byStatus.lido || 0,
-      respondido: byStatus.respondido || 0,
-      erro: byStatus.erro || 0,
+      total: contacts.length,
+      fila: contacts.filter(c => c.status === 'fila').length,
+      pendente: contacts.filter(c => c.status === 'pendente').length,
+      enviado: contacts.filter(c => c.status === 'enviado').length,
+      lido: contacts.filter(c => c.status === 'lido').length,
+      respondido: contacts.filter(c => c.status === 'respondido').length,
+      erro: contacts.filter(c => c.status === 'erro').length,
+      // Estatísticas de sentimento
+      superEngajado: contacts.filter(c => c.sentiment === 'super_engajado').length,
+      positivo: contacts.filter(c => c.sentiment === 'positivo').length,
+      neutro: contacts.filter(c => c.sentiment === 'neutro').length,
+      negativo: contacts.filter(c => c.sentiment === 'negativo').length,
     };
   };
 
   return {
-    contacts: eventContactsQuery.data || [],
-    isLoading: eventContactsQuery.isLoading,
-    error: eventContactsQuery.error,
+    contacts: contactsQuery.data || [],
+    isLoading: contactsQuery.isLoading,
+    error: contactsQuery.error,
     createEventContact,
-    updateContactStatus,
     deleteEventContact,
+    updateContactSentiment,
     getContactStats,
-    refetch: eventContactsQuery.refetch,
   };
 };
