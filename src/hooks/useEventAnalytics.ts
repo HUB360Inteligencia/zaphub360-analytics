@@ -116,7 +116,7 @@ export const useEventAnalytics = (eventId?: string) => {
       const totalMessages = normalizedMessages.length;
       const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-      const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
+      const responseMessages = normalizedMessages.filter(m => m.responded_at != null).length;
       const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
       
       // CORREÇÃO: Enviados agora inclui enviado + lido

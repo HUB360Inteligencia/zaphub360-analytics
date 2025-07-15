@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -98,7 +97,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
           'fila': 'fila',
           'queued': 'fila',
           'true': 'enviado',
-          'READ': 'lido',
+          'READ': 'ludo',
           'delivered': 'enviado',
           'sent': 'enviado',
           'read': 'lido',
@@ -116,7 +115,8 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       const totalMessages = normalizedMessages.length;
       const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-      const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
+      // CORREÇÃO: Contar por responded_at ao invés de status
+      const responseMessages = normalizedMessages.filter(m => m.responded_at != null).length;
       const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
       
       // CORREÇÃO: Enviados agora inclui enviado + lido
@@ -132,7 +132,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
       const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
 
-      // Análise de sentimento incluindo NULL
+      // sentiment analysis logic
       const sentimentCounts = {
         super_engajado: normalizedMessages.filter(m => m.sentiment === 'super_engajado').length,
         positivo: normalizedMessages.filter(m => m.sentiment === 'positivo').length,
@@ -181,6 +181,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         }
       ];
 
+      // hourly activity and status distribution logic
       const hourlyData = new Map();
       
       // Inicializar todas as horas com 0
