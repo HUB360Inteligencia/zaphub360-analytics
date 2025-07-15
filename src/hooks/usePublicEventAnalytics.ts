@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -7,6 +8,7 @@ export interface EventAnalytics {
   readMessages: number;
   responseMessages: number;
   queuedMessages: number;
+  errorMessages: number;
   deliveryRate: number;
   readRate: number;
   responseRate: number;
@@ -50,6 +52,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
           readMessages: 0,
           responseMessages: 0,
           queuedMessages: 0,
+          errorMessages: 0,
           deliveryRate: 0,
           readRate: 0,
           responseRate: 0,
@@ -114,6 +117,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
       const responseMessages = normalizedMessages.filter(m => m.status === 'respondido').length;
+      const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
       
       // CORREÇÃO: Enviados agora inclui enviado + lido
       const deliveredMessages = normalizedMessages.filter(m => 
@@ -245,6 +249,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         readMessages,
         responseMessages,
         queuedMessages,
+        errorMessages,
         deliveryRate,
         readRate,
         responseRate,

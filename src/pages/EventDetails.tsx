@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, ExternalLink, Send, CheckCircle, Eye, MessageSquare, 
-  Calendar, MapPin, Copy, Loader2, TrendingUp, Activity, Users
+  Calendar, MapPin, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -162,7 +161,7 @@ const EventDetails = () => {
                 <Progress value={analytics.progressRate} className="h-3" />
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
                 <div className="text-center">
                   <div className="text-lg font-bold text-blue-600">{analytics.queuedMessages}</div>
                   <div className="text-xs text-muted-foreground">Na Fila</div>
@@ -179,6 +178,10 @@ const EventDetails = () => {
                   <div className="text-lg font-bold text-emerald-600">{analytics.responseMessages}</div>
                   <div className="text-xs text-muted-foreground">Respondidos</div>
                 </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-red-600">{analytics.errorMessages}</div>
+                  <div className="text-xs text-muted-foreground">Erro</div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -186,7 +189,7 @@ const EventDetails = () => {
       )}
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -237,6 +240,18 @@ const EventDetails = () => {
                 </p>
               </div>
               <MessageSquare className="w-8 h-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Mensagens com Erro</p>
+                <p className="text-2xl font-bold text-red-600">{analytics?.errorMessages || 0}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
           </CardContent>
         </Card>
