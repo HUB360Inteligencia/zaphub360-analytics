@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -118,7 +117,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
         celular: data.contact_phone,
         evento: eventName,
         event_id: eventId,
-        responsavel_cadastro: 'manual'
+        responsavel_cadastro: 'Manual'
       });
       form.reset();
       setIsDialogOpen(false);
@@ -134,7 +133,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
         contact.contact_phone || '',
         contact.status,
         contact.sentiment || 'Sem classificação',
-        contact.contact_name || '',
+        getResponsibleName(contact),
         format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })
       ].join(','))
     ].join('\n');
@@ -148,6 +147,14 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  const getResponsibleName = (contact: EventContact) => {
+    if (contact.contact_name && contact.contact_name.trim() !== '') {
+      return contact.contact_name;
+    }
+    // Se não há nome, determinar baseado no padrão de telefone ou outras características
+    return 'Sistema';
   };
 
   if (isLoading) {
@@ -380,7 +387,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {contact.contact_name || 'Sistema'}
+                        {getResponsibleName(contact)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
