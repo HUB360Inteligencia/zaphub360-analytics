@@ -343,7 +343,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sentimento</TableHead>
-                  <TableHead>Responsável</TableHead>
+                  <TableHead>Nome</TableHead>
                   <TableHead>Data Cadastro</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
