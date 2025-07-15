@@ -129,7 +129,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const exportContacts = () => {
     const csvContent = [
-      ['Telefone', 'Status', 'Sentimento', 'Responsável', 'Data Cadastro'].join(','),
+      ['Telefone', 'Status', 'Sentimento', 'Nome', 'Data Cadastro'].join(','),
       ...filteredContacts.map(contact => [
         contact.contact_phone || '',
         contact.status,
