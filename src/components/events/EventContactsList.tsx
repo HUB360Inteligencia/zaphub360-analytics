@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Download, Trash2, Users, Eye } from 'lucide-react';
+import { Plus, Search, Download, Trash2, Eye } from 'lucide-react';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsImport from './EventContactsImport';
 import SentimentSelect from './SentimentSelect';
@@ -164,35 +164,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-lg font-bold">{stats.total}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {Object.entries(stats)
-          .filter(([key]) => key !== 'total')
-          .map(([status, count]) => (
-            <Card key={status}>
-              <CardContent className="p-4">
-                <div>
-                  <p className="text-xs text-muted-foreground capitalize">{status}</p>
-                  <p className="text-lg font-bold">{count}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-      </div>
-
-      {/* Sentiment Stats */}
+      {/* Sentiment Stats Cards - Apenas os com emojis */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -233,22 +205,22 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <span className="text-lg">😞</span>
-              <div>
-                <p className="text-xs text-muted-foreground">Negativo</p>
-                <p className="text-lg font-bold text-red-600">{stats.negativo}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
               <span className="text-lg">⚪</span>
               <div>
                 <p className="text-xs text-muted-foreground">Sem classificação</p>
                 <p className="text-lg font-bold text-gray-600">{stats.semClassificacao}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">❌</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Erro</p>
+                <p className="text-lg font-bold text-red-600">{stats.erro}</p>
               </div>
             </div>
           </CardContent>
@@ -358,7 +330,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                 <SelectItem value="super_engajado">🔥 Super Engajado</SelectItem>
                 <SelectItem value="positivo">😊 Positivo</SelectItem>
                 <SelectItem value="neutro">😐 Neutro</SelectItem>
-                <SelectItem value="negativo">😞 Negativo</SelectItem>
                 <SelectItem value="sem_classificacao">⚪ Sem classificação</SelectItem>
               </SelectContent>
             </Select>
