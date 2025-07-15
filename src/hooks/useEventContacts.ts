@@ -9,7 +9,7 @@ export interface EventContact {
   contact_phone: string;
   contact_name?: string;
   status: string;
-  sentiment?: string;
+  sentiment?: string | null;
   created_at: string;
 }
 
@@ -26,6 +26,7 @@ export interface ContactStats {
   positivo: number;
   neutro: number;
   negativo: number;
+  semClassificacao: number;
 }
 
 export const useEventContacts = (eventId?: string) => {
@@ -87,7 +88,8 @@ export const useEventContacts = (eventId?: string) => {
           contact_name: '',
           message_content: '',
           organization_id: organization.id,
-          status: 'fila'
+          status: 'fila',
+          sentiment: null
         });
 
       if (messageError) throw messageError;
@@ -124,7 +126,7 @@ export const useEventContacts = (eventId?: string) => {
   });
 
   const updateContactSentiment = useMutation({
-    mutationFn: async ({ contactId, sentiment }: { contactId: string; sentiment: string }) => {
+    mutationFn: async ({ contactId, sentiment }: { contactId: string; sentiment: string | null }) => {
       const { error } = await supabase
         .from('event_messages')
         .update({ sentiment })
@@ -159,6 +161,7 @@ export const useEventContacts = (eventId?: string) => {
       positivo: contacts.filter(c => c.sentiment === 'positivo').length,
       neutro: contacts.filter(c => c.sentiment === 'neutro').length,
       negativo: contacts.filter(c => c.sentiment === 'negativo').length,
+      semClassificacao: contacts.filter(c => c.sentiment === null || c.sentiment === undefined).length,
     };
   };
 

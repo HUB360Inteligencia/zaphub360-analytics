@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +32,7 @@ export interface EventAnalytics {
     positivo: number;
     neutro: number;
     negativo: number;
+    semClassificacao: number;
     distribution: Array<{
       sentiment: string;
       count: number;
@@ -67,6 +67,7 @@ export const useEventAnalytics = (eventId?: string) => {
             positivo: 0,
             neutro: 0,
             negativo: 0,
+            semClassificacao: 0,
             distribution: []
           }
         };
@@ -128,12 +129,13 @@ export const useEventAnalytics = (eventId?: string) => {
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
       const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
 
-      // Análise de sentimento
+      // Análise de sentimento incluindo NULL
       const sentimentCounts = {
         super_engajado: normalizedMessages.filter(m => m.sentiment === 'super_engajado').length,
         positivo: normalizedMessages.filter(m => m.sentiment === 'positivo').length,
         neutro: normalizedMessages.filter(m => m.sentiment === 'neutro').length,
         negativo: normalizedMessages.filter(m => m.sentiment === 'negativo').length,
+        sem_classificacao: normalizedMessages.filter(m => m.sentiment === null || m.sentiment === undefined).length,
       };
 
       const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
@@ -166,6 +168,13 @@ export const useEventAnalytics = (eventId?: string) => {
           percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0,
           color: '#DC2626',
           emoji: '😞'
+        },
+        {
+          sentiment: 'Sem Classificação',
+          count: sentimentCounts.sem_classificacao,
+          percentage: sentimentTotal > 0 ? (sentimentCounts.sem_classificacao / sentimentTotal) * 100 : 0,
+          color: '#9CA3AF',
+          emoji: '⚪'
         }
       ];
 
@@ -251,6 +260,7 @@ export const useEventAnalytics = (eventId?: string) => {
           positivo: sentimentCounts.positivo,
           neutro: sentimentCounts.neutro,
           negativo: sentimentCounts.negativo,
+          semClassificacao: sentimentCounts.sem_classificacao,
           distribution: sentimentDistribution
         }
       };

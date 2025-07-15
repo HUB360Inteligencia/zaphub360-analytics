@@ -11,10 +11,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Download, Trash2, Users, TrendingUp } from 'lucide-react';
+import { Plus, Search, Download, Trash2, Users, Eye } from 'lucide-react';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsImport from './EventContactsImport';
 import SentimentSelect from './SentimentSelect';
+import ContactProfileModal from '../contacts/ContactProfileModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -34,6 +35,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [sentimentFilter, setSentimentFilter] = useState<string>('todos');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedContactPhone, setSelectedContactPhone] = useState<string | null>(null);
   
   const { contacts, isLoading, createEventContact, deleteEventContact, updateContactSentiment, getContactStats } = useEventContacts(eventId);
   
@@ -64,8 +66,15 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
     );
   };
 
-  const getSentimentBadge = (sentiment?: string) => {
-    if (!sentiment) return null;
+  const getSentimentBadge = (sentiment?: string | null) => {
+    if (sentiment === null || sentiment === undefined) {
+      return (
+        <Badge variant="outline" className="bg-gray-100 text-gray-600">
+          <span className="mr-1">⚪</span>
+          Sem classificação
+        </Badge>
+      );
+    }
     
     const sentimentConfig = {
       super_engajado: { label: 'Super Engajado', emoji: '🔥', className: 'bg-orange-100 text-orange-800' },
@@ -90,7 +99,15 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
       contact.contact_phone?.includes(search);
     
     const matchesStatus = statusFilter === 'todos' || contact.status === statusFilter;
-    const matchesSentiment = sentimentFilter === 'todos' || contact.sentiment === sentimentFilter;
+    
+    let matchesSentiment = true;
+    if (sentimentFilter !== 'todos') {
+      if (sentimentFilter === 'sem_classificacao') {
+        matchesSentiment = contact.sentiment === null || contact.sentiment === undefined;
+      } else {
+        matchesSentiment = contact.sentiment === sentimentFilter;
+      }
+    }
     
     return matchesSearch && matchesStatus && matchesSentiment;
   });
@@ -116,7 +133,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
       ...filteredContacts.map(contact => [
         contact.contact_phone || '',
         contact.status,
-        contact.sentiment || '',
+        contact.sentiment || 'Sem classificação',
         contact.contact_name || '',
         format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })
       ].join(','))
@@ -176,7 +193,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
       </div>
 
       {/* Sentiment Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -220,6 +237,18 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               <div>
                 <p className="text-xs text-muted-foreground">Negativo</p>
                 <p className="text-lg font-bold text-red-600">{stats.negativo}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚪</span>
+              <div>
+                <p className="text-xs text-muted-foreground">Sem classificação</p>
+                <p className="text-lg font-bold text-gray-600">{stats.semClassificacao}</p>
               </div>
             </div>
           </CardContent>
@@ -330,6 +359,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                 <SelectItem value="positivo">😊 Positivo</SelectItem>
                 <SelectItem value="neutro">😐 Neutro</SelectItem>
                 <SelectItem value="negativo">😞 Negativo</SelectItem>
+                <SelectItem value="sem_classificacao">⚪ Sem classificação</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -344,7 +374,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   <TableHead>Sentimento</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Data Cadastro</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -385,14 +415,24 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                         {format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteEventContact.mutate(contact.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedContactPhone(contact.contact_phone)}
+                            className="text-primary hover:text-primary"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteEventContact.mutate(contact.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -402,6 +442,15 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal do Perfil de Contato */}
+      {selectedContactPhone && (
+        <ContactProfileModal
+          contactPhone={selectedContactPhone}
+          isOpen={!!selectedContactPhone}
+          onClose={() => setSelectedContactPhone(null)}
+        />
+      )}
     </div>
   );
 };
