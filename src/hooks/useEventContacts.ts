@@ -79,13 +79,13 @@ export const useEventContacts = (eventId?: string) => {
 
       if (error) throw error;
 
-      // Também inserir na tabela event_messages com o nome do responsável
+      // Também inserir na tabela event_messages
       const { error: messageError } = await supabase
         .from('event_messages')
         .insert({
           event_id: contactData.event_id,
           contact_phone: contactData.celular,
-          contact_name: contactData.responsavel_cadastro,
+          contact_name: '',
           message_content: '',
           organization_id: organization.id,
           status: 'fila',
