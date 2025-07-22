@@ -20,6 +20,10 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check } from 'luci
 import { useTemplates } from '@/hooks/useTemplates';
 import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
 import { useAuth } from '@/contexts/AuthContext';
+import { useContacts } from '@/hooks/useContacts';
+import { useInstances } from '@/hooks/useInstances';
+import { ContactSelector } from './ContactSelector';
+import { InstanceSelector } from './InstanceSelector';
 import { toast } from 'sonner';
 
 interface CampaignWizardProps {
@@ -31,30 +35,31 @@ const campaignSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional(),
   template_id: z.string().min(1, 'Template é obrigatório'),
-  segments: z.array(z.string()).min(1, 'Selecione pelo menos um segmento'),
+  contact_ids: z.array(z.string()).min(1, 'Selecione pelo menos um contato'),
+  instance_ids: z.array(z.string()).min(1, 'Selecione pelo menos uma instância'),
   scheduled_at: z.date().optional(),
   send_immediately: z.boolean().default(false),
+  intervalo_minimo: z.number().min(30).default(30),
+  intervalo_maximo: z.number().min(60).default(60),
+  horario_disparo_inicio: z.string().default('09:00'),
+  horario_disparo_fim: z.string().default('20:00'),
+  tipo_conteudo: z.array(z.string()).min(1).default(['texto']),
 });
 
 const steps = [
   { id: 1, name: 'Informações Básicas', description: 'Nome e descrição da campanha' },
   { id: 2, name: 'Template', description: 'Escolha o template de mensagem' },
-  { id: 3, name: 'Segmentação', description: 'Selecione o público-alvo' },
-  { id: 4, name: 'Agendamento', description: 'Configure quando enviar' },
-  { id: 5, name: 'Revisão', description: 'Confirme os detalhes' },
-];
-
-const segments = [
-  { id: 'eleitores', name: 'Eleitores', count: 4800 },
-  { id: 'apoiadores', name: 'Apoiadores', count: 3200 },
-  { id: 'liderancas', name: 'Lideranças', count: 2100 },
-  { id: 'midia', name: 'Mídia', count: 890 },
-  { id: 'empresarios', name: 'Empresários', count: 675 }
+  { id: 3, name: 'Contatos', description: 'Selecione os contatos alvo' },
+  { id: 4, name: 'Instâncias', description: 'Selecione as instâncias WhatsApp' },
+  { id: 5, name: 'Configurações', description: 'Intervalos e horários' },
+  { id: 6, name: 'Revisão', description: 'Confirme os detalhes' },
 ];
 
 export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
   const { organization } = useAuth();
   const { templates } = useTemplates();
+  const { contacts } = useContacts();
+  const { instances } = useInstances();
   const { createCampaign } = useCampaigns();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -65,15 +70,21 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
       name: '',
       description: '',
       template_id: '',
-      segments: [],
+      contact_ids: [],
+      instance_ids: [],
       send_immediately: false,
+      intervalo_minimo: 30,
+      intervalo_maximo: 60,
+      horario_disparo_inicio: '09:00',
+      horario_disparo_fim: '20:00',
+      tipo_conteudo: ['texto'],
     },
   });
 
   const watchedValues = form.watch();
   const selectedTemplate = templates.find(t => t.id === watchedValues.template_id);
-  const selectedSegments = segments.filter(s => watchedValues.segments.includes(s.id));
-  const totalContacts = selectedSegments.reduce((acc, s) => acc + s.count, 0);
+  const selectedContacts = contacts.filter(c => watchedValues.contact_ids.includes(c.id));
+  const selectedInstances = instances.filter(i => watchedValues.instance_ids.includes(i.id));
 
   const nextStep = () => {
     if (currentStep < steps.length) {
@@ -98,16 +109,29 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
         name: values.name,
         description: values.description,
         template_id: values.template_id,
-        target_contacts: { segments: values.segments },
+        target_contacts: { contact_ids: values.contact_ids },
         scheduled_at: values.send_immediately ? null : selectedDate?.toISOString() || null,
         status: (values.send_immediately ? 'active' : 'scheduled') as Campaign['status'],
         organization_id: organization.id,
         started_at: null,
         completed_at: null,
-        metrics: { sent: 0, delivered: 0, read: 0, failed: 0 },
+        intervalo_minimo: values.intervalo_minimo,
+        intervalo_maximo: values.intervalo_maximo,
+        horario_disparo_inicio: values.horario_disparo_inicio + ':00',
+        horario_disparo_fim: values.horario_disparo_fim + ':00',
+        tipo_conteudo: values.tipo_conteudo,
+        total_mensagens: 0,
+        mensagens_enviadas: 0,
+        mensagens_lidas: 0,
+        mensagens_respondidas: 0,
       };
 
-      await createCampaign.mutateAsync(campaignData);
+      await createCampaign.mutateAsync({
+        campaign: campaignData,
+        contactIds: values.contact_ids,
+        instanceIds: values.instance_ids,
+      });
+      
       onClose();
       form.reset();
       setCurrentStep(1);
@@ -123,8 +147,12 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
       case 2:
         return form.getValues('template_id').length > 0;
       case 3:
-        return form.getValues('segments').length > 0;
+        return form.getValues('contact_ids').length > 0;
       case 4:
+        return form.getValues('instance_ids').length > 0;
+      case 5:
+        return true; // Configurações têm valores padrão
+      case 6:
         return form.getValues('send_immediately') || selectedDate;
       default:
         return true;
@@ -223,56 +251,26 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="segments"
-              render={() => (
+              name="contact_ids"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Selecione o Público-Alvo *</FormLabel>
-                  <div className="grid grid-cols-1 gap-3">
-                    {segments.map(segment => (
-                      <FormField
-                        key={segment.id}
-                        control={form.control}
-                        name="segments"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0 border rounded-lg p-3">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(segment.id)}
-                                onCheckedChange={(checked) => {
-                                  const currentSegments = field.value || [];
-                                  if (checked) {
-                                    field.onChange([...currentSegments, segment.id]);
-                                  } else {
-                                    field.onChange(currentSegments.filter(s => s !== segment.id));
-                                  }
-                                }}
-                              />
-                            </FormControl>
-                            <div className="flex-1">
-                              <FormLabel className="font-medium">
-                                {segment.name}
-                              </FormLabel>
-                              <p className="text-sm text-slate-500">
-                                {segment.count.toLocaleString()} contatos
-                              </p>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
+                  <FormLabel>Selecione os Contatos *</FormLabel>
+                  <ContactSelector
+                    selectedContactIds={field.value}
+                    onSelectionChange={field.onChange}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {selectedSegments.length > 0 && (
+            {selectedContacts.length > 0 && (
               <Card className="bg-blue-50">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Total de Contatos:</span>
                     <span className="text-lg font-bold text-blue-600">
-                      {totalContacts.toLocaleString()}
+                      {selectedContacts.length}
                     </span>
                   </div>
                 </CardContent>
@@ -282,6 +280,152 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
         );
 
       case 4:
+        return (
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="instance_ids"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Selecione as Instâncias WhatsApp *</FormLabel>
+                  <InstanceSelector
+                    selectedInstanceIds={field.value}
+                    onSelectionChange={field.onChange}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {selectedInstances.length > 0 && (
+              <Card className="bg-green-50">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Instâncias Selecionadas:</span>
+                    <span className="text-lg font-bold text-green-600">
+                      {selectedInstances.length}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="intervalo_minimo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Intervalo Mínimo (segundos)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="30" 
+                        {...field} 
+                        onChange={e => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="intervalo_maximo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Intervalo Máximo (segundos)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="60" 
+                        {...field}
+                        onChange={e => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="horario_disparo_inicio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horário Início</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="horario_disparo_fim"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horário Fim</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="tipo_conteudo"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Tipos de Conteúdo</FormLabel>
+                  <div className="flex gap-4">
+                    {['texto', 'imagem', 'documento'].map(tipo => (
+                      <FormField
+                        key={tipo}
+                        control={form.control}
+                        name="tipo_conteudo"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(tipo)}
+                                onCheckedChange={(checked) => {
+                                  const current = field.value || [];
+                                  if (checked) {
+                                    field.onChange([...current, tipo]);
+                                  } else {
+                                    field.onChange(current.filter(t => t !== tipo));
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="capitalize">
+                              {tipo}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        );
+
+      case 6:
         return (
           <div className="space-y-4">
             <FormField
@@ -334,12 +478,7 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                 </div>
               </div>
             )}
-          </div>
-        );
 
-      case 5:
-        return (
-          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Revisão da Campanha</CardTitle>
@@ -357,16 +496,22 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                   <strong>Template:</strong> {selectedTemplate?.name}
                 </div>
                 <div>
-                  <strong>Público-alvo:</strong> {selectedSegments.map(s => s.name).join(', ')}
+                  <strong>Contatos:</strong> {selectedContacts.length} selecionados
                 </div>
                 <div>
-                  <strong>Total de contatos:</strong> {totalContacts.toLocaleString()}
+                  <strong>Instâncias:</strong> {selectedInstances.length} selecionadas
+                </div>
+                <div>
+                  <strong>Intervalo:</strong> {watchedValues.intervalo_minimo}s - {watchedValues.intervalo_maximo}s
+                </div>
+                <div>
+                  <strong>Horário:</strong> {watchedValues.horario_disparo_inicio} às {watchedValues.horario_disparo_fim}
                 </div>
                 <div>
                   <strong>Agendamento:</strong> {
                     watchedValues.send_immediately 
                       ? 'Envio imediato' 
-                      : selectedDate ? format(selectedDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Não definido'
+                      : selectedDate ? format(selectedDate, "dd/MM/yyyy", { locale: ptBR }) : 'Não definido'
                   }
                 </div>
               </CardContent>
@@ -403,8 +548,8 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                 <div className={`absolute h-px bg-slate-300 ${
                   currentStep > step.id ? 'bg-blue-600' : ''
                 }`} style={{ 
-                  left: `${((index + 1) * 20)}%`, 
-                  width: '20%', 
+                  left: `${((index + 1) * (100 / steps.length))}%`, 
+                  width: `${100 / steps.length}%`, 
                   top: '16px',
                   zIndex: -1 
                 }} />
