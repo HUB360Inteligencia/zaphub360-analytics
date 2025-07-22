@@ -16,12 +16,16 @@ export interface Campaign {
   scheduled_at?: string;
   started_at?: string;
   completed_at?: string;
-  metrics?: {
-    sent: number;
-    delivered: number;
-    read: number;
-    failed: number;
-  };
+  // Novos campos para integração N8n
+  intervalo_minimo: number;
+  intervalo_maximo: number;
+  horario_disparo_inicio: string;
+  horario_disparo_fim: string;
+  tipo_conteudo: string[];
+  total_mensagens: number;
+  mensagens_enviadas: number;
+  mensagens_lidas: number;
+  mensagens_respondidas: number;
   created_at: string;
   updated_at: string;
 }
@@ -50,11 +54,19 @@ export const useCampaigns = () => {
         throw error;
       }
       
-      // Validate and sanitize data
+      // Validar e sanitizar dados com novos campos
       const validCampaigns = (data || []).map(campaign => ({
         ...campaign,
-        metrics: campaign.metrics || { sent: 0, delivered: 0, read: 0, failed: 0 },
-        target_contacts: campaign.target_contacts || { segments: [] },
+        intervalo_minimo: campaign.intervalo_minimo || 30,
+        intervalo_maximo: campaign.intervalo_maximo || 60,
+        horario_disparo_inicio: campaign.horario_disparo_inicio || '09:00:00',
+        horario_disparo_fim: campaign.horario_disparo_fim || '20:00:00',
+        tipo_conteudo: campaign.tipo_conteudo || ['texto'],
+        total_mensagens: campaign.total_mensagens || 0,
+        mensagens_enviadas: campaign.mensagens_enviadas || 0,
+        mensagens_lidas: campaign.mensagens_lidas || 0,
+        mensagens_respondidas: campaign.mensagens_respondidas || 0,
+        target_contacts: campaign.target_contacts || { contacts: [] },
         status: campaign.status || 'draft'
       }));
       
@@ -67,19 +79,30 @@ export const useCampaigns = () => {
 
   const createCampaign = useMutation({
     mutationFn: async (campaignData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
-      // Validate required fields
+      // Validar campos obrigatórios
       if (!validateRequired(campaignData, ['name', 'organization_id'])) {
         throw new Error('Campos obrigatórios não preenchidos');
       }
 
-      // Sanitize data
+      // Sanitizar dados
       const sanitizedData = {
         ...campaignData,
         name: campaignData.name.trim(),
         description: campaignData.description?.trim() || null,
-        metrics: campaignData.metrics || { sent: 0, delivered: 0, read: 0, failed: 0 },
-        target_contacts: campaignData.target_contacts || { segments: [] },
-        status: campaignData.status || 'draft'
+        intervalo_minimo: campaignData.intervalo_minimo || 30,
+        intervalo_maximo: campaignData.intervalo_maximo || 60,
+        horario_disparo_inicio: campaignData.horario_disparo_inicio || '09:00:00',
+        horario_disparo_fim: campaignData.horario_disparo_fim || '20:00:00',
+        tipo_conteudo: campaignData.tipo_conteudo || ['texto'],
+        total_mensagens: 0,
+        mensagens_enviadas: 0,
+        mensagens_lidas: 0,
+        mensagens_respondidas: 0,
+        target_contacts: campaignData.target_contacts || { contacts: [] },
+        status: campaignData.status || 'draft',
+        scheduled_at: campaignData.scheduled_at || null,
+        started_at: null,
+        completed_at: null
       };
 
       const { data, error } = await supabase
@@ -141,6 +164,59 @@ export const useCampaigns = () => {
     },
   });
 
+  // Nova função para ativar campanha
+  const activateCampaign = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .update({ 
+          status: 'active',
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast.success('Campanha ativada! O N8n iniciará o processamento.');
+    },
+    onError: (error) => {
+      console.error('Erro ao ativar campanha:', error);
+      toast.error('Erro ao ativar campanha');
+    },
+  });
+
+  // Nova função para pausar campanha
+  const pauseCampaign = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .update({ 
+          status: 'paused',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast.success('Campanha pausada com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao pausar campanha:', error);
+      toast.error('Erro ao pausar campanha');
+    },
+  });
+
   return {
     campaigns: campaignsQuery.data || [],
     isLoading: campaignsQuery.isLoading,
@@ -148,6 +224,8 @@ export const useCampaigns = () => {
     createCampaign,
     updateCampaign,
     deleteCampaign,
+    activateCampaign,
+    pauseCampaign,
     refetch: campaignsQuery.refetch,
   };
 };

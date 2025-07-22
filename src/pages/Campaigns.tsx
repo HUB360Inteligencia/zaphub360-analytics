@@ -15,7 +15,7 @@ import { CampaignWizard } from '@/components/campaigns/CampaignWizard';
 import { useCampaigns } from '@/hooks/useCampaigns';
 
 const Campaigns = () => {
-  const { campaigns, isLoading } = useCampaigns();
+  const { campaigns, isLoading, activateCampaign, pauseCampaign } = useCampaigns();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -58,20 +58,28 @@ const Campaigns = () => {
     }
   };
 
-  // Calcular estatísticas
+  const handleActivateCampaign = async (campaignId: string) => {
+    try {
+      await activateCampaign.mutateAsync(campaignId);
+    } catch (error) {
+      console.error('Erro ao ativar campanha:', error);
+    }
+  };
+
+  const handlePauseCampaign = async (campaignId: string) => {
+    try {
+      await pauseCampaign.mutateAsync(campaignId);
+    } catch (error) {
+      console.error('Erro ao pausar campanha:', error);
+    }
+  };
+
+  // Calcular estatísticas reais das campanhas
   const totalCampaigns = campaigns.length;
   const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
-  const totalMessages = campaigns.reduce((acc, c) => {
-    const metrics = c.metrics as any;
-    return acc + (metrics?.sent || 0);
-  }, 0);
-  const avgDeliveryRate = campaigns.length > 0 ? 
-    campaigns.reduce((acc, c) => {
-      const metrics = c.metrics as any;
-      const sent = metrics?.sent || 0;
-      const delivered = metrics?.delivered || 0;
-      return acc + (sent > 0 ? (delivered / sent) * 100 : 0);
-    }, 0) / campaigns.length : 0;
+  const totalMessages = campaigns.reduce((acc, c) => acc + (c.total_mensagens || 0), 0);
+  const totalSent = campaigns.reduce((acc, c) => acc + (c.mensagens_enviadas || 0), 0);
+  const avgDeliveryRate = totalMessages > 0 ? (totalSent / totalMessages) * 100 : 0;
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
@@ -79,7 +87,7 @@ const Campaigns = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Gestão de Campanhas</h1>
-          <p className="text-slate-600">Crie e gerencie suas campanhas de comunicação</p>
+          <p className="text-slate-600">Crie e gerencie suas campanhas de comunicação integradas com N8n</p>
         </div>
         <div className="flex gap-3">
           <Link to="/templates">
@@ -98,7 +106,7 @@ const Campaigns = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Agora com dados reais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-white border-0 shadow-sm">
           <CardContent className="p-6">
@@ -128,7 +136,7 @@ const Campaigns = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Taxa Média de Entrega</p>
+                <p className="text-sm font-medium text-slate-600">Taxa de Envio</p>
                 <p className="text-2xl font-bold text-slate-900">{avgDeliveryRate.toFixed(1)}%</p>
               </div>
               <CheckCircle className="w-8 h-8 text-purple-600" />
@@ -195,22 +203,18 @@ const Campaigns = () => {
                   <TableHead>Campanha</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Progresso</TableHead>
-                  <TableHead>Taxa de Entrega</TableHead>
-                  <TableHead>Criado em</TableHead>
+                  <TableHead>Taxa de Leitura</TableHead>
+                  <TableHead>Horário de Envio</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => {
-                  const metrics = campaign.metrics as any || {};
-                  const sent = metrics.sent || 0;
-                  const delivered = metrics.delivered || 0;
-                  const deliveryRate = sent > 0 ? (delivered / sent) * 100 : 0;
-                  
-                  // Safely access target_contacts with proper type casting
-                  const targetContacts = campaign.target_contacts as { segments?: string[] } | null;
-                  const segmentsCount = targetContacts?.segments?.length || 0;
-                  const totalContacts = segmentsCount * 1000; // Mock calculation
+                  const total = campaign.total_mensagens || 0;
+                  const sent = campaign.mensagens_enviadas || 0;
+                  const read = campaign.mensagens_lidas || 0;
+                  const readRate = sent > 0 ? (read / sent) * 100 : 0;
+                  const progressRate = total > 0 ? (sent / total) * 100 : 0;
 
                   return (
                     <TableRow key={campaign.id} className="hover:bg-slate-50">
@@ -231,29 +235,53 @@ const Campaigns = () => {
                       <TableCell>
                         <div className="space-y-1">
                           <div className="text-sm font-medium">
-                            {sent}/{totalContacts}
+                            {sent}/{total}
                           </div>
                           <div className="w-full bg-slate-200 rounded-full h-2">
                             <div 
                               className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${totalContacts > 0 ? (sent / totalContacts) * 100 : 0}%` }}
+                              style={{ width: `${progressRate}%` }}
                             />
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div className="font-medium">{deliveryRate.toFixed(1)}%</div>
+                          <div className="font-medium">{readRate.toFixed(1)}%</div>
                           <div className="text-slate-500">
-                            {delivered}/{sent}
+                            {read}/{sent}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
+                        <div>
+                          {campaign.horario_disparo_inicio} - {campaign.horario_disparo_fim}
+                        </div>
+                        <div className="text-slate-500">
+                          Intervalo: {campaign.intervalo_minimo}-{campaign.intervalo_maximo}min
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          {campaign.status === 'draft' || campaign.status === 'paused' ? (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleActivateCampaign(campaign.id)}
+                              disabled={activateCampaign.isPending}
+                            >
+                              <Play className="w-4 h-4" />
+                            </Button>
+                          ) : campaign.status === 'active' ? (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handlePauseCampaign(campaign.id)}
+                              disabled={pauseCampaign.isPending}
+                            >
+                              <Pause className="w-4 h-4" />
+                            </Button>
+                          ) : null}
                           <Button variant="ghost" size="sm">
                             <Eye className="w-4 h-4" />
                           </Button>

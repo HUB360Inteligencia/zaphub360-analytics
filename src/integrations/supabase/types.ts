@@ -20,7 +20,14 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          horario_disparo_fim: string | null
+          horario_disparo_inicio: string | null
           id: string
+          intervalo_maximo: number | null
+          intervalo_minimo: number | null
+          mensagens_enviadas: number | null
+          mensagens_lidas: number | null
+          mensagens_respondidas: number | null
           metrics: Json | null
           name: string
           organization_id: string
@@ -29,6 +36,8 @@ export type Database = {
           status: string
           target_contacts: Json | null
           template_id: string | null
+          tipo_conteudo: string[] | null
+          total_mensagens: number | null
           updated_at: string
         }
         Insert: {
@@ -36,7 +45,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          horario_disparo_fim?: string | null
+          horario_disparo_inicio?: string | null
           id?: string
+          intervalo_maximo?: number | null
+          intervalo_minimo?: number | null
+          mensagens_enviadas?: number | null
+          mensagens_lidas?: number | null
+          mensagens_respondidas?: number | null
           metrics?: Json | null
           name: string
           organization_id: string
@@ -45,6 +61,8 @@ export type Database = {
           status?: string
           target_contacts?: Json | null
           template_id?: string | null
+          tipo_conteudo?: string[] | null
+          total_mensagens?: number | null
           updated_at?: string
         }
         Update: {
@@ -52,7 +70,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          horario_disparo_fim?: string | null
+          horario_disparo_inicio?: string | null
           id?: string
+          intervalo_maximo?: number | null
+          intervalo_minimo?: number | null
+          mensagens_enviadas?: number | null
+          mensagens_lidas?: number | null
+          mensagens_respondidas?: number | null
           metrics?: Json | null
           name?: string
           organization_id?: string
@@ -61,6 +86,8 @@ export type Database = {
           status?: string
           target_contacts?: Json | null
           template_id?: string | null
+          tipo_conteudo?: string[] | null
+          total_mensagens?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -76,6 +103,38 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanha_instancia: {
+        Row: {
+          created_at: string | null
+          id: string
+          id_campanha: string
+          id_instancia: string
+          prioridade: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          id_campanha: string
+          id_instancia: string
+          prioridade?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          id_campanha?: string
+          id_instancia?: string
+          prioridade?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_instancia_id_campanha_fkey"
+            columns: ["id_campanha"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -248,6 +307,8 @@ export type Database = {
           name: string
           organization_id: string
           status: string
+          tempo_max: number | null
+          tempo_min: number | null
           updated_at: string
         }
         Insert: {
@@ -263,6 +324,8 @@ export type Database = {
           name: string
           organization_id: string
           status?: string
+          tempo_max?: number | null
+          tempo_min?: number | null
           updated_at?: string
         }
         Update: {
@@ -278,6 +341,8 @@ export type Database = {
           name?: string
           organization_id?: string
           status?: string
+          tempo_max?: number | null
+          tempo_min?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -373,39 +438,66 @@ export type Database = {
           },
         ]
       }
-      mensagens_enviadas: {
+      mensagens_campanhas: {
         Row: {
           campanha: string | null
           contato: string | null
           content: string | null
           created_at: string
-          evento: string | null
+          delay_mensagem: number | null
+          erro_envio: string | null
+          horario_leitura: string | null
+          horario_resposta: string | null
           id: number
+          id_campanha: string | null
+          id_mensagem_wpp: string | null
           instancia: string | null
+          instancia_id: string | null
           nome: string | null
+          prioridade: number | null
+          sentimento_mensagem: string | null
           status_mensagem: Database["public"]["Enums"]["status_message"] | null
+          tentativas_envio: number | null
         }
         Insert: {
           campanha?: string | null
           contato?: string | null
           content?: string | null
           created_at?: string
-          evento?: string | null
+          delay_mensagem?: number | null
+          erro_envio?: string | null
+          horario_leitura?: string | null
+          horario_resposta?: string | null
           id?: number
+          id_campanha?: string | null
+          id_mensagem_wpp?: string | null
           instancia?: string | null
+          instancia_id?: string | null
           nome?: string | null
+          prioridade?: number | null
+          sentimento_mensagem?: string | null
           status_mensagem?: Database["public"]["Enums"]["status_message"] | null
+          tentativas_envio?: number | null
         }
         Update: {
           campanha?: string | null
           contato?: string | null
           content?: string | null
           created_at?: string
-          evento?: string | null
+          delay_mensagem?: number | null
+          erro_envio?: string | null
+          horario_leitura?: string | null
+          horario_resposta?: string | null
           id?: number
+          id_campanha?: string | null
+          id_mensagem_wpp?: string | null
           instancia?: string | null
+          instancia_id?: string | null
           nome?: string | null
+          prioridade?: number | null
+          sentimento_mensagem?: string | null
           status_mensagem?: Database["public"]["Enums"]["status_message"] | null
+          tentativas_envio?: number | null
         }
         Relationships: []
       }
@@ -807,7 +899,7 @@ export type Database = {
       }
     }
     Enums: {
-      status_message: "enviado" | "pendente" | "lido" | "inexistente"
+      status_message: "enviado" | "pendente" | "lido" | "inexistente" | "fila"
       user_role:
         | "saas_admin"
         | "client"
@@ -942,7 +1034,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      status_message: ["enviado", "pendente", "lido", "inexistente"],
+      status_message: ["enviado", "pendente", "lido", "inexistente", "fila"],
       user_role: [
         "saas_admin",
         "client",
