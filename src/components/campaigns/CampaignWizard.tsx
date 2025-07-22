@@ -126,11 +126,7 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
         mensagens_respondidas: 0,
       };
 
-      await createCampaign.mutateAsync({
-        campaign: campaignData,
-        contactIds: values.contact_ids,
-        instanceIds: values.instance_ids,
-      });
+      await createCampaign.mutateAsync(campaignData);
       
       onClose();
       form.reset();
@@ -256,8 +252,8 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                 <FormItem>
                   <FormLabel>Selecione os Contatos *</FormLabel>
                   <ContactSelector
-                    selectedContactIds={field.value}
-                    onSelectionChange={field.onChange}
+                    selectedContacts={selectedContacts}
+                    onContactsChange={(contacts) => field.onChange(contacts.map(c => c.id))}
                   />
                   <FormMessage />
                 </FormItem>
@@ -289,8 +285,8 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                 <FormItem>
                   <FormLabel>Selecione as Instâncias WhatsApp *</FormLabel>
                   <InstanceSelector
-                    selectedInstanceIds={field.value}
-                    onSelectionChange={field.onChange}
+                    selectedInstances={selectedInstances.map(i => i.id)}
+                    onInstancesChange={field.onChange}
                   />
                   <FormMessage />
                 </FormItem>
