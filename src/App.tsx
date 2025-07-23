@@ -9,7 +9,6 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Campaigns from "./pages/Campaigns";
-import Templates from "./pages/Templates";
 import MessageContent from "./pages/MessageContent";
 import Events from "./pages/Events";
 import EventForm from "./pages/EventForm";
@@ -50,13 +49,6 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Campaigns />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/templates" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Templates />
                 </Layout>
               </ProtectedRoute>
             } />

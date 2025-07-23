@@ -512,6 +512,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           event_id: string | null
+          formato_id: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -537,6 +538,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           event_id?: string | null
+          formato_id?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -562,6 +564,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           event_id?: string | null
+          formato_id?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null

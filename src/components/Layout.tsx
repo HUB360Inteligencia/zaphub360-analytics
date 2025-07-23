@@ -24,7 +24,6 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Dashboard', href: '/', icon: LayoutDashboard, current: location.pathname === '/' },
     { name: 'Contatos', href: '/contacts', icon: Users, current: location.pathname === '/contacts' },
     { name: 'Campanhas', href: '/campaigns', icon: Send, current: location.pathname === '/campaigns' },
-    { name: 'Templates', href: '/templates', icon: FileText, current: location.pathname === '/templates' },
     { name: 'Conteúdo de Mensagem', href: '/message-content', icon: MessageCircle, current: location.pathname === '/message-content' },
     { name: 'Eventos', href: '/events', icon: Calendar, current: location.pathname.startsWith('/events') },
     { name: 'Relatórios', href: '/reports', icon: BarChart3, current: location.pathname === '/reports' },
