@@ -17,6 +17,7 @@ import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PublicEventStatus from "./pages/PublicEventStatus";
+import CampaignDetails from "./pages/CampaignDetails";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Campaigns />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/campaigns/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <CampaignDetails />
                 </Layout>
               </ProtectedRoute>
             } />

@@ -10,11 +10,12 @@ import {
   Edit, Trash2, Eye, BarChart3, Clock, Users, MessageSquare,
   Target, Zap, CheckCircle, AlertCircle, Send
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CampaignWizard } from '@/components/campaigns/CampaignWizard';
 import { useCampaigns } from '@/hooks/useCampaigns';
 
 const Campaigns = () => {
+  const navigate = useNavigate();
   const { campaigns, isLoading, activateCampaign, pauseCampaign } = useCampaigns();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -282,7 +283,11 @@ const Campaigns = () => {
                               <Pause className="w-4 h-4" />
                             </Button>
                           ) : null}
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                          >
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm">

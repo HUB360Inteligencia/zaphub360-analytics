@@ -193,6 +193,35 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
       case 2:
         return (
           <div className="space-y-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium mb-2">Selecionar Template</h3>
+              <p className="text-sm text-muted-foreground">
+                Escolha um template baseado no tipo de campanha que deseja criar
+              </p>
+            </div>
+            
+            {/* Filtro por categoria */}
+            <div className="mb-4">
+              <label className="text-sm font-medium">Filtrar por Categoria</label>
+              <Select onValueChange={(value) => {
+                const filteredTemplates = value === 'all' 
+                  ? templates 
+                  : templates.filter(t => t.category === value);
+                // Trigger re-render of template options
+              }}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="Todas as categorias" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="newsletter">Newsletter</SelectItem>
+                  <SelectItem value="convite-evento">Convite para Evento</SelectItem>
+                  <SelectItem value="campanha-mensagens">Campanha de Mensagens</SelectItem>
+                  <SelectItem value="automacoes">Automações</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <FormField
               control={form.control}
               name="template_id"
