@@ -2,10 +2,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MESSAGE_CATEGORIES } from '@/lib/messageCategories';
-
-interface Template {
-  category: string;
-}
+import { Template } from '@/hooks/useTemplates';
 
 interface CategoryFilterProps {
   templates: Template[];
