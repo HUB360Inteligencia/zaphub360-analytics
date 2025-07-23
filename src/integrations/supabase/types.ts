@@ -933,6 +933,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      sync_event_contacts_to_main: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       status_message: "enviado" | "pendente" | "lido" | "inexistente" | "fila"
