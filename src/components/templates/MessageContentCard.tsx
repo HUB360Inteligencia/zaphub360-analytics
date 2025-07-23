@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { MoreHorizontal, Eye, Copy, Trash2, Image, Video, MapPin, MessageSquare, Phone, Edit, Loader2 } from 'lucide-react';
 import { getFormatById } from '@/lib/messageFormats';
+import { getCategoryById } from '@/lib/messageCategories';
 import { Template, useTemplates } from '@/hooks/useTemplates';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -83,7 +84,18 @@ export const MessageContentCard = ({ template, onPreview, onUse, onEdit }: Messa
                     {format.name}
                   </Badge>
                 )}
-                <Badge variant="secondary">{template.category}</Badge>
+                {getCategoryById(template.category || '') && (
+                  <Badge 
+                    variant="secondary" 
+                    style={{ 
+                      backgroundColor: `${getCategoryById(template.category || '')?.color}20`,
+                      color: getCategoryById(template.category || '')?.color,
+                      borderColor: getCategoryById(template.category || '')?.color 
+                    }}
+                  >
+                    {getCategoryById(template.category || '')?.name}
+                  </Badge>
+                )}
               </div>
             </div>
             <DropdownMenu>

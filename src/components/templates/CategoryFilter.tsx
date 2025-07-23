@@ -1,54 +1,54 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-interface Category {
-  id: string;
-  name: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}
+import { MESSAGE_CATEGORIES } from '@/lib/messageCategories';
 
 interface Template {
   category: string;
 }
 
 interface CategoryFilterProps {
-  categories: Category[];
   templates: Template[];
   categoryFilter: string;
   setCategoryFilter: (filter: string) => void;
 }
 
 export const CategoryFilter = ({ 
-  categories, 
   templates, 
   categoryFilter, 
   setCategoryFilter 
 }: CategoryFilterProps) => {
   return (
-    <Card className="bg-white border-0 shadow-sm">
+    <Card className="bg-card border-0 shadow-sm">
       <CardContent className="p-6">
         <div className="flex flex-wrap gap-2">
           <Button
             variant={categoryFilter === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setCategoryFilter('all')}
-            className={categoryFilter === 'all' ? 'bg-slate-900' : ''}
           >
             Todas ({templates.length})
           </Button>
-          {categories.map(category => {
+          {MESSAGE_CATEGORIES.map(category => {
             const count = templates.filter(t => t.category === category.id).length;
             const IconComponent = category.icon;
+            const isSelected = categoryFilter === category.id;
+            
             return (
               <Button
                 key={category.id}
-                variant={categoryFilter === category.id ? 'default' : 'outline'}
+                variant={isSelected ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setCategoryFilter(category.id)}
-                className={categoryFilter === category.id ? '' : 'hover:bg-slate-50'}
-                style={categoryFilter === category.id ? { backgroundColor: category.color } : {}}
+                className={`transition-all duration-200 ${
+                  isSelected 
+                    ? 'text-white border-0' 
+                    : 'hover:bg-accent/10 border-border'
+                }`}
+                style={isSelected ? { 
+                  backgroundColor: category.color,
+                  borderColor: category.color 
+                } : {}}
               >
                 <IconComponent className="w-4 h-4 mr-2" />
                 {category.name} ({count})

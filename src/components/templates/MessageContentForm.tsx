@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, Plus, Upload, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { MESSAGE_FORMATS, getFormatById, getRequiredContentTypes } from '@/lib/messageFormats';
+import { MESSAGE_CATEGORIES, getCategoryById, validateCategoryRequirements } from '@/lib/messageCategories';
 
 interface MessageContentFormProps {
   onSuccess: () => void;
@@ -52,7 +53,7 @@ export const MessageContentForm: React.FC<MessageContentFormProps> = ({
     resolver: zodResolver(messageContentSchema),
     defaultValues: {
       name: template?.name || '',
-      category: template?.category || 'Vendas',
+      category: template?.category || 'campanha-mensagens',
       content: template?.content || '',
       formato_id: template?.formato_id || '',
       media_url: template?.media_url || '',
@@ -260,12 +261,19 @@ export const MessageContentForm: React.FC<MessageContentFormProps> = ({
                         <SelectValue placeholder="Selecione uma categoria" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Vendas">Vendas</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Suporte">Suporte</SelectItem>
-                      <SelectItem value="Eventos">Eventos</SelectItem>
-                    </SelectContent>
+                     <SelectContent>
+                       {MESSAGE_CATEGORIES.map(category => {
+                         const IconComponent = category.icon;
+                         return (
+                           <SelectItem key={category.id} value={category.id}>
+                             <div className="flex items-center gap-2">
+                               <IconComponent className="w-4 h-4" />
+                               <span>{category.name}</span>
+                             </div>
+                           </SelectItem>
+                         );
+                       })}
+                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>

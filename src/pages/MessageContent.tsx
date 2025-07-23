@@ -8,11 +8,13 @@ import { StatsCards } from '@/components/templates/StatsCards';
 import { MessageContentCard } from '@/components/templates/MessageContentCard';
 import { MessageContentForm } from '@/components/templates/MessageContentForm';
 import { TemplatePreview } from '@/components/templates/TemplatePreview';
+import { CategoryFilter } from '@/components/templates/CategoryFilter';
 import { useTemplates } from '@/hooks/useTemplates';
 
 const MessageContent = () => {
   const { templates, isLoading } = useTemplates();
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
@@ -20,7 +22,8 @@ const MessageContent = () => {
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.content.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesCategory = categoryFilter === 'all' || template.category === categoryFilter;
+    return matchesSearch && matchesCategory;
   });
 
   const totalTemplates = templates.length;
@@ -70,6 +73,12 @@ const MessageContent = () => {
         mostUsedTemplate={mostUsedTemplate.name}
         mostUsedCount={mostUsedTemplate.usage_count || 0}
         categoriesCount={13}
+      />
+
+      <CategoryFilter
+        templates={templates}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
       />
 
       <Card className="bg-white border-0 shadow-sm">
