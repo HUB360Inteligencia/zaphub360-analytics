@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -69,19 +69,7 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
 
   const form = useForm<z.infer<typeof campaignSchema>>({
     resolver: zodResolver(campaignSchema),
-    defaultValues: editMode && campaignData ? {
-      name: campaignData.name,
-      description: campaignData.description || '',
-      template_id: campaignData.template_id || '',
-      contact_ids: campaignData.target_contacts?.contact_ids || [],
-      instance_ids: [], // Será populado quando tivermos a relação campaign-instance
-      send_immediately: false,
-      intervalo_minimo: campaignData.intervalo_minimo,
-      intervalo_maximo: campaignData.intervalo_maximo,
-      horario_disparo_inicio: campaignData.horario_disparo_inicio?.substring(0, 5) || '09:00',
-      horario_disparo_fim: campaignData.horario_disparo_fim?.substring(0, 5) || '20:00',
-      tipo_conteudo: campaignData.tipo_conteudo,
-    } : {
+    defaultValues: {
       name: '',
       description: '',
       template_id: '',
@@ -95,6 +83,44 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
       tipo_conteudo: ['texto'],
     },
   });
+
+  // Resetar e pré-preencher formulário quando entrar em modo de edição
+  React.useEffect(() => {
+    if (editMode && campaignData) {
+      const contactIds = Array.isArray(campaignData.target_contacts?.contact_ids) 
+        ? campaignData.target_contacts.contact_ids 
+        : [];
+
+      form.reset({
+        name: campaignData.name,
+        description: campaignData.description || '',
+        template_id: campaignData.template_id || '',
+        contact_ids: contactIds,
+        instance_ids: [], // Será preenchido quando tivermos relação campaign-instance
+        send_immediately: false,
+        intervalo_minimo: campaignData.intervalo_minimo,
+        intervalo_maximo: campaignData.intervalo_maximo,
+        horario_disparo_inicio: campaignData.horario_disparo_inicio?.substring(0, 5) || '09:00',
+        horario_disparo_fim: campaignData.horario_disparo_fim?.substring(0, 5) || '20:00',
+        tipo_conteudo: campaignData.tipo_conteudo,
+      });
+    } else if (!editMode) {
+      // Reset para valores padrão quando não estiver editando
+      form.reset({
+        name: '',
+        description: '',
+        template_id: '',
+        contact_ids: [],
+        instance_ids: [],
+        send_immediately: false,
+        intervalo_minimo: 30,
+        intervalo_maximo: 60,
+        horario_disparo_inicio: '09:00',
+        horario_disparo_fim: '20:00',
+        tipo_conteudo: ['texto'],
+      });
+    }
+  }, [editMode, campaignData, form]);
 
   const watchedValues = form.watch();
   const selectedTemplate = templates.find(t => t.id === watchedValues.template_id);
