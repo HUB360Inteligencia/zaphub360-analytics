@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   LayoutDashboard, Users, Send, FileText, BarChart3, 
   Settings, Bell, Search, Menu, X, MessageSquare,
-  Zap, Target, Calendar, HelpCircle, LogOut
+  Zap, Target, Calendar, HelpCircle, LogOut, MessageCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,6 +25,7 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Contatos', href: '/contacts', icon: Users, current: location.pathname === '/contacts' },
     { name: 'Campanhas', href: '/campaigns', icon: Send, current: location.pathname === '/campaigns' },
     { name: 'Templates', href: '/templates', icon: FileText, current: location.pathname === '/templates' },
+    { name: 'Conteúdo de Mensagem', href: '/message-content', icon: MessageCircle, current: location.pathname === '/message-content' },
     { name: 'Eventos', href: '/events', icon: Calendar, current: location.pathname.startsWith('/events') },
     { name: 'Relatórios', href: '/reports', icon: BarChart3, current: location.pathname === '/reports' },
   ];

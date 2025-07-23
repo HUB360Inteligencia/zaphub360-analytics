@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Campaigns from "./pages/Campaigns";
 import Templates from "./pages/Templates";
+import MessageContent from "./pages/MessageContent";
 import Events from "./pages/Events";
 import EventForm from "./pages/EventForm";
 import EventDetails from "./pages/EventDetails";
@@ -56,6 +57,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Templates />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/message-content" element={
+              <ProtectedRoute>
+                <Layout>
+                  <MessageContent />
                 </Layout>
               </ProtectedRoute>
             } />

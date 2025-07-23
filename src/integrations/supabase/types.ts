@@ -503,43 +503,76 @@ export type Database = {
       }
       message_templates: {
         Row: {
+          botoes: Json | null
+          caption: string | null
           category: string | null
+          contato_nome: string | null
+          contato_numero: string | null
           content: string
           created_at: string
           created_by: string | null
           event_id: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
+          media_name: string | null
+          media_type: string | null
+          media_url: string | null
+          mensagem_extra: string | null
           name: string
           organization_id: string
           time_delay: number | null
+          tipo_conteudo: string[] | null
           updated_at: string
           usage_count: number | null
           variables: string[] | null
         }
         Insert: {
+          botoes?: Json | null
+          caption?: string | null
           category?: string | null
+          contato_nome?: string | null
+          contato_numero?: string | null
           content: string
           created_at?: string
           created_by?: string | null
           event_id?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
+          media_name?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          mensagem_extra?: string | null
           name: string
           organization_id: string
           time_delay?: number | null
+          tipo_conteudo?: string[] | null
           updated_at?: string
           usage_count?: number | null
           variables?: string[] | null
         }
         Update: {
+          botoes?: Json | null
+          caption?: string | null
           category?: string | null
+          contato_nome?: string | null
+          contato_numero?: string | null
           content?: string
           created_at?: string
           created_by?: string | null
           event_id?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
+          media_name?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          mensagem_extra?: string | null
           name?: string
           organization_id?: string
           time_delay?: number | null
+          tipo_conteudo?: string[] | null
           updated_at?: string
           usage_count?: number | null
           variables?: string[] | null

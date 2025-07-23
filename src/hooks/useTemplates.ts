@@ -16,6 +16,18 @@ export interface Template {
   created_at: string;
   updated_at: string;
   template_tags?: { tag: string }[];
+  // Novos campos para EVO API
+  tipo_conteudo?: string[];
+  media_url?: string;
+  media_type?: string;
+  media_name?: string;
+  caption?: string;
+  latitude?: number;
+  longitude?: number;
+  botoes?: any;
+  contato_nome?: string;
+  contato_numero?: string;
+  mensagem_extra?: string;
 }
 
 export const useTemplates = () => {
@@ -75,7 +87,8 @@ export const useTemplates = () => {
         content: templateData.content.trim(),
         category: templateData.category || 'Vendas',
         variables: templateData.variables || [],
-        usage_count: 0
+        usage_count: 0,
+        tipo_conteudo: templateData.tipo_conteudo || ['texto']
       };
 
       const { data, error } = await supabase
