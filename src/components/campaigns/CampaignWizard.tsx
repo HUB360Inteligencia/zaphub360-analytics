@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check, Image, MapPin, MessageSquare } from 'lucide-react';
 import { useTemplates } from '@/hooks/useTemplates';
 import { useCampaigns, Campaign } from '@/hooks/useCampaigns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,7 @@ import { useContacts } from '@/hooks/useContacts';
 import { useInstances } from '@/hooks/useInstances';
 import { ContactSelector } from './ContactSelector';
 import { InstanceSelector } from './InstanceSelector';
+import { getFormatById } from '@/lib/messageFormats';
 import { toast } from 'sonner';
 
 interface CampaignWizardProps {
@@ -204,15 +205,23 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                         <SelectValue placeholder="Escolha um template" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      {templates.map(template => (
-                        <SelectItem key={template.id} value={template.id}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">{template.name}</span>
-                            <span className="text-sm text-slate-500">{template.category}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                     <SelectContent>
+                      {templates.map(template => {
+                        const format = getFormatById(template.formato_id || '0001');
+                        return (
+                          <SelectItem key={template.id} value={template.id}>
+                            <div className="flex flex-col items-start">
+                              <div className="flex items-center gap-2">
+                                {format?.icon && <format.icon className="w-4 h-4" />}
+                                <span className="font-medium">{template.name}</span>
+                              </div>
+                              <span className="text-sm text-slate-500">
+                                {template.category} • {format?.name}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -223,18 +232,51 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
             {selectedTemplate && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Preview do Template</CardTitle>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    {(() => {
+                      const format = getFormatById(selectedTemplate.formato_id || '0001');
+                      return format?.icon && <format.icon className="w-4 h-4" />;
+                    })()}
+                    Preview do Template
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm bg-slate-50 p-3 rounded">
-                    {selectedTemplate.content.substring(0, 200)}...
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {selectedTemplate.variables?.map(variable => (
-                      <Badge key={variable} variant="outline" className="text-xs">
-                        {`{{${variable}}}`}
-                      </Badge>
-                    ))}
+                  <div className="space-y-3">
+                    <div className="text-sm bg-slate-50 p-3 rounded">
+                      {selectedTemplate.content.substring(0, 200)}
+                      {selectedTemplate.content.length > 200 && '...'}
+                    </div>
+                    
+                    {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTemplate.variables.map((variable: string) => (
+                          <Badge key={variable} variant="outline" className="text-xs">
+                            {`{{${variable}}}`}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedTemplate.media_url && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Image className="w-4 h-4" />
+                        <span>Contém mídia anexada</span>
+                      </div>
+                    )}
+
+                    {selectedTemplate.botoes && selectedTemplate.botoes.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MessageSquare className="w-4 h-4" />
+                        <span>{selectedTemplate.botoes.length} botão(ões) interativo(s)</span>
+                      </div>
+                    )}
+
+                    {selectedTemplate.latitude && selectedTemplate.longitude && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        <span>Contém localização</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

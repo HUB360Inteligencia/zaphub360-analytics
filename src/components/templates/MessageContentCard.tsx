@@ -1,31 +1,65 @@
-import React from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Eye, Play, MoreVertical, Edit, Trash2, Copy } from 'lucide-react';
-import { Template } from '@/hooks/useTemplates';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { MoreHorizontal, Eye, Copy, Trash2, Image, Video, MapPin, MessageSquare, Phone, Edit, Loader2 } from 'lucide-react';
 import { getFormatById } from '@/lib/messageFormats';
+import { Template, useTemplates } from '@/hooks/useTemplates';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface MessageContentCardProps {
   template: Template;
   onPreview: (template: Template) => void;
   onUse?: (template: Template) => void;
+  onEdit?: (template: Template) => void;
 }
 
-export const MessageContentCard: React.FC<MessageContentCardProps> = ({
-  template,
-  onPreview,
-  onUse
-}) => {
-  const format = getFormatById(template.formato_id || '');
+export const MessageContentCard = ({ template, onPreview, onUse, onEdit }: MessageContentCardProps) => {
+  const { createTemplate, deleteTemplate } = useTemplates();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  
+  const format = getFormatById(template.formato_id || '0001');
 
-  // Truncar conteúdo para preview
+  const handleDuplicate = async () => {
+    setIsDuplicating(true);
+    try {
+      const duplicatedTemplate = {
+        ...template,
+        name: `${template.name} (Cópia)`,
+        id: undefined,
+        created_at: undefined,
+        updated_at: undefined,
+      };
+      
+      await createTemplate.mutateAsync(duplicatedTemplate);
+      toast.success('Template duplicado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao duplicar template');
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteTemplate.mutateAsync(template.id);
+      setShowDeleteDialog(false);
+    } catch (error) {
+      toast.error('Erro ao excluir template');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const truncateContent = (content: string, maxLength: number = 100) => {
     return content.length > maxLength ? content.substring(0, maxLength) + '...' : content;
   };
 
-  // Extrair variáveis do conteúdo
   const extractVariables = (content: string): string[] => {
     const matches = content.match(/\{\{([^}]+)\}\}/g);
     return matches ? matches.map(match => match.slice(2, -2).trim()) : [];
@@ -34,106 +68,165 @@ export const MessageContentCard: React.FC<MessageContentCardProps> = ({
   const variables = extractVariables(template.content);
 
   return (
-    <Card className="h-full flex flex-col hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg mb-1 line-clamp-1">{template.name}</h3>
-            {format && (
-              <Badge variant="secondary" className="text-xs mb-2">
-                {format.id} - {format.name}
-              </Badge>
+    <>
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-lg flex items-center gap-2">
+                {format?.icon && <format.icon className="w-5 h-5" />}
+                {template.name}
+              </CardTitle>
+              <div className="flex items-center gap-2 mt-2">
+                {format && (
+                  <Badge variant="outline" style={{ color: format.color }}>
+                    {format.name}
+                  </Badge>
+                )}
+                <Badge variant="secondary">{template.category}</Badge>
+              </div>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onPreview(template)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar
+                </DropdownMenuItem>
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(template)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleDuplicate} disabled={isDuplicating}>
+                  {isDuplicating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  Duplicar
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="text-red-600" 
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Conteúdo da mensagem */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Conteúdo:</p>
+            <p className="text-sm bg-muted p-3 rounded whitespace-pre-wrap">
+              {truncateContent(template.content)}
+            </p>
+          </div>
+
+          {/* Indicadores de conteúdo */}
+          <div className="flex flex-wrap gap-2">
+            {template.media_url && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Image className="w-3 h-3" />
+                Mídia
+              </div>
+            )}
+            {template.latitude && template.longitude && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="w-3 h-3" />
+                Localização
+              </div>
+            )}
+            {template.botoes && template.botoes.length > 0 && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MessageSquare className="w-3 h-3" />
+                {template.botoes.length} Botão(ões)
+              </div>
+            )}
+            {template.contato_nome && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Phone className="w-3 h-3" />
+                Contato
+              </div>
             )}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicar
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
 
-      <CardContent className="flex-1 pb-3">
-        <div className="space-y-3">
-          {template.content && (
+          {/* Variáveis */}
+          {variables.length > 0 && (
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Conteúdo:</p>
-              <p className="text-sm bg-muted p-2 rounded text-wrap break-words">
-                {truncateContent(template.content)}
-              </p>
-            </div>
-          )}
-
-          {template.media_url && (
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Mídia:</p>
-              <p className="text-xs text-blue-600 truncate">{template.media_name || 'Arquivo de mídia'}</p>
-            </div>
-          )}
-
-          {template.botoes && template.botoes.length > 0 && (
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Botões:</p>
+              <p className="text-sm text-muted-foreground mb-2">Variáveis:</p>
               <div className="flex flex-wrap gap-1">
-                {template.botoes.slice(0, 3).map((botao, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {botao.texto}
+                {variables.slice(0, 3).map(variable => (
+                  <Badge key={variable} variant="outline" className="text-xs">
+                    {`{{${variable}}}`}
                   </Badge>
                 ))}
-                {template.botoes.length > 3 && (
+                {variables.length > 3 && (
                   <Badge variant="outline" className="text-xs">
-                    +{template.botoes.length - 3}
+                    +{variables.length - 3}
                   </Badge>
                 )}
               </div>
             </div>
           )}
 
-          {/* Estatísticas */}
-          <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
-            <span>Categoria: {template.category}</span>
-            <span>Uso: {template.usage_count || 0}x</span>
+          {/* Footer com ações */}
+          <div className="flex justify-between items-center pt-3 border-t">
+            <div className="text-xs text-muted-foreground">
+              Uso: {template.usage_count || 0}x
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => onPreview(template)}>
+                <Eye className="w-4 h-4 mr-1" />
+                Preview
+              </Button>
+              {onUse && (
+                <Button size="sm" onClick={() => onUse(template)}>
+                  Usar
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      </Card>
 
-      <CardFooter className="pt-3 border-t space-x-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => onPreview(template)}
-          className="flex-1"
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          Preview
-        </Button>
-        {onUse && (
-          <Button 
-            size="sm" 
-            onClick={() => onUse(template)}
-            className="flex-1"
-          >
-            <Play className="h-4 w-4 mr-1" />
-            Usar
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o template "{template.name}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

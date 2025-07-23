@@ -7,6 +7,7 @@ import { Search, Plus, Loader2 } from 'lucide-react';
 import { StatsCards } from '@/components/templates/StatsCards';
 import { MessageContentCard } from '@/components/templates/MessageContentCard';
 import { MessageContentForm } from '@/components/templates/MessageContentForm';
+import { TemplatePreview } from '@/components/templates/TemplatePreview';
 import { useTemplates } from '@/hooks/useTemplates';
 
 const MessageContent = () => {
@@ -14,6 +15,7 @@ const MessageContent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
 
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,6 +93,7 @@ const MessageContent = () => {
               key={template.id}
               template={template}
               onPreview={setPreviewTemplate}
+              onEdit={setEditingTemplate}
               onUse={(template) => console.log('Usar template:', template)}
             />
           ))}
@@ -120,6 +123,26 @@ const MessageContent = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de Edição */}
+      <Dialog open={!!editingTemplate} onOpenChange={() => setEditingTemplate(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Conteúdo</DialogTitle>
+          </DialogHeader>
+          <MessageContentForm 
+            template={editingTemplate}
+            onSuccess={() => setEditingTemplate(null)} 
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Preview */}
+      <TemplatePreview
+        template={previewTemplate}
+        onClose={() => setPreviewTemplate(null)}
+        onUse={(template) => console.log('Usar template:', template)}
+      />
     </div>
   );
 };
