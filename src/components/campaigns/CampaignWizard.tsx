@@ -30,6 +30,8 @@ import { toast } from 'sonner';
 interface CampaignWizardProps {
   isOpen: boolean;
   onClose: () => void;
+  editMode?: boolean;
+  campaignData?: Campaign;
 }
 
 const campaignSchema = z.object({
@@ -56,18 +58,30 @@ const steps = [
   { id: 6, name: 'Revisão', description: 'Confirme os detalhes' },
 ];
 
-export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
+export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData }: CampaignWizardProps) => {
   const { organization } = useAuth();
   const { templates } = useTemplates();
   const { contacts } = useContacts();
   const { instances } = useInstances();
-  const { createCampaign } = useCampaigns();
+  const { createCampaign, updateCampaign } = useCampaigns();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
 
   const form = useForm<z.infer<typeof campaignSchema>>({
     resolver: zodResolver(campaignSchema),
-    defaultValues: {
+    defaultValues: editMode && campaignData ? {
+      name: campaignData.name,
+      description: campaignData.description || '',
+      template_id: campaignData.template_id || '',
+      contact_ids: campaignData.target_contacts?.contact_ids || [],
+      instance_ids: [], // Será populado quando tivermos a relação campaign-instance
+      send_immediately: false,
+      intervalo_minimo: campaignData.intervalo_minimo,
+      intervalo_maximo: campaignData.intervalo_maximo,
+      horario_disparo_inicio: campaignData.horario_disparo_inicio?.substring(0, 5) || '09:00',
+      horario_disparo_fim: campaignData.horario_disparo_fim?.substring(0, 5) || '20:00',
+      tipo_conteudo: campaignData.tipo_conteudo,
+    } : {
       name: '',
       description: '',
       template_id: '',
@@ -106,34 +120,53 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
     }
 
     try {
-      const campaignData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'> = {
-        name: values.name,
-        description: values.description,
-        template_id: values.template_id,
-        target_contacts: { contact_ids: values.contact_ids },
-        scheduled_at: values.send_immediately ? null : selectedDate?.toISOString() || null,
-        status: (values.send_immediately ? 'active' : 'scheduled') as Campaign['status'],
-        organization_id: organization.id,
-        started_at: null,
-        completed_at: null,
-        intervalo_minimo: values.intervalo_minimo,
-        intervalo_maximo: values.intervalo_maximo,
-        horario_disparo_inicio: values.horario_disparo_inicio + ':00',
-        horario_disparo_fim: values.horario_disparo_fim + ':00',
-        tipo_conteudo: values.tipo_conteudo,
-        total_mensagens: 0,
-        mensagens_enviadas: 0,
-        mensagens_lidas: 0,
-        mensagens_respondidas: 0,
-      };
+      if (editMode && campaignData) {
+        // Editar campanha existente
+        const updateData = {
+          id: campaignData.id,
+          name: values.name,
+          description: values.description,
+          template_id: values.template_id,
+          target_contacts: { contact_ids: values.contact_ids },
+          intervalo_minimo: values.intervalo_minimo,
+          intervalo_maximo: values.intervalo_maximo,
+          horario_disparo_inicio: values.horario_disparo_inicio + ':00',
+          horario_disparo_fim: values.horario_disparo_fim + ':00',
+          tipo_conteudo: values.tipo_conteudo,
+        };
 
-      await createCampaign.mutateAsync(campaignData);
+        await updateCampaign.mutateAsync(updateData);
+      } else {
+        // Criar nova campanha
+        const newCampaignData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'> = {
+          name: values.name,
+          description: values.description,
+          template_id: values.template_id,
+          target_contacts: { contact_ids: values.contact_ids },
+          scheduled_at: values.send_immediately ? null : selectedDate?.toISOString() || null,
+          status: (values.send_immediately ? 'active' : 'scheduled') as Campaign['status'],
+          organization_id: organization.id,
+          started_at: null,
+          completed_at: null,
+          intervalo_minimo: values.intervalo_minimo,
+          intervalo_maximo: values.intervalo_maximo,
+          horario_disparo_inicio: values.horario_disparo_inicio + ':00',
+          horario_disparo_fim: values.horario_disparo_fim + ':00',
+          tipo_conteudo: values.tipo_conteudo,
+          total_mensagens: 0,
+          mensagens_enviadas: 0,
+          mensagens_lidas: 0,
+          mensagens_respondidas: 0,
+        };
+
+        await createCampaign.mutateAsync(newCampaignData);
+      }
       
       onClose();
       form.reset();
       setCurrentStep(1);
     } catch (error) {
-      console.error('Erro ao criar campanha:', error);
+      console.error('Erro ao salvar campanha:', error);
     }
   };
 
@@ -594,9 +627,9 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Criar Nova Campanha</DialogTitle>
-        </DialogHeader>
+      <DialogHeader>
+        <DialogTitle>{editMode ? 'Editar Campanha' : 'Criar Nova Campanha'}</DialogTitle>
+      </DialogHeader>
 
         {/* Progress Steps */}
         <div className="flex items-center justify-between mb-6">
@@ -651,11 +684,14 @@ export const CampaignWizard = ({ isOpen, onClose }: CampaignWizardProps) => {
                 </Button>
               ) : (
                 <Button 
-                  type="submit"
-                  disabled={createCampaign.isPending || !validateCurrentStep()}
+                  type="submit" 
                   className="bg-blue-600 hover:bg-blue-700"
+                  disabled={!validateCurrentStep() || createCampaign.isPending || updateCampaign.isPending}
                 >
-                  {createCampaign.isPending ? 'Criando...' : 'Criar Campanha'}
+                  {editMode 
+                    ? (updateCampaign.isPending ? 'Salvando...' : 'Salvar Alterações')
+                    : (createCampaign.isPending ? 'Criando...' : 'Criar Campanha')
+                  }
                 </Button>
               )}
             </div>

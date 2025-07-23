@@ -20,6 +20,8 @@ const Campaigns = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<any>(null);
 
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -73,6 +75,11 @@ const Campaigns = () => {
     } catch (error) {
       console.error('Erro ao pausar campanha:', error);
     }
+  };
+
+  const handleEditCampaign = (campaign: any) => {
+    setEditingCampaign(campaign);
+    setIsEditDialogOpen(true);
   };
 
   // Calcular estatísticas reais das campanhas
@@ -290,7 +297,11 @@ const Campaigns = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEditCampaign(campaign)}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm">
@@ -336,6 +347,17 @@ const Campaigns = () => {
       <CampaignWizard 
         isOpen={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
+      />
+
+      {/* Edit Campaign Wizard */}
+      <CampaignWizard 
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setEditingCampaign(null);
+        }}
+        editMode={true}
+        campaignData={editingCampaign}
       />
     </div>
   );
