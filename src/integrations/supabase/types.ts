@@ -353,6 +353,13 @@ export type Database = {
             referencedRelation: "instances"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "events_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       instances: {
@@ -501,6 +508,81 @@ export type Database = {
         }
         Relationships: []
       }
+      mensagens_enviadas: {
+        Row: {
+          caption_media: string | null
+          celular: string
+          data_envio: string | null
+          data_leitura: string | null
+          data_resposta: string | null
+          id: string
+          id_mensagem_wpp: string | null
+          instancia_id: string | null
+          limite_inicio: string | null
+          limite_termino: string | null
+          media_type: string | null
+          mensagem: string | null
+          mime_type: string | null
+          name_media: string | null
+          resposta_usuario: string | null
+          score_sentimento: number | null
+          sentimento: string | null
+          status: string
+          "tempo delay": number | null
+          tipo_fluxo: string
+          tipo_mensagem: number | null
+          url_media: string | null
+        }
+        Insert: {
+          caption_media?: string | null
+          celular: string
+          data_envio?: string | null
+          data_leitura?: string | null
+          data_resposta?: string | null
+          id?: string
+          id_mensagem_wpp?: string | null
+          instancia_id?: string | null
+          limite_inicio?: string | null
+          limite_termino?: string | null
+          media_type?: string | null
+          mensagem?: string | null
+          mime_type?: string | null
+          name_media?: string | null
+          resposta_usuario?: string | null
+          score_sentimento?: number | null
+          sentimento?: string | null
+          status?: string
+          "tempo delay"?: number | null
+          tipo_fluxo: string
+          tipo_mensagem?: number | null
+          url_media?: string | null
+        }
+        Update: {
+          caption_media?: string | null
+          celular?: string
+          data_envio?: string | null
+          data_leitura?: string | null
+          data_resposta?: string | null
+          id?: string
+          id_mensagem_wpp?: string | null
+          instancia_id?: string | null
+          limite_inicio?: string | null
+          limite_termino?: string | null
+          media_type?: string | null
+          mensagem?: string | null
+          mime_type?: string | null
+          name_media?: string | null
+          resposta_usuario?: string | null
+          score_sentimento?: number | null
+          sentimento?: string | null
+          status?: string
+          "tempo delay"?: number | null
+          tipo_fluxo?: string
+          tipo_mensagem?: number | null
+          url_media?: string | null
+        }
+        Relationships: []
+      }
       message_templates: {
         Row: {
           botoes: Json | null
@@ -586,95 +668,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      messages: {
-        Row: {
-          campaign_id: string | null
-          contact_id: string | null
-          content: string
-          created_at: string
-          delivered_at: string | null
-          error_message: string | null
-          evento_nome: string | null
-          id: string
-          instância: string | null
-          organization_id: string
-          read_at: string | null
-          retry_count: number | null
-          sent_at: string | null
-          status: string
-          template_id: string | null
-          whatsapp: string | null
-          whatsapp_message_id: string | null
-        }
-        Insert: {
-          campaign_id?: string | null
-          contact_id?: string | null
-          content: string
-          created_at?: string
-          delivered_at?: string | null
-          error_message?: string | null
-          evento_nome?: string | null
-          id?: string
-          instância?: string | null
-          organization_id: string
-          read_at?: string | null
-          retry_count?: number | null
-          sent_at?: string | null
-          status?: string
-          template_id?: string | null
-          whatsapp?: string | null
-          whatsapp_message_id?: string | null
-        }
-        Update: {
-          campaign_id?: string | null
-          contact_id?: string | null
-          content?: string
-          created_at?: string
-          delivered_at?: string | null
-          error_message?: string | null
-          evento_nome?: string | null
-          id?: string
-          instância?: string | null
-          organization_id?: string
-          read_at?: string | null
-          retry_count?: number | null
-          sent_at?: string | null
-          status?: string
-          template_id?: string | null
-          whatsapp?: string | null
-          whatsapp_message_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "messages_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "message_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -873,6 +866,42 @@ export type Database = {
       }
     }
     Views: {
+      instances_safe: {
+        Row: {
+          api_key_status: string | null
+          api_url: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          organization_id: string | null
+          phone_number: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_key_status?: never
+          api_url?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          organization_id?: string | null
+          phone_number?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_key_status?: never
+          api_url?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          organization_id?: string | null
+          phone_number?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       public_event_analytics: {
         Row: {
           created_at: string | null
@@ -919,6 +948,10 @@ export type Database = {
       }
       generate_invite_token: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_instance_api_key: {
+        Args: { instance_id: string }
         Returns: string
       }
       get_user_organization_id: {

@@ -10,10 +10,24 @@ export interface Instance {
   status: 'active' | 'inactive' | 'blocked';
   organization_id: string;
   api_url?: string;
-  api_key?: string;
+  api_key_status?: string;
   created_at: string;
   updated_at: string;
 }
+
+// Function to securely get API key when needed
+export const getInstanceApiKey = async (instanceId: string) => {
+  const { data, error } = await supabase.rpc('get_instance_api_key', {
+    instance_id: instanceId
+  });
+  
+  if (error) {
+    console.error('Error fetching API key:', error);
+    throw error;
+  }
+  
+  return data;
+};
 
 export const useInstances = () => {
   const { organization } = useAuth();
@@ -27,7 +41,7 @@ export const useInstances = () => {
       }
       
       const { data, error } = await supabase
-        .from('instances')
+        .from('instances_safe')
         .select('*')
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
@@ -49,7 +63,7 @@ export const useInstances = () => {
       if (!organization?.id) return [];
       
       const { data, error } = await supabase
-        .from('instances')
+        .from('instances_safe')
         .select('*')
         .eq('organization_id', organization.id)
         .eq('status', 'active')

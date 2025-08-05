@@ -69,11 +69,16 @@ export const useAnalytics = () => {
         .select('name, status, metrics')
         .eq('organization_id', organization.id);
 
-      // Buscar mensagens
-      const { data: messages } = await supabase
-        .from('messages')
+      // Buscar mensagens de eventos
+      const { data: eventMessages } = await supabase
+        .from('event_messages')
         .select('status, sent_at, delivered_at, read_at')
         .eq('organization_id', organization.id);
+
+      // Buscar mensagens enviadas
+      const { data: sentMessages } = await supabase
+        .from('mensagens_enviadas')
+        .select('status, data_envio, data_leitura');
 
       // Buscar tags com contagem
       const { data: tagsData } = await supabase
@@ -89,11 +94,16 @@ export const useAnalytics = () => {
       const activeContacts = contacts?.filter(c => c.status === 'active').length || 0;
       const totalCampaigns = campaigns?.length || 0;
       const activeCampaigns = campaigns?.filter(c => c.status === 'active').length || 0;
-      const totalMessages = messages?.length || 0;
+      const totalMessages = (eventMessages?.length || 0) + (sentMessages?.length || 0);
 
       // Calcular métricas de entrega
-      const deliveredMessages = messages?.filter(m => m.status === 'delivered').length || 0;
-      const readMessages = messages?.filter(m => m.read_at).length || 0;
+      const deliveredEventMessages = eventMessages?.filter(m => m.status === 'delivered').length || 0;
+      const deliveredSentMessages = sentMessages?.filter(m => m.status === 'delivered').length || 0;
+      const deliveredMessages = deliveredEventMessages + deliveredSentMessages;
+      
+      const readEventMessages = eventMessages?.filter(m => m.read_at).length || 0;
+      const readSentMessages = sentMessages?.filter(m => m.data_leitura).length || 0;
+      const readMessages = readEventMessages + readSentMessages;
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const openRate = totalMessages > 0 ? (readMessages / totalMessages) * 100 : 0;
 
@@ -106,7 +116,9 @@ export const useAnalytics = () => {
 
       const dailyActivity = last7Days.map(date => ({
         date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        messages: messages?.filter(m => m.sent_at?.startsWith(date)).length || Math.floor(Math.random() * 200),
+        messages: (eventMessages?.filter(m => m.sent_at?.startsWith(date)).length || 0) + 
+                 (sentMessages?.filter(m => m.data_envio?.startsWith(date)).length || 0) || 
+                 Math.floor(Math.random() * 200),
         responses: Math.floor(Math.random() * 30),
         contacts: totalContacts + Math.floor(Math.random() * 50),
       }));
