@@ -14,6 +14,7 @@ import Events from "./pages/Events";
 import EventForm from "./pages/EventForm";
 import EventDetails from "./pages/EventDetails";
 import Reports from "./pages/Reports";
+import Instances from "./pages/Instances";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PublicEventStatus from "./pages/PublicEventStatus";
@@ -99,6 +100,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Reports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/instances" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Instances />
                 </Layout>
               </ProtectedRoute>
             } />

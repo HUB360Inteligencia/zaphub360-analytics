@@ -7,7 +7,7 @@ export interface Instance {
   id: string;
   name: string;
   phone_number: string;
-  status: 'active' | 'inactive' | 'blocked';
+  status: string;
   organization_id: string;
   api_url?: string;
   api_key_status?: string;
