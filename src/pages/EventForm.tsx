@@ -79,13 +79,21 @@ const EventForm = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type.startsWith('image/')) {
+      const isImage = file.type.startsWith('image/');
+      const isMp4 = file.type === 'video/mp4';
+      if (isImage || isMp4) {
         setSelectedImage(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setImagePreview(e.target?.result as string);
-        reader.readAsDataURL(file);
+        if (isImage) {
+          const reader = new FileReader();
+          reader.onload = (evt) => setImagePreview(evt.target?.result as string);
+          reader.readAsDataURL(file);
+        } else {
+          // Vídeo: usar URL local para preview
+          const objectUrl = URL.createObjectURL(file);
+          setImagePreview(objectUrl);
+        }
       } else {
-        toast.error('Por favor, selecione apenas arquivos de imagem');
+        toast.error('Selecione uma imagem ou um vídeo .mp4');
       }
     }
   };
@@ -101,12 +109,22 @@ const EventForm = () => {
     try {
       let imageUrl = currentEvent?.message_image;
       let imageFilename = currentEvent?.image_filename;
+      let mimeType: string | null = (currentEvent as any)?.mime_type || null;
+      let mediaType: string | null = (currentEvent as any)?.media_type || null;
 
-      // Upload da imagem se uma nova foi selecionada
+      // Upload da mídia se uma nova foi selecionada
       if (selectedImage) {
         const uploadResult = await uploadEventImage(selectedImage, data.name);
         imageUrl = uploadResult.url;
         imageFilename = uploadResult.filename;
+
+        if (selectedImage.type === 'video/mp4') {
+          mimeType = 'video/mp4';
+          mediaType = 'video';
+        } else if (selectedImage.type.startsWith('image/')) {
+          mimeType = 'image/png';
+          mediaType = 'image';
+        }
       }
 
       const eventData = {
@@ -119,6 +137,8 @@ const EventForm = () => {
         organization_id: organization.id,
         message_image: imageUrl || null,
         image_filename: imageFilename || null,
+        mime_type: mimeType,
+        media_type: mediaType,
         status: 'draft' as const
       };
 
@@ -270,7 +290,7 @@ const EventForm = () => {
                     <Input
                       id="image"
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/mp4"
                       onChange={handleImageChange}
                       className="flex-1"
                     />
@@ -282,17 +302,25 @@ const EventForm = () => {
                   
                   {imagePreview && (
                     <div className="space-y-2">
-                      <Label>Preview da Imagem</Label>
+                      <Label>Preview da Mídia</Label>
                       <div className="relative w-full max-w-md">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-full h-48 object-cover rounded-lg border border-border"
-                        />
+                        {selectedImage?.type === 'video/mp4' ? (
+                          <video
+                            src={imagePreview}
+                            controls
+                            className="w-full h-48 rounded-lg border border-border object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-lg border border-border"
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="secondary"
-                          size="sm" 
+                          size="sm"
                           className="absolute top-2 right-2"
                           onClick={() => {
                             setImagePreview('');
@@ -306,7 +334,8 @@ const EventForm = () => {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  A imagem será salva como {watch('name')?.replace(/[^a-zA-Z0-9]/g, '_') || 'evento'}.png
+                  O arquivo será salvo como {(watch('name')?.replace(/[^a-zA-Z0-9]/g, '_') || 'evento')}
+                  {selectedImage?.type === 'video/mp4' ? '.mp4' : '.png'}
                 </p>
               </div>
             </CardContent>
@@ -325,11 +354,15 @@ const EventForm = () => {
           <CardContent>
             <div className="max-w-sm mx-auto bg-green-50 p-4 rounded-lg border border-green-200">
               {imagePreview && (
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-full h-32 object-cover rounded mb-3"
-                />
+                selectedImage?.type === 'video/mp4' ? (
+                  <video src={imagePreview} controls className="w-full h-32 object-cover rounded mb-3" />
+                ) : (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-32 object-cover rounded mb-3"
+                  />
+                )
               )}
               <p className="text-sm text-gray-800 whitespace-pre-wrap">
                 {watch('message_text') || 'Sua mensagem aparecerá aqui...'}

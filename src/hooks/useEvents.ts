@@ -14,6 +14,8 @@ export interface Event {
   message_text: string;
   message_image?: string;
   image_filename?: string;
+  mime_type?: string;
+  media_type?: string;
   organization_id: string;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
   created_at: string;
@@ -132,13 +134,15 @@ export const useEvents = () => {
   });
 
   const uploadEventImage = async (file: File, eventName: string) => {
-    const fileName = `${eventName.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+    const isVideo = file.type === 'video/mp4';
+    const ext = isVideo ? 'mp4' : 'png';
+    const fileName = `${eventName.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
     
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('event-images')
       .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
       });
 
     if (error) throw error;
