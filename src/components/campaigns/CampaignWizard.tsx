@@ -24,7 +24,10 @@ import { useContacts } from '@/hooks/useContacts';
 import { useInstances } from '@/hooks/useInstances';
 import { ContactSelector } from './ContactSelector';
 import { InstanceSelector } from './InstanceSelector';
-import { getFormatById } from '@/lib/messageFormats';
+import { getFormatById, MESSAGE_FORMATS, getRequiredContentTypes } from '@/lib/messageFormats';
+import { MESSAGE_CATEGORIES } from '@/lib/messageCategories';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CampaignWizardProps {
@@ -37,7 +40,25 @@ interface CampaignWizardProps {
 const campaignSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional(),
-  template_id: z.string().min(1, 'Template é obrigatório'),
+  // Template ID agora é opcional - para permitir criação direta de conteúdo
+  template_id: z.string().optional(),
+  // Campos para criação direta de conteúdo
+  create_content: z.boolean().default(false),
+  content_name: z.string().optional(),
+  content_category: z.string().optional(),
+  content_text: z.string().optional(),
+  content_format: z.string().optional(),
+  content_media: z.any().optional(),
+  content_buttons: z.array(z.object({ texto: z.string() })).optional(),
+  content_location: z.object({
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+  }).optional(),
+  content_contact: z.object({
+    nome: z.string().optional(),
+    numero: z.string().optional(),
+  }).optional(),
+  content_extra_message: z.string().optional(),
   contact_ids: z.array(z.string()).min(1, 'Selecione pelo menos um contato'),
   instance_ids: z.array(z.string()).min(1, 'Selecione pelo menos uma instância'),
   scheduled_at: z.date().optional(),
@@ -47,11 +68,16 @@ const campaignSchema = z.object({
   horario_disparo_inicio: z.string().default('09:00'),
   horario_disparo_fim: z.string().default('20:00'),
   tipo_conteudo: z.array(z.string()).min(1).default(['texto']),
+}).refine((data) => {
+  // Validação: deve ter template_id OU campos de criação de conteúdo
+  return data.template_id || (data.create_content && data.content_name && data.content_format);
+}, {
+  message: "Selecione um template ou crie um novo conteúdo",
 });
 
 const steps = [
   { id: 1, name: 'Informações Básicas', description: 'Nome e descrição da campanha' },
-  { id: 2, name: 'Template', description: 'Escolha o template de mensagem' },
+  { id: 2, name: 'Conteúdo', description: 'Criar conteúdo ou usar template' },
   { id: 3, name: 'Contatos', description: 'Selecione os contatos alvo' },
   { id: 4, name: 'Instâncias', description: 'Selecione as instâncias WhatsApp' },
   { id: 5, name: 'Configurações', description: 'Intervalos e horários' },
@@ -60,12 +86,14 @@ const steps = [
 
 export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData }: CampaignWizardProps) => {
   const { organization } = useAuth();
-  const { templates } = useTemplates();
+  const { templates, createTemplate } = useTemplates();
   const { contacts } = useContacts();
   const { instances } = useInstances();
   const { createCampaign, updateCampaign } = useCampaigns();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [contentButtons, setContentButtons] = useState<{ texto: string }[]>([]);
 
   const form = useForm<z.infer<typeof campaignSchema>>({
     resolver: zodResolver(campaignSchema),
@@ -73,6 +101,15 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
       name: '',
       description: '',
       template_id: '',
+      create_content: false,
+      content_name: '',
+      content_category: 'campanha-mensagens',
+      content_text: '',
+      content_format: '',
+      content_buttons: [],
+      content_location: { latitude: undefined, longitude: undefined },
+      content_contact: { nome: '', numero: '' },
+      content_extra_message: '',
       contact_ids: [],
       instance_ids: [],
       send_immediately: false,
@@ -146,13 +183,38 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
     }
 
     try {
+      let finalTemplateId = values.template_id;
+
+      // Se está criando novo conteúdo, criar template primeiro
+      if (values.create_content && !values.template_id) {
+        const templateData = {
+          name: values.content_name!,
+          content: values.content_text || '',
+          category: values.content_category!,
+          organization_id: organization.id,
+          variables: extractVariables(values.content_text || ''),
+          tipo_conteudo: values.content_format ? getRequiredContentTypes(values.content_format) : ['texto'],
+          formato_id: values.content_format!,
+          botoes: contentButtons.length > 0 ? contentButtons : undefined,
+          latitude: values.content_location?.latitude,
+          longitude: values.content_location?.longitude,
+          contato_nome: values.content_contact?.nome,
+          contato_numero: values.content_contact?.numero,
+          mensagem_extra: values.content_extra_message,
+          file: selectedFile,
+        };
+
+        const newTemplate = await createTemplate.mutateAsync(templateData);
+        finalTemplateId = newTemplate.id;
+      }
+
       if (editMode && campaignData) {
         // Editar campanha existente
         const updateData = {
           id: campaignData.id,
           name: values.name,
           description: values.description,
-          template_id: values.template_id,
+          template_id: finalTemplateId,
           target_contacts: { contact_ids: values.contact_ids },
           intervalo_minimo: values.intervalo_minimo,
           intervalo_maximo: values.intervalo_maximo,
@@ -167,7 +229,7 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
         const newCampaignData: Omit<Campaign, 'id' | 'created_at' | 'updated_at'> = {
           name: values.name,
           description: values.description,
-          template_id: values.template_id,
+          template_id: finalTemplateId,
           target_contacts: { contact_ids: values.contact_ids },
           scheduled_at: values.send_immediately ? null : selectedDate?.toISOString() || null,
           status: (values.send_immediately ? 'active' : 'scheduled') as Campaign['status'],
@@ -191,25 +253,62 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
       onClose();
       form.reset();
       setCurrentStep(1);
+      setSelectedFile(null);
+      setContentButtons([]);
     } catch (error) {
       console.error('Erro ao salvar campanha:', error);
     }
   };
 
+  // Função para extrair variáveis do conteúdo
+  const extractVariables = (content: string): string[] => {
+    const matches = content.match(/\{\{([^}]+)\}\}/g);
+    return matches ? matches.map(match => match.slice(2, -2).trim()) : [];
+  };
+
+  // Funções para gerenciar botões
+  const addContentButton = () => {
+    const newButtons = [...contentButtons, { texto: '' }];
+    setContentButtons(newButtons);
+    form.setValue('content_buttons', newButtons);
+  };
+
+  const removeContentButton = (index: number) => {
+    const newButtons = contentButtons.filter((_, i) => i !== index);
+    setContentButtons(newButtons);
+    form.setValue('content_buttons', newButtons);
+  };
+
+  const updateContentButton = (index: number, texto: string) => {
+    const newButtons = [...contentButtons];
+    newButtons[index] = { texto };
+    setContentButtons(newButtons);
+    form.setValue('content_buttons', newButtons);
+  };
+
+  // Função para upload de arquivo
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
   const validateCurrentStep = () => {
+    const values = form.getValues();
     switch (currentStep) {
       case 1:
-        return form.getValues('name').length > 0;
+        return values.name.length > 0;
       case 2:
-        return form.getValues('template_id').length > 0;
+        return values.template_id || (values.create_content && values.content_name && values.content_format);
       case 3:
-        return form.getValues('contact_ids').length > 0;
+        return values.contact_ids.length > 0;
       case 4:
-        return form.getValues('instance_ids').length > 0;
+        return values.instance_ids.length > 0;
       case 5:
         return true; // Configurações têm valores padrão
       case 6:
-        return form.getValues('send_immediately') || selectedDate;
+        return values.send_immediately || selectedDate;
       default:
         return true;
     }
@@ -253,122 +352,340 @@ export const CampaignWizard = ({ isOpen, onClose, editMode = false, campaignData
         return (
           <div className="space-y-4">
             <div className="mb-4">
-              <h3 className="text-lg font-medium mb-2">Selecionar Template</h3>
+              <h3 className="text-lg font-medium mb-2">Conteúdo da Campanha</h3>
               <p className="text-sm text-muted-foreground">
-                Escolha um template baseado no tipo de campanha que deseja criar
+                Crie um novo conteúdo ou use um template existente
               </p>
             </div>
-            
-            {/* Filtro por categoria */}
-            <div className="mb-4">
-              <label className="text-sm font-medium">Filtrar por Categoria</label>
-              <Select onValueChange={(value) => {
-                const filteredTemplates = value === 'all' 
-                  ? templates 
-                  : templates.filter(t => t.category === value);
-                // Trigger re-render of template options
-              }}>
-                <SelectTrigger className="w-full mt-1">
-                  <SelectValue placeholder="Todas as categorias" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as categorias</SelectItem>
-                  <SelectItem value="newsletter">Newsletter</SelectItem>
-                  <SelectItem value="convite-evento">Convite para Evento</SelectItem>
-                  <SelectItem value="campanha-mensagens">Campanha de Mensagens</SelectItem>
-                  <SelectItem value="automacoes">Automações</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            <FormField
-              control={form.control}
-              name="template_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Selecione um Template *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Escolha um template" />
-                      </SelectTrigger>
-                    </FormControl>
-                     <SelectContent>
-                      {templates.map(template => {
-                        const format = getFormatById(template.formato_id || '0001');
-                        return (
-                          <SelectItem key={template.id} value={template.id}>
-                            <div className="flex flex-col items-start">
-                              <div className="flex items-center gap-2">
-                                {format?.icon && <format.icon className="w-4 h-4" />}
-                                <span className="font-medium">{template.name}</span>
-                              </div>
-                              <span className="text-sm text-slate-500">
-                                {template.category} • {format?.name}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {selectedTemplate && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    {(() => {
-                      const format = getFormatById(selectedTemplate.formato_id || '0001');
-                      return format?.icon && <format.icon className="w-4 h-4" />;
+            <Tabs defaultValue={form.watch('create_content') ? 'create' : 'template'} onValueChange={(value) => {
+              form.setValue('create_content', value === 'create');
+              if (value === 'template') {
+                form.setValue('template_id', '');
+              } else {
+                form.setValue('template_id', '');
+              }
+            }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="create">Criar Novo Conteúdo</TabsTrigger>
+                <TabsTrigger value="template">Usar Template Existente</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="create" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Criar Novo Conteúdo</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="content_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome do Conteúdo *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Convite para evento" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="content_category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Categoria</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma categoria" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {MESSAGE_CATEGORIES.map(category => {
+                                const IconComponent = category.icon;
+                                return (
+                                  <SelectItem key={category.id} value={category.id}>
+                                    <div className="flex items-center gap-2">
+                                      <IconComponent className="w-4 h-4" />
+                                      <span>{category.name}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="content_format"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Formato *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o formato" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {MESSAGE_FORMATS.map((format) => {
+                                const Icon = format.icon;
+                                return (
+                                  <SelectItem key={format.id} value={format.id}>
+                                    <div className="flex items-center gap-2">
+                                      <Icon className="h-4 w-4" />
+                                      <span>{format.id} - {format.name}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch('content_format') && (() => {
+                      const selectedFormat = getFormatById(form.watch('content_format'));
+                      return selectedFormat && (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>{selectedFormat.name}:</strong> {selectedFormat.description}
+                          </p>
+                        </div>
+                      );
                     })()}
-                    Preview do Template
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-sm bg-slate-50 p-3 rounded">
-                      {selectedTemplate.content.substring(0, 200)}
-                      {selectedTemplate.content.length > 200 && '...'}
-                    </div>
-                    
-                    {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {selectedTemplate.variables.map((variable: string) => (
-                          <Badge key={variable} variant="outline" className="text-xs">
-                            {`{{${variable}}}`}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
 
-                    {selectedTemplate.media_url && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Image className="w-4 h-4" />
-                        <span>Contém mídia anexada</span>
-                      </div>
-                    )}
+                    {form.watch('content_format') && (() => {
+                      const selectedFormat = getFormatById(form.watch('content_format'));
+                      if (!selectedFormat) return null;
 
-                    {selectedTemplate.botoes && selectedTemplate.botoes.length > 0 && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>{selectedTemplate.botoes.length} botão(ões) interativo(s)</span>
-                      </div>
-                    )}
+                      return (
+                        <div className="space-y-4">
+                          {selectedFormat.requiredFields.includes('content') && (
+                            <FormField
+                              control={form.control}
+                              name="content_text"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Texto da Mensagem *</FormLabel>
+                                  <FormControl>
+                                    <Textarea 
+                                      placeholder="Digite o conteúdo. Use {{variavel}} para campos dinâmicos."
+                                      className="min-h-32"
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
 
-                    {selectedTemplate.latitude && selectedTemplate.longitude && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4" />
-                        <span>Contém localização</span>
+                          {selectedFormat.requiredFields.includes('media_url') && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Upload de Mídia *</label>
+                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                                <div className="text-center">
+                                  <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                                  <div className="mt-2">
+                                    <label htmlFor="content-file-upload" className="cursor-pointer">
+                                      <span className="text-sm text-gray-900">
+                                        {selectedFile ? selectedFile.name : 'Clique para fazer upload'}
+                                      </span>
+                                      <input
+                                        id="content-file-upload"
+                                        type="file"
+                                        className="sr-only"
+                                        onChange={handleFileSelect}
+                                        accept={selectedFormat.name.includes('Imagem') ? 'image/*' : 
+                                               selectedFormat.name.includes('Áudio') ? 'audio/*' :
+                                               selectedFormat.name.includes('Vídeo') ? 'video/*' : '*/*'}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedFormat.requiredFields.includes('botoes') && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <label className="text-sm font-medium">Botões Interativos *</label>
+                                <Button type="button" variant="outline" size="sm" onClick={addContentButton}>
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              {contentButtons.map((botao, index) => (
+                                <div key={index} className="flex gap-2">
+                                  <Input
+                                    placeholder="Texto do botão"
+                                    value={botao.texto}
+                                    onChange={(e) => updateContentButton(index, e.target.value)}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => removeContentButton(index)}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {(selectedFormat.requiredFields.includes('latitude') && selectedFormat.requiredFields.includes('longitude')) && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Localização *</label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <FormField
+                                  control={form.control}
+                                  name="content_location.latitude"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          step="any"
+                                          placeholder="Latitude" 
+                                          {...field}
+                                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="content_location.longitude"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          step="any"
+                                          placeholder="Longitude" 
+                                          {...field}
+                                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="template" className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="template_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Selecionar Template</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Escolha um template" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {templates.map(template => {
+                            const format = getFormatById(template.formato_id || '0001');
+                            return (
+                              <SelectItem key={template.id} value={template.id}>
+                                <div className="flex flex-col items-start">
+                                  <div className="flex items-center gap-2">
+                                    {format?.icon && <format.icon className="w-4 h-4" />}
+                                    <span className="font-medium">{template.name}</span>
+                                  </div>
+                                  <span className="text-sm text-slate-500">
+                                    {template.category} • {format?.name}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {selectedTemplate && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        {(() => {
+                          const format = getFormatById(selectedTemplate.formato_id || '0001');
+                          return format?.icon && <format.icon className="w-4 h-4" />;
+                        })()}
+                        Preview do Template
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="text-sm bg-slate-50 p-3 rounded">
+                          {selectedTemplate.content.substring(0, 200)}
+                          {selectedTemplate.content.length > 200 && '...'}
+                        </div>
+                        
+                        {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {selectedTemplate.variables.map((variable: string) => (
+                              <Badge key={variable} variant="outline" className="text-xs">
+                                {`{{${variable}}}`}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {selectedTemplate.media_url && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Image className="w-4 h-4" />
+                            <span>Contém mídia anexada</span>
+                          </div>
+                        )}
+
+                        {selectedTemplate.botoes && selectedTemplate.botoes.length > 0 && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MessageSquare className="w-4 h-4" />
+                            <span>{selectedTemplate.botoes.length} botão(ões) interativo(s)</span>
+                          </div>
+                        )}
+
+                        {selectedTemplate.latitude && selectedTemplate.longitude && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
+                            <span>Contém localização</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         );
 
