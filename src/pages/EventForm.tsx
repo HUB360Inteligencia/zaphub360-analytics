@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Upload, Eye, Save, ArrowLeft, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Eye, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useEvents } from '@/hooks/useEvents';
@@ -286,18 +286,13 @@ const EventForm = () => {
               <div className="space-y-2">
                 <Label htmlFor="image">Imagem da Mensagem</Label>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center">
                     <Input
                       id="image"
                       type="file"
                       accept="image/*,video/mp4"
                       onChange={handleImageChange}
-                      className="flex-1"
                     />
-                    <Button type="button" variant="outline" size="sm">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload
-                    </Button>
                   </div>
                   
                   {imagePreview && (
