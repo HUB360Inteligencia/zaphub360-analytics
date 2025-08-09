@@ -302,8 +302,10 @@ export type Database = {
           image_filename: string | null
           instance_id: string | null
           location: string | null
+          media_type: string | null
           message_image: string | null
           message_text: string
+          mime_type: string | null
           name: string
           organization_id: string
           status: string
@@ -319,8 +321,10 @@ export type Database = {
           image_filename?: string | null
           instance_id?: string | null
           location?: string | null
+          media_type?: string | null
           message_image?: string | null
           message_text: string
+          mime_type?: string | null
           name: string
           organization_id: string
           status?: string
@@ -336,8 +340,10 @@ export type Database = {
           image_filename?: string | null
           instance_id?: string | null
           location?: string | null
+          media_type?: string | null
           message_image?: string | null
           message_text?: string
+          mime_type?: string | null
           name?: string
           organization_id?: string
           status?: string
@@ -445,69 +451,6 @@ export type Database = {
           },
         ]
       }
-      mensagens_campanhas: {
-        Row: {
-          campanha: string | null
-          contato: string | null
-          content: string | null
-          created_at: string
-          delay_mensagem: number | null
-          erro_envio: string | null
-          horario_leitura: string | null
-          horario_resposta: string | null
-          id: number
-          id_campanha: string | null
-          id_mensagem_wpp: string | null
-          instancia: string | null
-          instancia_id: string | null
-          nome: string | null
-          prioridade: number | null
-          sentimento_mensagem: string | null
-          status_mensagem: Database["public"]["Enums"]["status_message"] | null
-          tentativas_envio: number | null
-        }
-        Insert: {
-          campanha?: string | null
-          contato?: string | null
-          content?: string | null
-          created_at?: string
-          delay_mensagem?: number | null
-          erro_envio?: string | null
-          horario_leitura?: string | null
-          horario_resposta?: string | null
-          id?: number
-          id_campanha?: string | null
-          id_mensagem_wpp?: string | null
-          instancia?: string | null
-          instancia_id?: string | null
-          nome?: string | null
-          prioridade?: number | null
-          sentimento_mensagem?: string | null
-          status_mensagem?: Database["public"]["Enums"]["status_message"] | null
-          tentativas_envio?: number | null
-        }
-        Update: {
-          campanha?: string | null
-          contato?: string | null
-          content?: string | null
-          created_at?: string
-          delay_mensagem?: number | null
-          erro_envio?: string | null
-          horario_leitura?: string | null
-          horario_resposta?: string | null
-          id?: number
-          id_campanha?: string | null
-          id_mensagem_wpp?: string | null
-          instancia?: string | null
-          instancia_id?: string | null
-          nome?: string | null
-          prioridade?: number | null
-          sentimento_mensagem?: string | null
-          status_mensagem?: Database["public"]["Enums"]["status_message"] | null
-          tentativas_envio?: number | null
-        }
-        Relationships: []
-      }
       mensagens_enviadas: {
         Row: {
           caption_media: string | null
@@ -524,8 +467,8 @@ export type Database = {
           mensagem: string | null
           mime_type: string | null
           name_media: string | null
+          nome_contato: string | null
           resposta_usuario: string | null
-          score_sentimento: number | null
           sentimento: string | null
           status: string
           "tempo delay": number | null
@@ -548,8 +491,8 @@ export type Database = {
           mensagem?: string | null
           mime_type?: string | null
           name_media?: string | null
+          nome_contato?: string | null
           resposta_usuario?: string | null
-          score_sentimento?: number | null
           sentimento?: string | null
           status?: string
           "tempo delay"?: number | null
@@ -572,8 +515,8 @@ export type Database = {
           mensagem?: string | null
           mime_type?: string | null
           name_media?: string | null
+          nome_contato?: string | null
           resposta_usuario?: string | null
-          score_sentimento?: number | null
           sentimento?: string | null
           status?: string
           "tempo delay"?: number | null
