@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -129,15 +129,7 @@ export type Database = {
           id_instancia?: string
           prioridade?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "campanha_instancia_id_campanha_fkey"
-            columns: ["id_campanha"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       contact_tags: {
         Row: {
@@ -459,6 +451,7 @@ export type Database = {
           data_leitura: string | null
           data_resposta: string | null
           id: string
+          id_campanha: string | null
           id_mensagem_wpp: string | null
           instancia_id: string | null
           limite_inicio: string | null
@@ -468,6 +461,8 @@ export type Database = {
           mime_type: string | null
           name_media: string | null
           nome_contato: string | null
+          organization_id: string | null
+          perfil_contato: string | null
           resposta_usuario: string | null
           sentimento: string | null
           status: string
@@ -483,6 +478,7 @@ export type Database = {
           data_leitura?: string | null
           data_resposta?: string | null
           id?: string
+          id_campanha?: string | null
           id_mensagem_wpp?: string | null
           instancia_id?: string | null
           limite_inicio?: string | null
@@ -492,9 +488,11 @@ export type Database = {
           mime_type?: string | null
           name_media?: string | null
           nome_contato?: string | null
+          organization_id?: string | null
+          perfil_contato?: string | null
           resposta_usuario?: string | null
           sentimento?: string | null
-          status?: string
+          status: string
           "tempo delay"?: number | null
           tipo_fluxo: string
           tipo_mensagem?: number | null
@@ -507,6 +505,7 @@ export type Database = {
           data_leitura?: string | null
           data_resposta?: string | null
           id?: string
+          id_campanha?: string | null
           id_mensagem_wpp?: string | null
           instancia_id?: string | null
           limite_inicio?: string | null
@@ -516,6 +515,8 @@ export type Database = {
           mime_type?: string | null
           name_media?: string | null
           nome_contato?: string | null
+          organization_id?: string | null
+          perfil_contato?: string | null
           resposta_usuario?: string | null
           sentimento?: string | null
           status?: string
