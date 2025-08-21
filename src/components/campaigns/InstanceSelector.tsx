@@ -133,8 +133,7 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
               return (
                 <div
                   key={instance.id}
-                  className="flex items-center space-x-3 p-3 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleSelectInstance(instance.id)}
+                  className="flex items-center space-x-3 p-3 hover:bg-gray-50"
                 >
                   <Checkbox
                     checked={isSelected}
