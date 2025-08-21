@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -158,7 +159,7 @@ export const useEvents = () => {
     const { data, error } = await supabase
       .from('campanha_instancia')
       .select('id_instancia')
-      .eq('id_evento', eventId);
+      .eq('id_campanha', eventId); // Mudança: usar id_campanha ao invés de id_evento
 
     if (error) throw error;
     return data || [];
@@ -169,12 +170,12 @@ export const useEvents = () => {
     await supabase
       .from('campanha_instancia')
       .delete()
-      .eq('id_evento', eventId);
+      .eq('id_campanha', eventId); // Mudança: usar id_campanha ao invés de id_evento
 
     // Add new associations
     if (instanceIds.length > 0) {
       const associations = instanceIds.map((instanceId, index) => ({
-        id_evento: eventId,
+        id_campanha: eventId, // Mudança: usar id_campanha ao invés de id_evento
         id_instancia: instanceId,
         prioridade: index
       }));

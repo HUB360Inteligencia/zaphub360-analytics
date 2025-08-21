@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +16,7 @@ export const useEventInstances = (eventId: string) => {
       const { data, error } = await supabase
         .from('campanha_instancia')
         .select('id_instancia, prioridade')
-        .eq('id_evento', eventId)
+        .eq('id_campanha', eventId) // Mudança: usar id_campanha ao invés de id_evento
         .order('prioridade');
 
       if (error) throw error;
