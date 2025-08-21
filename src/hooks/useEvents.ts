@@ -154,6 +154,39 @@ export const useEvents = () => {
     return { url: publicUrl, filename: fileName };
   };
 
+  const getEventInstances = async (eventId: string) => {
+    const { data, error } = await supabase
+      .from('campanha_instancia')
+      .select('id_instancia')
+      .eq('id_evento', eventId);
+
+    if (error) throw error;
+    return data || [];
+  };
+
+  const syncEventInstances = async (eventId: string, instanceIds: string[]) => {
+    // Remove existing associations
+    await supabase
+      .from('campanha_instancia')
+      .delete()
+      .eq('id_evento', eventId);
+
+    // Add new associations
+    if (instanceIds.length > 0) {
+      const associations = instanceIds.map((instanceId, index) => ({
+        id_evento: eventId,
+        id_instancia: instanceId,
+        prioridade: index
+      }));
+
+      const { error } = await supabase
+        .from('campanha_instancia')
+        .insert(associations);
+
+      if (error) throw error;
+    }
+  };
+
   return {
     events: eventsQuery.data || [],
     isLoading: eventsQuery.isLoading,
@@ -162,6 +195,8 @@ export const useEvents = () => {
     updateEvent,
     deleteEvent,
     uploadEventImage,
+    getEventInstances,
+    syncEventInstances,
     refetch: eventsQuery.refetch,
   };
 };

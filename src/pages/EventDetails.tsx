@@ -17,6 +17,7 @@ import {
 import { useEvents, useEvent } from '@/hooks/useEvents';
 import { useEventAnalytics } from '@/hooks/useEventAnalytics';
 import { useEventContacts } from '@/hooks/useEventContacts';
+import { useEventInstances } from '@/hooks/useEventInstances';
 import EventContactsList from '@/components/events/EventContactsList';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import { format } from 'date-fns';
@@ -29,6 +30,7 @@ const EventDetails = () => {
   const { data: event, isLoading: eventLoading, error } = useEvent(id || '');
   const { analytics, isLoading: analyticsLoading } = useEventAnalytics(id);
   const { getContactStats } = useEventContacts(id);
+  const { data: eventInstances, isLoading: instancesLoading } = useEventInstances(id || '');
 
   const contactStats = getContactStats();
 
@@ -138,6 +140,27 @@ const EventDetails = () => {
               <p className="text-sm">{format(new Date(event.created_at), 'dd/MM/yyyy', { locale: ptBR })}</p>
             </div>
           </div>
+
+          {/* Event Instances */}
+          {eventInstances && eventInstances.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <p className="text-sm text-muted-foreground mb-3">Instâncias Configuradas</p>
+              <div className="flex flex-wrap gap-2">
+                {eventInstances.map((ei) => (
+                  <Badge 
+                    key={ei.id_instancia} 
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${
+                      ei.instances_safe?.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                    }`} />
+                    {ei.instances_safe?.name} ({ei.instances_safe?.phone_number})
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -111,25 +111,36 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          id_campanha: string
+          id_campanha: string | null
+          id_evento: string | null
           id_instancia: string
           prioridade: number | null
         }
         Insert: {
           created_at?: string | null
           id?: string
-          id_campanha: string
+          id_campanha?: string | null
+          id_evento?: string | null
           id_instancia: string
           prioridade?: number | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          id_campanha?: string
+          id_campanha?: string | null
+          id_evento?: string | null
           id_instancia?: string
           prioridade?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campanha_instancia_id_evento_fkey"
+            columns: ["id_evento"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_tags: {
         Row: {

@@ -8,13 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarIcon, Eye, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useEvents } from '@/hooks/useEvents';
-import { useInstances } from '@/hooks/useInstances';
 import { useAuth } from '@/contexts/AuthContext';
+import { InstanceSelector } from '@/components/campaigns/InstanceSelector';
 import { toast } from 'sonner';
 
 const eventSchema = z.object({
@@ -22,7 +21,6 @@ const eventSchema = z.object({
   event_id: z.string().min(1, 'ID do evento é obrigatório'),
   location: z.string().optional(),
   event_date: z.string().optional(),
-  instance_id: z.string().optional(),
   message_text: z.string().min(1, 'Texto da mensagem é obrigatório'),
 });
 
@@ -34,12 +32,12 @@ const EventForm = () => {
   const isEditing = !!id;
   
   const { organization } = useAuth();
-  const { events, createEvent, updateEvent, uploadEventImage, isLoading: eventsLoading } = useEvents();
-  const { instances, isLoading: instancesLoading } = useInstances();
+  const { events, createEvent, updateEvent, uploadEventImage, getEventInstances, syncEventInstances, isLoading: eventsLoading } = useEvents();
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedInstances, setSelectedInstances] = useState<string[]>([]);
 
   const currentEvent = isEditing ? events.find(e => e.id === id) : null;
 
@@ -56,7 +54,6 @@ const EventForm = () => {
       event_id: '',
       location: '',
       event_date: '',
-      instance_id: '',
       message_text: '',
     }
   });
@@ -67,14 +64,20 @@ const EventForm = () => {
       setValue('event_id', currentEvent.event_id);
       setValue('location', currentEvent.location || '');
       setValue('event_date', currentEvent.event_date ? format(new Date(currentEvent.event_date), "yyyy-MM-dd'T'HH:mm") : '');
-      setValue('instance_id', currentEvent.instance_id || '');
       setValue('message_text', currentEvent.message_text);
       
       if (currentEvent.message_image) {
         setImagePreview(currentEvent.message_image);
       }
+
+      // Load event instances
+      if (currentEvent.id) {
+        getEventInstances(currentEvent.id).then(instances => {
+          setSelectedInstances(instances.map(i => i.id_instancia));
+        });
+      }
     }
-  }, [currentEvent, setValue]);
+  }, [currentEvent, setValue, getEventInstances]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,6 +104,11 @@ const EventForm = () => {
   const onSubmit = async (data: EventFormData) => {
     if (!organization?.id) {
       toast.error('Organização não encontrada');
+      return;
+    }
+
+    if (selectedInstances.length === 0) {
+      toast.error('Selecione pelo menos uma instância');
       return;
     }
 
@@ -132,7 +140,6 @@ const EventForm = () => {
         event_id: data.event_id,
         location: data.location || null,
         event_date: data.event_date ? new Date(data.event_date).toISOString() : null,
-        instance_id: data.instance_id || null,
         message_text: data.message_text,
         organization_id: organization.id,
         message_image: imageUrl || null,
@@ -142,11 +149,17 @@ const EventForm = () => {
         status: 'draft' as const
       };
 
+      let eventId: string;
       if (isEditing) {
-        await updateEvent.mutateAsync({ id: id!, ...eventData });
+        const updatedEvent = await updateEvent.mutateAsync({ id: id!, ...eventData });
+        eventId = updatedEvent.id;
       } else {
-        await createEvent.mutateAsync(eventData);
+        const newEvent = await createEvent.mutateAsync(eventData);
+        eventId = newEvent.id;
       }
+
+      // Sync event instances
+      await syncEventInstances(eventId, selectedInstances);
 
       navigate('/events');
     } catch (error) {
@@ -156,7 +169,7 @@ const EventForm = () => {
     }
   };
 
-  if (eventsLoading || instancesLoading) {
+  if (eventsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -242,21 +255,13 @@ const EventForm = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="instance_id">Instância WhatsApp</Label>
-                <Select onValueChange={(value) => setValue('instance_id', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma instância" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {instances.map((instance) => (
-                      <SelectItem key={instance.id} value={instance.id}>
-                        {instance.name} ({instance.phone_number})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Instâncias WhatsApp</Label>
+                <InstanceSelector
+                  selectedInstances={selectedInstances}
+                  onInstancesChange={setSelectedInstances}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Instância do WhatsApp que será usada para enviar as mensagens
+                  Selecione as instâncias que serão usadas para enviar as mensagens
                 </p>
               </div>
             </CardContent>
