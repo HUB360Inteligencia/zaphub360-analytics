@@ -148,7 +148,8 @@ const EventForm = () => {
         image_filename: imageFilename || null,
         mime_type: mimeType,
         media_type: mediaType,
-        status: 'draft' as const
+        status: 'draft' as const,
+        instance_id: selectedInstances[0] // Set primary instance
       };
 
       let eventId: string;
