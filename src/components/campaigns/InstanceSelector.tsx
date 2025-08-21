@@ -138,7 +138,7 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
                 >
                   <Checkbox
                     checked={isSelected}
-                    onChange={() => handleSelectInstance(instance.id)}
+                    onCheckedChange={() => handleSelectInstance(instance.id)}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900">{instance.name}</div>
