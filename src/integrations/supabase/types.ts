@@ -304,6 +304,7 @@ export type Database = {
           id: string
           image_filename: string | null
           instance_id: string | null
+          instance_ids: string[]
           location: string | null
           media_type: string | null
           message_image: string | null
@@ -323,6 +324,7 @@ export type Database = {
           id?: string
           image_filename?: string | null
           instance_id?: string | null
+          instance_ids?: string[]
           location?: string | null
           media_type?: string | null
           message_image?: string | null
@@ -342,6 +344,7 @@ export type Database = {
           id?: string
           image_filename?: string | null
           instance_id?: string | null
+          instance_ids?: string[]
           location?: string | null
           media_type?: string | null
           message_image?: string | null
@@ -919,6 +922,10 @@ export type Database = {
       }
       map_existing_sentiments: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_event_instance_ids: {
+        Args: { target_event_id: string }
         Returns: undefined
       }
       sync_event_contacts_to_main: {
