@@ -69,15 +69,17 @@ const EventForm = () => {
       if (currentEvent.message_image) {
         setImagePreview(currentEvent.message_image);
       }
-
-      // Load event instances
-      if (currentEvent.id) {
-        getEventInstances(currentEvent.id).then(instances => {
-          setSelectedInstances(instances.map(i => i.id_instancia));
-        });
-      }
     }
-  }, [currentEvent, setValue, getEventInstances]);
+  }, [currentEvent, setValue]);
+
+  // Separate effect for loading instances to avoid dependency issues
+  useEffect(() => {
+    if (currentEvent?.id) {
+      getEventInstances(currentEvent.id).then(instances => {
+        setSelectedInstances(instances.map(i => i.id_instancia));
+      });
+    }
+  }, [currentEvent?.id]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
