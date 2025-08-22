@@ -42,6 +42,14 @@ export interface EventAnalytics {
       emoji: string;
     }>;
   };
+  profileAnalysis: {
+    distribution: Array<{
+      profile: string;
+      count: number;
+      percentage: number;
+      color: string;
+    }>;
+  };
 }
 
 export const useEventAnalytics = (eventId?: string) => {
@@ -71,18 +79,21 @@ export const useEventAnalytics = (eventId?: string) => {
             negativo: 0,
             semClassificacao: 0,
             distribution: []
+          },
+          profileAnalysis: {
+            distribution: []
           }
         };
       }
 
-      // Buscar dados das mensagens do evento usando UUID direto
+      // Buscar dados das mensagens do evento da tabela mensagens_enviadas
       let messagesQuery = supabase
-        .from('event_messages')
+        .from('mensagens_enviadas')
         .select('*')
         .eq('organization_id', organization.id);
 
       if (eventId) {
-        messagesQuery = messagesQuery.eq('event_id', eventId);
+        messagesQuery = messagesQuery.eq('id_campanha', eventId);
       }
 
       const { data: messages, error } = await messagesQuery;
@@ -110,7 +121,11 @@ export const useEventAnalytics = (eventId?: string) => {
 
       const normalizedMessages = (messages || []).map(msg => ({
         ...msg,
-        status: normalizeStatus(msg.status)
+        status: normalizeStatus(msg.status),
+        sentiment: msg.sentimento,
+        sent_at: msg.data_envio,
+        read_at: msg.data_leitura,
+        responded_at: msg.data_resposta
       }));
 
       const totalMessages = normalizedMessages.length;
@@ -181,6 +196,23 @@ export const useEventAnalytics = (eventId?: string) => {
         }
       ];
 
+      // Profile analysis
+      const profileCounts: Record<string, number> = {};
+      normalizedMessages.forEach(msg => {
+        const profile = msg.perfil_contato || 'Sem classificação';
+        profileCounts[profile] = (profileCounts[profile] || 0) + 1;
+      });
+
+      const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0);
+      const profileColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280'];
+      
+      const profileDistribution = Object.entries(profileCounts).map(([profile, count], index) => ({
+        profile,
+        count,
+        percentage: profileTotal > 0 ? (count / profileTotal) * 100 : 0,
+        color: profileColors[index % profileColors.length]
+      }));
+
       const hourlyData = new Map();
       
       // Inicializar todas as horas com 0
@@ -191,22 +223,22 @@ export const useEventAnalytics = (eventId?: string) => {
 
       // Processar dados das mensagens por timestamp real
       messages?.forEach(message => {
-        if (message.sent_at) {
-          const hour = new Date(message.sent_at).getHours();
+        if (message.data_envio) {
+          const hour = new Date(message.data_envio).getHours();
           const key = `${hour.toString().padStart(2, '0')}:00`;
           const data = hourlyData.get(key);
           if (data) data.envio++;
         }
         
-        if (message.read_at) {
-          const hour = new Date(message.read_at).getHours();
+        if (message.data_leitura) {
+          const hour = new Date(message.data_leitura).getHours();
           const key = `${hour.toString().padStart(2, '0')}:00`;
           const data = hourlyData.get(key);
           if (data) data.leitura++;
         }
         
-        if (message.responded_at) {
-          const hour = new Date(message.responded_at).getHours();
+        if (message.data_resposta) {
+          const hour = new Date(message.data_resposta).getHours();
           const key = `${hour.toString().padStart(2, '0')}:00`;
           const data = hourlyData.get(key);
           if (data) data.resposta++;
@@ -266,6 +298,9 @@ export const useEventAnalytics = (eventId?: string) => {
           negativo: sentimentCounts.negativo,
           semClassificacao: sentimentCounts.sem_classificacao,
           distribution: sentimentDistribution
+        },
+        profileAnalysis: {
+          distribution: profileDistribution
         }
       };
     },

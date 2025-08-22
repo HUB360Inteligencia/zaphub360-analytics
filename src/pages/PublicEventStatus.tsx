@@ -13,6 +13,7 @@ import {
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicEventAnalytics } from '@/hooks/usePublicEventAnalytics';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
+import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -303,10 +304,21 @@ const PublicEventStatus = () => {
           </Card>
         </div>
 
-        {/* Sentiment Analysis */}
-        {analytics && (
-          <SentimentAnalysisCard sentimentAnalysis={analytics.sentimentAnalysis} />
-        )}
+        {/* Analytics Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sentiment Analysis */}
+          {analytics && (
+            <SentimentAnalysisCard sentimentAnalysis={analytics.sentimentAnalysis} />
+          )}
+          
+          {/* Profile Analysis */}
+          {analytics && (
+            <ProfileAnalysisCard 
+              data={analytics.profileAnalysis} 
+              isLoading={analyticsLoading}
+            />
+          )}
+        </div>
 
         {/* Message Preview */}
         <Card className="bg-card border-border">

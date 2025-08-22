@@ -10,6 +10,7 @@ export interface EventContact {
   contact_name?: string;
   status: string;
   sentiment?: string | null;
+  profile?: string | null;
   created_at: string;
 }
 
@@ -27,6 +28,12 @@ export interface ContactStats {
   neutro: number;
   negativo: number;
   semClassificacao: number;
+  // Estatísticas de perfil
+  profileStats: Array<{
+    profile: string;
+    count: number;
+    percentage: number;
+  }>;
 }
 
 export const useEventContacts = (eventId?: string) => {
@@ -39,18 +46,27 @@ export const useEventContacts = (eventId?: string) => {
       if (!eventId || !organization?.id) return [];
 
       const { data: messages, error } = await supabase
-        .from('event_messages')
-        .select('id, contact_phone, contact_name, status, sentiment, created_at')
-        .eq('event_id', eventId)
+        .from('mensagens_enviadas')
+        .select('id, celular, nome_contato, status, sentimento, perfil_contato, data_envio')
+        .eq('id_campanha', eventId)
         .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
+        .order('data_envio', { ascending: false });
 
       if (error) {
         console.error('Error fetching event contacts:', error);
         throw error;
       }
 
-      return messages || [];
+      // Transform data to match interface
+      return (messages || []).map(msg => ({
+        id: msg.id,
+        contact_phone: msg.celular,
+        contact_name: msg.nome_contato,
+        status: msg.status,
+        sentiment: msg.sentimento,
+        profile: msg.perfil_contato,
+        created_at: msg.data_envio
+      }));
     },
     enabled: !!eventId && !!organization?.id,
   });
@@ -79,20 +95,32 @@ export const useEventContacts = (eventId?: string) => {
 
       if (error) throw error;
 
-      // Também inserir na tabela event_messages
-      const { error: messageError } = await supabase
-        .from('event_messages')
-        .insert({
-          event_id: contactData.event_id,
-          contact_phone: contactData.celular,
-          contact_name: '',
-          message_content: '',
-          organization_id: organization.id,
-          status: 'fila',
-          sentiment: null
-        });
+      // Inserir na tabela mensagens_enviadas diretamente
+      const { data: instanceData } = await supabase
+        .from('instances')
+        .select('id')
+        .eq('organization_id', organization.id)
+        .eq('status', 'active')
+        .limit(1)
+        .single();
 
-      if (messageError) throw messageError;
+      if (instanceData) {
+        const { error: messageError } = await supabase
+          .from('mensagens_enviadas')
+          .insert({
+            id_campanha: contactData.event_id,
+            celular: contactData.celular,
+            nome_contato: '',
+            mensagem: '',
+            organization_id: organization.id,
+            status: 'fila',
+            sentimento: null,
+            instancia_id: instanceData.id,
+            tipo_fluxo: 'evento'
+          });
+
+        if (messageError) throw messageError;
+      }
 
       return data;
     },
@@ -109,7 +137,7 @@ export const useEventContacts = (eventId?: string) => {
   const deleteEventContact = useMutation({
     mutationFn: async (contactId: string) => {
       const { error } = await supabase
-        .from('event_messages')
+        .from('mensagens_enviadas')
         .delete()
         .eq('id', contactId);
 
@@ -128,8 +156,8 @@ export const useEventContacts = (eventId?: string) => {
   const updateContactSentiment = useMutation({
     mutationFn: async ({ contactId, sentiment }: { contactId: string; sentiment: string | null }) => {
       const { error } = await supabase
-        .from('event_messages')
-        .update({ sentiment })
+        .from('mensagens_enviadas')
+        .update({ sentimento: sentiment })
         .eq('id', contactId);
 
       if (error) throw error;
@@ -148,6 +176,19 @@ export const useEventContacts = (eventId?: string) => {
   const getContactStats = (): ContactStats => {
     const contacts = contactsQuery.data || [];
     
+    // Profile statistics
+    const profileCounts: Record<string, number> = {};
+    contacts.forEach(contact => {
+      const profile = contact.profile || 'Sem classificação';
+      profileCounts[profile] = (profileCounts[profile] || 0) + 1;
+    });
+
+    const profileStats = Object.entries(profileCounts).map(([profile, count]) => ({
+      profile,
+      count,
+      percentage: contacts.length > 0 ? (count / contacts.length) * 100 : 0
+    }));
+    
     return {
       total: contacts.length,
       fila: contacts.filter(c => c.status === 'fila').length,
@@ -162,6 +203,7 @@ export const useEventContacts = (eventId?: string) => {
       neutro: contacts.filter(c => c.sentiment === 'neutro').length,
       negativo: contacts.filter(c => c.sentiment === 'negativo').length,
       semClassificacao: contacts.filter(c => c.sentiment === null || c.sentiment === undefined).length,
+      profileStats
     };
   };
 

@@ -20,6 +20,7 @@ import { useEventContacts } from '@/hooks/useEventContacts';
 import { useEventInstances } from '@/hooks/useEventInstances';
 import EventContactsList from '@/components/events/EventContactsList';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
+import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -381,10 +382,21 @@ const EventDetails = () => {
             </Card>
           </div>
 
-          {/* Sentiment Analysis */}
-          {analytics && (
-            <SentimentAnalysisCard sentimentAnalysis={analytics.sentimentAnalysis} />
-          )}
+          {/* Analytics Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Sentiment Analysis */}
+            {analytics && (
+              <SentimentAnalysisCard sentimentAnalysis={analytics.sentimentAnalysis} />
+            )}
+            
+            {/* Profile Analysis */}
+            {analytics && (
+              <ProfileAnalysisCard 
+                data={analytics.profileAnalysis} 
+                isLoading={analyticsLoading}
+              />
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="contacts">

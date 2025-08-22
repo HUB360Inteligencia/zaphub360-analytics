@@ -343,6 +343,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sentimento</TableHead>
+                  <TableHead>Perfil</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Data Cadastro</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
@@ -351,7 +352,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               <TableBody>
                 {filteredContacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {search || statusFilter !== 'todos' || sentimentFilter !== 'todos'
                         ? 'Nenhum contato encontrado com os filtros aplicados'
                         : 'Nenhum contato cadastrado ainda'
@@ -378,6 +379,11 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                           }
                           disabled={updateContactSentiment.isPending}
                         />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <Badge variant="outline">
+                          {contact.profile || 'Sem classificação'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {contact.contact_name || 'Sistema'}
