@@ -18,6 +18,7 @@ import SentimentSelect from './SentimentSelect';
 import ContactProfileModal from '../contacts/ContactProfileModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { normalizeSentiment } from '@/lib/sentiment';
 
 interface EventContactsListProps {
   eventId: string;
@@ -105,7 +106,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
       if (sentimentFilter === 'sem_classificacao') {
         matchesSentiment = contact.sentiment === null || contact.sentiment === undefined;
       } else {
-        matchesSentiment = contact.sentiment === sentimentFilter;
+        matchesSentiment = normalizeSentiment(contact.sentiment) === sentimentFilter;
       }
     }
     

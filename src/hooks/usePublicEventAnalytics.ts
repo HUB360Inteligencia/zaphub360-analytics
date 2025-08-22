@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeSentiment, SENTIMENT_VALUES } from '@/lib/sentiment';
 
 export interface EventAnalytics {
   totalMessages: number;
@@ -108,7 +109,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
           'fila': 'fila',
           'queued': 'fila',
           'true': 'enviado',
-          'READ': 'ludo',
+          'READ': 'lido',
           'delivered': 'enviado',
           'sent': 'enviado',
           'read': 'lido',
@@ -149,10 +150,10 @@ export const usePublicEventAnalytics = (eventId?: string) => {
 
       // sentiment analysis logic
       const sentimentCounts = {
-        super_engajado: normalizedMessages.filter(m => m.sentiment === 'super_engajado').length,
-        positivo: normalizedMessages.filter(m => m.sentiment === 'positivo').length,
-        neutro: normalizedMessages.filter(m => m.sentiment === 'neutro').length,
-        negativo: normalizedMessages.filter(m => m.sentiment === 'negativo').length,
+        [SENTIMENT_VALUES.SUPER_ENGAJADO]: normalizedMessages.filter(m => normalizeSentiment(m.sentiment) === SENTIMENT_VALUES.SUPER_ENGAJADO).length,
+        [SENTIMENT_VALUES.POSITIVO]: normalizedMessages.filter(m => normalizeSentiment(m.sentiment) === SENTIMENT_VALUES.POSITIVO).length,
+        [SENTIMENT_VALUES.NEUTRO]: normalizedMessages.filter(m => normalizeSentiment(m.sentiment) === SENTIMENT_VALUES.NEUTRO).length,
+        [SENTIMENT_VALUES.NEGATIVO]: normalizedMessages.filter(m => normalizeSentiment(m.sentiment) === SENTIMENT_VALUES.NEGATIVO).length,
         sem_classificacao: normalizedMessages.filter(m => m.sentiment === null || m.sentiment === undefined).length,
       };
 
@@ -161,29 +162,29 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       const sentimentDistribution = [
         {
           sentiment: 'Super Engajado',
-          count: sentimentCounts.super_engajado,
-          percentage: sentimentTotal > 0 ? (sentimentCounts.super_engajado / sentimentTotal) * 100 : 0,
+          count: sentimentCounts[SENTIMENT_VALUES.SUPER_ENGAJADO],
+          percentage: sentimentTotal > 0 ? (sentimentCounts[SENTIMENT_VALUES.SUPER_ENGAJADO] / sentimentTotal) * 100 : 0,
           color: '#FF6B35',
           emoji: '🔥'
         },
         {
           sentiment: 'Positivo',
-          count: sentimentCounts.positivo,
-          percentage: sentimentTotal > 0 ? (sentimentCounts.positivo / sentimentTotal) * 100 : 0,
+          count: sentimentCounts[SENTIMENT_VALUES.POSITIVO],
+          percentage: sentimentTotal > 0 ? (sentimentCounts[SENTIMENT_VALUES.POSITIVO] / sentimentTotal) * 100 : 0,
           color: '#10B981',
           emoji: '😊'
         },
         {
           sentiment: 'Neutro',
-          count: sentimentCounts.neutro,
-          percentage: sentimentTotal > 0 ? (sentimentCounts.neutro / sentimentTotal) * 100 : 0,
+          count: sentimentCounts[SENTIMENT_VALUES.NEUTRO],
+          percentage: sentimentTotal > 0 ? (sentimentCounts[SENTIMENT_VALUES.NEUTRO] / sentimentTotal) * 100 : 0,
           color: '#6B7280',
           emoji: '😐'
         },
         {
           sentiment: 'Negativo',
-          count: sentimentCounts.negativo,
-          percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0,
+          count: sentimentCounts[SENTIMENT_VALUES.NEGATIVO],
+          percentage: sentimentTotal > 0 ? (sentimentCounts[SENTIMENT_VALUES.NEGATIVO] / sentimentTotal) * 100 : 0,
           color: '#DC2626',
           emoji: '😞'
         },
@@ -290,10 +291,10 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         hourlyActivity,
         statusDistribution,
         sentimentAnalysis: {
-          superEngajado: sentimentCounts.super_engajado,
-          positivo: sentimentCounts.positivo,
-          neutro: sentimentCounts.neutro,
-          negativo: sentimentCounts.negativo,
+          superEngajado: sentimentCounts[SENTIMENT_VALUES.SUPER_ENGAJADO],
+          positivo: sentimentCounts[SENTIMENT_VALUES.POSITIVO],
+          neutro: sentimentCounts[SENTIMENT_VALUES.NEUTRO],
+          negativo: sentimentCounts[SENTIMENT_VALUES.NEGATIVO],
           semClassificacao: sentimentCounts.sem_classificacao,
           distribution: sentimentDistribution
         },

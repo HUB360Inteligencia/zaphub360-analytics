@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { normalizeSentiment, SENTIMENT_VALUES } from '@/lib/sentiment';
 
 export interface EventContact {
   id: string;
@@ -198,10 +199,10 @@ export const useEventContacts = (eventId?: string) => {
       respondido: contacts.filter(c => c.status === 'respondido').length,
       erro: contacts.filter(c => c.status === 'erro').length,
       // Estatísticas de sentimento
-      superEngajado: contacts.filter(c => c.sentiment === 'super_engajado').length,
-      positivo: contacts.filter(c => c.sentiment === 'positivo').length,
-      neutro: contacts.filter(c => c.sentiment === 'neutro').length,
-      negativo: contacts.filter(c => c.sentiment === 'negativo').length,
+      superEngajado: contacts.filter(c => normalizeSentiment(c.sentiment) === SENTIMENT_VALUES.SUPER_ENGAJADO).length,
+      positivo: contacts.filter(c => normalizeSentiment(c.sentiment) === SENTIMENT_VALUES.POSITIVO).length,
+      neutro: contacts.filter(c => normalizeSentiment(c.sentiment) === SENTIMENT_VALUES.NEUTRO).length,
+      negativo: contacts.filter(c => normalizeSentiment(c.sentiment) === SENTIMENT_VALUES.NEGATIVO).length,
       semClassificacao: contacts.filter(c => c.sentiment === null || c.sentiment === undefined).length,
       profileStats
     };
