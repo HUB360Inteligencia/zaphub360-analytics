@@ -13,11 +13,24 @@ export const useEventInstances = (eventId: string) => {
         return [];
       }
       
-      const { data, error } = await supabase
+      // First try to find by id_evento (for events), then fallback to id_campanha (for campaigns)
+      let { data, error } = await supabase
         .from('campanha_instancia')
         .select('id_instancia, prioridade')
-        .eq('id_campanha', eventId) // Mudança: usar id_campanha ao invés de id_evento
+        .eq('id_evento', eventId)
         .order('prioridade');
+
+      // If no data found, try with id_campanha for backward compatibility
+      if (!data || data.length === 0) {
+        const result = await supabase
+          .from('campanha_instancia')
+          .select('id_instancia, prioridade')
+          .eq('id_campanha', eventId)
+          .order('prioridade');
+        
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
       

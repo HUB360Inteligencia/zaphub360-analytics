@@ -76,7 +76,7 @@ const EventForm = () => {
   useEffect(() => {
     if (currentEvent?.id) {
       getEventInstances(currentEvent.id).then(instances => {
-        setSelectedInstances(instances.map(i => i.id_instancia));
+        setSelectedInstances(instances);
       });
     }
   }, [currentEvent?.id]);
