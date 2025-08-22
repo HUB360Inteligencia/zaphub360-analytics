@@ -38,15 +38,7 @@ export const useEvents = () => {
       
       const { data, error } = await supabase
         .from('events')
-        .select(`
-          *,
-          instances (
-            id,
-            name,
-            phone_number,
-            status
-          )
-        `)
+        .select('*')
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
 
@@ -214,15 +206,7 @@ export const useEvent = (eventId: string) => {
       
       const { data, error } = await supabase
         .from('events')
-        .select(`
-          *,
-          instances (
-            id,
-            name,
-            phone_number,
-            status
-          )
-        `)
+        .select('*')
         .eq('id', eventId)
         .eq('organization_id', organization.id)
         .single();
