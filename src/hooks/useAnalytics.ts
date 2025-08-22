@@ -57,11 +57,18 @@ export const useAnalytics = () => {
         };
       }
 
-      // Buscar contatos
-      const { data: contacts } = await supabase
+      // Buscar contatos - count total
+      const { count: totalContactsCount } = await supabase
         .from('contacts')
-        .select('status')
+        .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id);
+
+      // Buscar contatos ativos
+      const { count: activeContactsCount } = await supabase
+        .from('contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id)
+        .eq('status', 'active');
 
       // Buscar campanhas
       const { data: campaigns } = await supabase
@@ -90,8 +97,8 @@ export const useAnalytics = () => {
         `)
         .eq('organization_id', organization.id);
 
-      const totalContacts = contacts?.length || 0;
-      const activeContacts = contacts?.filter(c => c.status === 'active').length || 0;
+      const totalContacts = totalContactsCount || 0;
+      const activeContacts = activeContactsCount || 0;
       const totalCampaigns = campaigns?.length || 0;
       const activeCampaigns = campaigns?.filter(c => c.status === 'active').length || 0;
       const totalMessages = (eventMessages?.length || 0) + (sentMessages?.length || 0);
