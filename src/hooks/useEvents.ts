@@ -11,7 +11,7 @@ export interface Event {
   event_id: string; // ID customizável pelo usuário
   location?: string;
   event_date?: string;
-  instance_id?: string;
+  instance_ids?: string[];
   message_text: string;
   message_image?: string;
   image_filename?: string;

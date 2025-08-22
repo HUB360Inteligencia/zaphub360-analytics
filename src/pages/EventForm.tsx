@@ -149,7 +149,7 @@ const EventForm = () => {
         mime_type: mimeType,
         media_type: mediaType,
         status: 'draft' as const,
-        instance_id: selectedInstances[0] // Set primary instance
+        instance_ids: selectedInstances
       };
 
       let eventId: string;
