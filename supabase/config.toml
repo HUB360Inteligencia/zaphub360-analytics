@@ -1,1 +1,4 @@
 project_id = "getjlrpfsssuztcbfsbu"
+
+[functions.public-event-status]
+verify_jwt = false

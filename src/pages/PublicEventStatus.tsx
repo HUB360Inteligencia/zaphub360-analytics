@@ -10,27 +10,36 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { usePublicEvent } from '@/hooks/usePublicEvent';
-import { usePublicEventAnalytics } from '@/hooks/usePublicEventAnalytics';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { getStatusBadgeConfig } from '@/lib/eventStatus';
 
 const PublicEventStatus = () => {
   const { eventId } = useParams<{ eventId: string }>();
-  const { data: event, isLoading: eventLoading } = usePublicEvent(eventId || '');
-  const { analytics, isLoading: analyticsLoading } = usePublicEventAnalytics(eventId);
+  
+  // Use the public edge function for event data
+  const { data: eventData, isLoading } = useQuery({
+    queryKey: ['public-event-status', eventId],
+    queryFn: async () => {
+      if (!eventId) return null;
+      
+      const { data, error } = await supabase.functions.invoke('public-event-status', {
+        body: { eventId }
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!eventId,
+    retry: 3,
+  });
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
-      active: { label: 'Ativo', variant: 'default' as const, className: 'bg-primary/10 text-primary' },
-      completed: { label: 'Concluído', variant: 'secondary' as const, className: 'bg-primary/10 text-primary' },
-      cancelled: { label: 'Cancelado', variant: 'destructive' as const, className: 'bg-destructive/10 text-destructive' },
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    const config = getStatusBadgeConfig(status);
     return (
       <Badge variant={config.variant} className={config.className}>
         {config.label}
@@ -38,7 +47,7 @@ const PublicEventStatus = () => {
     );
   };
 
-  if (eventLoading || analyticsLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -49,7 +58,7 @@ const PublicEventStatus = () => {
     );
   }
 
-  if (!event) {
+  if (!eventData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -59,6 +68,9 @@ const PublicEventStatus = () => {
       </div>
     );
   }
+
+  const event = eventData;
+  const analytics = eventData.analytics;
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -75,7 +87,7 @@ const PublicEventStatus = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Status</p>
-                {getStatusBadge(event.status)}
+                {getStatusBadge(event.computedStatus)}
               </div>
               {event.event_date && (
                 <div>
@@ -315,7 +327,7 @@ const PublicEventStatus = () => {
           {analytics && (
             <ProfileAnalysisCard 
               data={analytics.profileAnalysis} 
-              isLoading={analyticsLoading}
+              isLoading={false}
             />
           )}
         </div>

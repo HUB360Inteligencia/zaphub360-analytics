@@ -8,6 +8,7 @@ import { Calendar, MapPin, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Send
 import { useEventContacts } from '@/hooks/useEventContacts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getStatusBadgeConfig, computeEventStatus } from '@/lib/eventStatus';
 
 interface Event {
   id: string;
@@ -30,15 +31,20 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
   const { getContactStats } = useEventContacts(event.id);
   const stats = getContactStats();
 
+  // Compute dynamic status based on message statistics
+  const analytics = {
+    totalMessages: stats.total,
+    deliveredMessages: stats.enviado,
+    readMessages: stats.lido,
+    responseMessages: stats.respondido,
+    errorMessages: stats.erro,
+    queuedMessages: stats.fila,
+  };
+  
+  const displayStatus = computeEventStatus(analytics);
+
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
-      active: { label: 'Ativo', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
-      completed: { label: 'Concluído', variant: 'secondary' as const, className: 'bg-blue-100 text-blue-800' },
-      cancelled: { label: 'Cancelado', variant: 'destructive' as const, className: 'bg-red-100 text-red-800' },
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    const config = getStatusBadgeConfig(status);
     return (
       <Badge variant={config.variant} className={config.className}>
         {config.label}
@@ -106,7 +112,7 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
       <CardContent className="space-y-4">
         {/* Status */}
         <div className="flex justify-between items-center">
-          {getStatusBadge(event.status)}
+          {getStatusBadge(displayStatus)}
           <span className="text-xs text-muted-foreground">
             {format(new Date(event.created_at), 'dd/MM/yy', { locale: ptBR })}
           </span>

@@ -12,6 +12,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getStatusBadgeConfig } from '@/lib/eventStatus';
 
 import EventCard from '@/components/events/EventCard';
 
@@ -29,14 +30,7 @@ const Events = () => {
   });
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
-      active: { label: 'Ativo', variant: 'default' as const, className: 'bg-green-100 text-green-800' },
-      completed: { label: 'Concluído', variant: 'secondary' as const, className: 'bg-blue-100 text-blue-800' },
-      cancelled: { label: 'Cancelado', variant: 'destructive' as const, className: 'bg-red-100 text-red-800' },
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    const config = getStatusBadgeConfig(status);
     return (
       <Badge variant={config.variant} className={config.className}>
         {config.label}
