@@ -27,10 +27,9 @@ const PublicEventStatus = () => {
     queryFn: async () => {
       if (!eventId) return null;
       
-      // Use query parameters instead of body for public access
-      const { data, error } = await supabase.functions.invoke(
-        `public-event-status?eventId=${encodeURIComponent(eventId)}`
-      );
+      const { data, error } = await supabase.functions.invoke('public-event-status', {
+        body: { eventId }
+      });
       
       if (error) throw error;
       return data;
@@ -137,10 +136,10 @@ const PublicEventStatus = () => {
                     <div className="text-2xl font-bold text-blue-600">{analytics.queuedMessages}</div>
                     <div className="text-xs text-muted-foreground">Na Fila</div>
                   </div>
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{analytics.deliveredMessages}</div>
-                    <div className="text-xs text-muted-foreground">Enviados</div>
-                  </div>
+                   <div className="text-center p-4 bg-muted rounded-lg">
+                     <div className="text-2xl font-bold text-green-600">{analytics.deliveredMessages}</div>
+                     <div className="text-xs text-muted-foreground">Enviados (Env + Lido)</div>
+                   </div>
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <div className="text-2xl font-bold text-purple-600">{analytics.readMessages}</div>
                     <div className="text-xs text-muted-foreground">Lidos</div>
@@ -176,12 +175,12 @@ const PublicEventStatus = () => {
           <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
-                  <p className="text-2xl font-bold text-card-foreground">
-                    {analytics ? Math.round(analytics.deliveryRate) : 0}%
-                  </p>
-                </div>
+                 <div>
+                   <p className="text-sm font-medium text-muted-foreground">Enviados (Env + Lido)</p>
+                   <p className="text-2xl font-bold text-card-foreground">
+                     {analytics ? Math.round(analytics.deliveryRate) : 0}%
+                   </p>
+                 </div>
                 <CheckCircle className="w-8 h-8 text-primary" />
               </div>
             </CardContent>
@@ -234,7 +233,7 @@ const PublicEventStatus = () => {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-              <CardDescription>Distribuição de envios, leituras e respostas ao longo do dia</CardDescription>
+              <CardDescription>Envio, Leitura e 1ª Resposta por hora</CardDescription>
             </CardHeader>
             <CardContent>
               {analytics?.hourlyActivity?.length > 0 ? (
@@ -250,9 +249,9 @@ const PublicEventStatus = () => {
                         borderRadius: '8px' 
                       }}
                     />
-                    <Line type="monotone" dataKey="messages" stroke="#3B82F6" strokeWidth={3} name="Envios" />
-                    <Line type="monotone" dataKey="read" stroke="#10B981" strokeWidth={2} name="Leituras" />
-                    <Line type="monotone" dataKey="responded" stroke="#8B5CF6" strokeWidth={2} name="Respostas" />
+                     <Line type="monotone" dataKey="envio" stroke="#3B82F6" strokeWidth={3} name="Envio" />
+                     <Line type="monotone" dataKey="leitura" stroke="#10B981" strokeWidth={2} name="Leitura" />
+                     <Line type="monotone" dataKey="resposta" stroke="#8B5CF6" strokeWidth={2} name="1ª Resposta" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -270,7 +269,7 @@ const PublicEventStatus = () => {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Distribuição por Status</CardTitle>
-              <CardDescription>Status atual das mensagens do evento</CardDescription>
+              <CardDescription>Status das mensagens enviadas</CardDescription>
             </CardHeader>
             <CardContent>
               {analytics?.statusDistribution?.length > 0 ? (

@@ -37,33 +37,38 @@ function computeEventStatus(analytics: any): string {
 }
 
 function normalizeStatus(status: string): string {
-  const statusMap: { [key: string]: string } = {
-    'fila': 'queued',
-    'enviado': 'delivered', 
-    'entregue': 'delivered',
-    'lido': 'read',
-    'respondido': 'responded',
-    'erro': 'error',
-    'failed': 'error'
+  const statusMapping: Record<string, string> = {
+    'fila': 'fila',
+    'queued': 'fila',
+    'true': 'enviado',
+    'READ': 'lido',
+    'delivered': 'enviado',
+    'sent': 'enviado',
+    'read': 'lido',
+    'responded': 'respondido',
+    'failed': 'erro'
   };
-  
-  return statusMap[status?.toLowerCase()] || status?.toLowerCase() || 'queued';
+  return statusMapping[status] || status.toLowerCase();
 }
 
 function normalizeSentiment(sentiment: string): string {
-  if (!sentiment) return 'neutro';
+  if (!sentiment) return null;
   
-  const sentimentMap: { [key: string]: string } = {
-    'super engajado': 'super_engajado',
-    'super_engajado': 'super_engajado',
-    'engajado': 'super_engajado',
-    'positivo': 'positivo',
-    'neutro': 'neutro',
-    'negativo': 'negativo',
-    'desinteressado': 'negativo'
-  };
+  const normalized = sentiment.toLowerCase().trim();
   
-  return sentimentMap[sentiment.toLowerCase()] || 'neutro';
+  switch (normalized) {
+    case 'super engajado':
+    case 'super_engajado':
+      return 'super engajado';
+    case 'positivo':
+      return 'positivo';
+    case 'neutro':
+      return 'neutro';
+    case 'negativo':
+      return 'negativo';
+    default:
+      return sentiment;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -172,111 +177,183 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Calculate analytics
-    const totalMessages = messagesData.length;
-    const queuedMessages = messagesData.filter(m => normalizeStatus(m.status) === 'queued').length;
-    const deliveredMessages = messagesData.filter(m => normalizeStatus(m.status) === 'delivered').length;
-    const readMessages = messagesData.filter(m => normalizeStatus(m.status) === 'read').length;
-    const responseMessages = messagesData.filter(m => normalizeStatus(m.status) === 'responded').length;
-    const errorMessages = messagesData.filter(m => normalizeStatus(m.status) === 'error').length;
+    // Normalize messages data to match private page logic
+    const normalizedMessages = messagesData.map(msg => ({
+      ...msg,
+      status: normalizeStatus(msg.status || 'fila'),
+      sentimento: normalizeSentiment(msg.sentimento),
+    }));
 
+    // Calculate analytics matching private page logic
+    const totalMessages = normalizedMessages.length;
+    const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
+    const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
+    const responseMessages = normalizedMessages.filter(m => m.data_resposta != null).length;
+    const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
+    
+    // Delivered = enviado + lido (matching private page)
+    const deliveredMessages = normalizedMessages.filter(m => 
+      m.status === 'enviado' || m.status === 'lido'
+    ).length;
+
+    // Progress = total - queued
+    const progressMessages = normalizedMessages.filter(m => m.status !== 'fila').length;
+    const progressRate = totalMessages > 0 ? (progressMessages / totalMessages) * 100 : 0;
+    
     const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
     const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
     const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
-    const progressRate = totalMessages > 0 ? ((totalMessages - queuedMessages) / totalMessages) * 100 : 0;
 
-    // Generate hourly activity data
-    const hourlyActivity = Array.from({ length: 24 }, (_, hour) => {
-      const hourMessages = messagesData.filter(m => {
-        if (!m.data_envio) return false;
-        const msgHour = new Date(m.data_envio).getHours();
-        return msgHour === hour;
-      });
+    // Calculate hourly activity matching private page format
+    const hourlyData = new Map();
+    
+    // Initialize all hours with 0
+    for (let i = 0; i < 24; i++) {
+      const hour = `${i.toString().padStart(2, '0')}:00`;
+      hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
+    }
 
-      return {
-        hour: `${hour.toString().padStart(2, '0')}:00`,
-        messages: hourMessages.length,
-        read: hourMessages.filter(m => m.data_leitura).length,
-        responded: hourMessages.filter(m => m.data_resposta).length,
-      };
-    }).filter(h => h.messages > 0);
-
-    // Generate status distribution
-    const statusCounts = {
-      queued: queuedMessages,
-      delivered: deliveredMessages,
-      read: readMessages,
-      responded: responseMessages,
-      error: errorMessages,
-    };
-
-    const statusDistribution = Object.entries(statusCounts)
-      .filter(([_, count]) => count > 0)
-      .map(([status, count]) => {
-        const colors = {
-          queued: '#6B7280',
-          delivered: '#10B981',
-          read: '#3B82F6',
-          responded: '#8B5CF6',
-          error: '#EF4444',
-        };
-        
-        return {
-          status,
-          count,
-          percentage: totalMessages > 0 ? (count / totalMessages) * 100 : 0,
-          color: colors[status as keyof typeof colors] || '#6B7280',
-        };
-      });
-
-    // Generate sentiment analysis
-    const sentimentCounts = messagesData.reduce((acc, msg) => {
-      if (msg.sentimento) {
-        const normalized = normalizeSentiment(msg.sentimento);
-        acc[normalized] = (acc[normalized] || 0) + 1;
+    // Process message data by actual timestamps
+    normalizedMessages.forEach(message => {
+      if (message.data_envio) {
+        const hour = new Date(message.data_envio).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.envio++;
       }
-      return acc;
-    }, {} as Record<string, number>);
-
-    const sentimentDistribution = Object.entries(sentimentCounts).map(([sentiment, count]) => {
-      const sentimentConfig = {
-        super_engajado: { emoji: '🚀', color: '#10B981' },
-        positivo: { emoji: '😊', color: '#3B82F6' },
-        neutro: { emoji: '😐', color: '#6B7280' },
-        negativo: { emoji: '😞', color: '#EF4444' },
-      };
       
-      const config = sentimentConfig[sentiment as keyof typeof sentimentConfig] || { emoji: '🤔', color: '#6B7280' };
+      if (message.data_leitura) {
+        const hour = new Date(message.data_leitura).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.leitura++;
+      }
       
-      return {
-        sentiment,
-        count,
-        percentage: totalMessages > 0 ? (count / totalMessages) * 100 : 0,
-        ...config,
-      };
+      if (message.data_resposta) {
+        const hour = new Date(message.data_resposta).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.resposta++;
+      }
     });
 
-    // Generate profile analysis
-    const profileCounts = messagesData.reduce((acc, msg) => {
-      if (msg.perfil_contato) {
-        acc[msg.perfil_contato] = (acc[msg.perfil_contato] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
+    const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
+      hour,
+      messages: data.envio,
+      delivered: data.envio,
+      read: data.leitura,
+      responded: data.resposta,
+      envio: data.envio,
+      leitura: data.leitura,
+      resposta: data.resposta
+    })).sort((a, b) => a.hour.localeCompare(b.hour));
 
-    const profileDistribution = Object.entries(profileCounts).map(([profile, count]) => ({
+    // Calculate status distribution with exact colors from private page
+    const statusCounts = new Map();
+    normalizedMessages.forEach(message => {
+      const status = message.status || 'fila';
+      statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+    });
+
+    const statusColors = {
+      fila: '#6B7280',
+      enviado: '#3B82F6',
+      lido: '#8B5CF6',
+      respondido: '#10B981',
+      erro: '#EF4444'
+    };
+
+    const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({
+      status,
+      count,
+      color: statusColors[status as keyof typeof statusColors] || '#9CA3AF'
+    }));
+
+    // Calculate sentiment analysis with exact format from private page
+    const sentimentCounts = {
+      'super_engajado': normalizedMessages.filter(m => m.sentimento === 'super engajado').length,
+      'positivo': normalizedMessages.filter(m => m.sentimento === 'positivo').length,
+      'neutro': normalizedMessages.filter(m => m.sentimento === 'neutro').length,
+      'negativo': normalizedMessages.filter(m => m.sentimento === 'negativo').length,
+      'sem_classificacao': normalizedMessages.filter(m => !m.sentimento).length,
+    };
+
+    const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
+
+    const sentimentDistribution = [
+      {
+        sentiment: 'Super Engajado',
+        count: sentimentCounts.super_engajado,
+        percentage: sentimentTotal > 0 ? (sentimentCounts.super_engajado / sentimentTotal) * 100 : 0,
+        color: '#FF6B35',
+        emoji: '🔥'
+      },
+      {
+        sentiment: 'Positivo',
+        count: sentimentCounts.positivo,
+        percentage: sentimentTotal > 0 ? (sentimentCounts.positivo / sentimentTotal) * 100 : 0,
+        color: '#10B981',
+        emoji: '😊'
+      },
+      {
+        sentiment: 'Neutro',
+        count: sentimentCounts.neutro,
+        percentage: sentimentTotal > 0 ? (sentimentCounts.neutro / sentimentTotal) * 100 : 0,
+        color: '#6B7280',
+        emoji: '😐'
+      },
+      {
+        sentiment: 'Negativo',
+        count: sentimentCounts.negativo,
+        percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0,
+        color: '#DC2626',
+        emoji: '😞'
+      },
+      {
+        sentiment: 'Sem Classificação',
+        count: sentimentCounts.sem_classificacao,
+        percentage: sentimentTotal > 0 ? (sentimentCounts.sem_classificacao / sentimentTotal) * 100 : 0,
+        color: '#9CA3AF',
+        emoji: '⚪'
+      }
+    ];
+
+    const sentimentAnalysis = {
+      superEngajado: sentimentCounts.super_engajado,
+      positivo: sentimentCounts.positivo,
+      neutro: sentimentCounts.neutro,
+      negativo: sentimentCounts.negativo,
+      semClassificacao: sentimentCounts.sem_classificacao,
+      distribution: sentimentDistribution
+    };
+
+    // Calculate profile analysis with exact format from private page
+    const profileCounts: Record<string, number> = {};
+    normalizedMessages.forEach(msg => {
+      const profile = msg.perfil_contato || 'Sem classificação';
+      profileCounts[profile] = (profileCounts[profile] || 0) + 1;
+    });
+
+    const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0);
+    const profileColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280'];
+    
+    const profileDistribution = Object.entries(profileCounts).map(([profile, count], index) => ({
       profile,
       count,
-      percentage: totalMessages > 0 ? (count / totalMessages) * 100 : 0,
-      color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
+      percentage: profileTotal > 0 ? (count / profileTotal) * 100 : 0,
+      color: profileColors[index % profileColors.length]
     }));
+
+    const profileAnalysis = {
+      distribution: profileDistribution
+    };
 
     const analytics = {
       totalMessages,
-      queuedMessages,
       deliveredMessages,
       readMessages,
       responseMessages,
+      queuedMessages,
       errorMessages,
       deliveryRate,
       readRate,
@@ -284,17 +361,8 @@ Deno.serve(async (req) => {
       progressRate,
       hourlyActivity,
       statusDistribution,
-      sentimentAnalysis: {
-        totalResponses: Object.values(sentimentCounts).reduce((a, b) => a + b, 0),
-        distribution: sentimentDistribution,
-        positivo: sentimentCounts.positivo || 0,
-        negativo: sentimentCounts.negativo || 0,
-        neutro: sentimentCounts.neutro || 0,
-        super_engajado: sentimentCounts.super_engajado || 0,
-      },
-      profileAnalysis: {
-        distribution: profileDistribution,
-      },
+      sentimentAnalysis,
+      profileAnalysis
     };
 
     const computedStatus = computeEventStatus(analytics);
