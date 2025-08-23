@@ -73,7 +73,17 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const eventId = url.searchParams.get('eventId');
+    let eventId = url.searchParams.get('eventId');
+
+    // If not in query params, try to get from request body
+    if (!eventId && req.method === 'POST') {
+      try {
+        const body = await req.json();
+        eventId = body.eventId;
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+    }
 
     if (!eventId) {
       return new Response(
@@ -112,17 +122,55 @@ Deno.serve(async (req) => {
 
     console.log('Event found:', event.name);
 
-    // Fetch messages data for analytics
-    const { data: messages, error: messagesError } = await supabase
+    // Fetch messages data for analytics - try multiple tables
+    let messagesData = [];
+    
+    // First try mensagens_enviadas table
+    const { data: messages1, error: messagesError1 } = await supabase
       .from('mensagens_enviadas')
       .select('status, data_envio, data_leitura, data_resposta, sentimento, perfil_contato')
       .eq('id_campanha', event.id);
 
-    if (messagesError) {
-      console.error('Error fetching messages:', messagesError);
-    }
+    if (messages1 && messages1.length > 0) {
+      messagesData = messages1;
+      console.log('Found messages in mensagens_enviadas:', messages1.length);
+    } else {
+      // Try event_messages table if no messages in mensagens_enviadas
+      const { data: messages2, error: messagesError2 } = await supabase
+        .from('event_messages')
+        .select('status, created_at as data_envio, sentiment as sentimento, contact_profile as perfil_contato')
+        .eq('event_id', event.id);
 
-    const messagesData = messages || [];
+      if (messages2 && messages2.length > 0) {
+        messagesData = messages2.map(msg => ({
+          status: msg.status,
+          data_envio: msg.data_envio,
+          data_leitura: null, // event_messages doesn't track read status separately
+          data_resposta: null, // event_messages doesn't track response separately
+          sentimento: msg.sentimento,
+          perfil_contato: msg.perfil_contato
+        }));
+        console.log('Found messages in event_messages:', messages2.length);
+      } else {
+        // Also try new_contact_event table for contact count
+        const { data: contacts, error: contactsError } = await supabase
+          .from('new_contact_event')
+          .select('celular, sentimento, status_envio')
+          .eq('event_id', event.event_id);
+
+        if (contacts && contacts.length > 0) {
+          messagesData = contacts.map(contact => ({
+            status: contact.status_envio || 'fila',
+            data_envio: null,
+            data_leitura: null,
+            data_resposta: null,
+            sentimento: contact.sentimento,
+            perfil_contato: null
+          }));
+          console.log('Found contacts in new_contact_event:', contacts.length);
+        }
+      }
+    }
     
     // Calculate analytics
     const totalMessages = messagesData.length;

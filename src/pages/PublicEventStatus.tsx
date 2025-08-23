@@ -27,9 +27,10 @@ const PublicEventStatus = () => {
     queryFn: async () => {
       if (!eventId) return null;
       
-      const { data, error } = await supabase.functions.invoke('public-event-status', {
-        body: { eventId }
-      });
+      // Use query parameters instead of body for public access
+      const { data, error } = await supabase.functions.invoke(
+        `public-event-status?eventId=${encodeURIComponent(eventId)}`
+      );
       
       if (error) throw error;
       return data;
