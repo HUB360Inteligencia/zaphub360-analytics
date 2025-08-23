@@ -266,18 +266,29 @@ Deno.serve(async (req) => {
       statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
     });
 
-    const statusColors = {
-      fila: '#6B7280',
-      enviado: '#3B82F6',
-      lido: '#8B5CF6',
-      respondido: '#10B981',
-      erro: '#EF4444'
+    const statusColors: Record<string, string> = {
+      'enviada': '#3B82F6',
+      'entregue': '#10B981', 
+      'lida': '#8B5CF6',
+      'respondida': '#F59E0B',
+      'erro': '#EF4444',
+      'fila': '#6B7280',
+      'failed': '#EF4444',
+      'pending': '#6B7280',
+      'delivered': '#10B981',
+      'read': '#8B5CF6',
+      'responded': '#F59E0B',
+      'error': '#EF4444',
+      'queued': '#6B7280',
+      'enviado': '#3B82F6',
+      'respondido': '#10B981',
+      'pendente': '#6B7280'
     };
 
     const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({
       status,
       count,
-      color: statusColors[status as keyof typeof statusColors] || '#9CA3AF'
+      color: statusColors[status] || '#9CA3AF'
     }));
 
     // Calculate sentiment analysis with exact format from private page
@@ -346,13 +357,26 @@ Deno.serve(async (req) => {
     });
 
     const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0);
-    const profileColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280'];
+    const profileList = Object.keys(profileCounts);
     
-    const profileDistribution = Object.entries(profileCounts).map(([profile, count], index) => ({
+    // Generate deterministic colors
+    const generateDeterministicColor = (index: number, total: number): string => {
+      const hue = (index * 360) / total;
+      const saturation = 65 + (index % 3) * 10;
+      const lightness = 50 + (index % 2) * 10;
+      return `hsl(${Math.round(hue)}, ${saturation}%, ${lightness}%)`;
+    };
+
+    const profileColorMap: Record<string, string> = {};
+    profileList.forEach((profile, index) => {
+      profileColorMap[profile] = generateDeterministicColor(index, profileList.length);
+    });
+    
+    const profileDistribution = Object.entries(profileCounts).map(([profile, count]) => ({
       profile,
       count,
       percentage: profileTotal > 0 ? (count / profileTotal) * 100 : 0,
-      color: profileColors[index % profileColors.length]
+      color: profileColorMap[profile]
     }));
 
     const profileAnalysis = {

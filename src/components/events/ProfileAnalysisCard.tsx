@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { generateProfileColors } from '@/lib/colorUtils';
 
 interface ProfileAnalysisData {
   distribution: Array<{
@@ -32,11 +33,15 @@ export const ProfileAnalysisCard = ({ data, isLoading }: ProfileAnalysisCardProp
     );
   }
 
+  // Generate deterministic colors to avoid repetition
+  const profiles = data.distribution.map(item => item.profile);
+  const colorMap = generateProfileColors(profiles);
+  
   const chartData = data.distribution.map(item => ({
     name: item.profile,
     value: item.count,
     percentage: item.percentage,
-    color: item.color
+    color: colorMap[item.profile]
   }));
 
   const RADIAN = Math.PI / 180;

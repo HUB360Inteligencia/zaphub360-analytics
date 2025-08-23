@@ -12,12 +12,14 @@ import {
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  PieChart, Pie, Cell 
+  PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import { useEvents, useEvent } from '@/hooks/useEvents';
 import { useEventAnalytics } from '@/hooks/useEventAnalytics';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import { useEventInstances } from '@/hooks/useEventInstances';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import EventContactsList from '@/components/events/EventContactsList';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
@@ -32,6 +34,21 @@ const EventDetails = () => {
   const { analytics, isLoading: analyticsLoading } = useEventAnalytics(id);
   const { getContactStats } = useEventContacts(id);
   const { data: eventInstances, isLoading: instancesLoading } = useEventInstances(id || '');
+
+  // Real-time status updates
+  const { data: publicEventData } = useQuery({
+    queryKey: ['public-event-status-sync', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase.functions.invoke('public-event-status', {
+        body: { eventId: id }
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
 
   const contactStats = getContactStats();
 
@@ -116,7 +133,7 @@ const EventDetails = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              {getStatusBadge(event.status)}
+              {getStatusBadge(publicEventData?.computedStatus || event.status)}
             </div>
             {event.event_date && (
               <div>
@@ -299,32 +316,46 @@ const EventDetails = () => {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-                <CardDescription>Envio, Leitura e 1ª Resposta por hora</CardDescription>
+                <CardDescription>Distribuição de envios, leituras e respostas ao longo do dia</CardDescription>
               </CardHeader>
               <CardContent>
                 {analytics?.hourlyActivity?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={analytics.hourlyActivity}>
+                    <BarChart data={analytics.hourlyActivity}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
-                      <YAxis stroke="hsl(var(--muted-foreground))" />
+                      <XAxis 
+                        dataKey="hour" 
+                        stroke="hsl(var(--muted-foreground))"
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => `${value}h`}
+                      />
+                      <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))', 
                           border: '1px solid hsl(var(--border))', 
-                          borderRadius: '8px' 
+                          borderRadius: '8px',
+                          fontSize: '14px'
                         }}
+                        formatter={(value, name) => [
+                          `${value} mensagens`,
+                          name === 'envio' ? 'Envios' : 
+                          name === 'leitura' ? 'Leituras' : 
+                          name === 'resposta' ? 'Respostas' : name
+                        ]}
+                        labelFormatter={(label) => `${label}:00h`}
                       />
-                      <Line type="monotone" dataKey="envio" stroke="#3B82F6" strokeWidth={3} name="Envio" />
-                      <Line type="monotone" dataKey="leitura" stroke="#10B981" strokeWidth={2} name="Leitura" />
-                      <Line type="monotone" dataKey="resposta" stroke="#8B5CF6" strokeWidth={2} name="1ª Resposta" />
-                    </LineChart>
+                      <Bar dataKey="envio" stackId="a" fill="#3B82F6" name="Envios" />
+                      <Bar dataKey="leitura" stackId="a" fill="#10B981" name="Leituras" />
+                      <Bar dataKey="resposta" stackId="a" fill="#8B5CF6" name="Respostas" />
+                    </BarChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-72 flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                       <p>Nenhuma atividade registrada</p>
+                      <p className="text-xs mt-1">Os dados aparecerão conforme as mensagens forem processadas</p>
                     </div>
                   </div>
                 )}

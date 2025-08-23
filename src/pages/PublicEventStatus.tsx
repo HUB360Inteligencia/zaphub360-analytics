@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  PieChart, Pie, Cell 
+  PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
@@ -21,7 +21,7 @@ import { getStatusBadgeConfig } from '@/lib/eventStatus';
 const PublicEventStatus = () => {
   const { eventId } = useParams<{ eventId: string }>();
   
-  // Use the public edge function for event data
+  // Use the public edge function for event data with real-time updates
   const { data: eventData, isLoading } = useQuery({
     queryKey: ['public-event-status', eventId],
     queryFn: async () => {
@@ -36,6 +36,7 @@ const PublicEventStatus = () => {
     },
     enabled: !!eventId,
     retry: 3,
+    refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
   });
 
   const getStatusBadge = (status: string) => {
@@ -233,32 +234,46 @@ const PublicEventStatus = () => {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-              <CardDescription>Envio, Leitura e 1ª Resposta por hora</CardDescription>
+              <CardDescription>Distribuição de envios, leituras e respostas ao longo do dia</CardDescription>
             </CardHeader>
             <CardContent>
               {analytics?.hourlyActivity?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analytics.hourlyActivity}>
+                  <BarChart data={analytics.hourlyActivity}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <XAxis 
+                      dataKey="hour" 
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `${value}h`}
+                    />
+                    <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))', 
                         border: '1px solid hsl(var(--border))', 
-                        borderRadius: '8px' 
+                        borderRadius: '8px',
+                        fontSize: '14px'
                       }}
+                      formatter={(value, name) => [
+                        `${value} mensagens`,
+                        name === 'envio' ? 'Envios' : 
+                        name === 'leitura' ? 'Leituras' : 
+                        name === 'resposta' ? 'Respostas' : name
+                      ]}
+                      labelFormatter={(label) => `${label}:00h`}
                     />
-                     <Line type="monotone" dataKey="envio" stroke="#3B82F6" strokeWidth={3} name="Envio" />
-                     <Line type="monotone" dataKey="leitura" stroke="#10B981" strokeWidth={2} name="Leitura" />
-                     <Line type="monotone" dataKey="resposta" stroke="#8B5CF6" strokeWidth={2} name="1ª Resposta" />
-                  </LineChart>
+                    <Bar dataKey="envio" stackId="a" fill="#3B82F6" name="Envios" />
+                    <Bar dataKey="leitura" stackId="a" fill="#10B981" name="Leituras" />
+                    <Bar dataKey="resposta" stackId="a" fill="#8B5CF6" name="Respostas" />
+                  </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-72 flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
                     <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                     <p>Nenhuma atividade registrada ainda</p>
+                    <p className="text-xs mt-1">Os dados aparecerão conforme as mensagens forem processadas</p>
                   </div>
                 </div>
               )}

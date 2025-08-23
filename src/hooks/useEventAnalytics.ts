@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeSentiment, SENTIMENT_VALUES } from '@/lib/sentiment';
+import { statusColors, generateProfileColors } from '@/lib/colorUtils';
 
 export interface EventAnalytics {
   totalMessages: number;
@@ -257,13 +258,14 @@ export const useEventAnalytics = (eventId?: string) => {
       });
 
       const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0);
-      const profileColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6B7280'];
+      const profileList = Object.keys(profileCounts);
+      const profileColorMap = generateProfileColors(profileList);
       
-      const profileDistribution = Object.entries(profileCounts).map(([profile, count], index) => ({
+      const profileDistribution = Object.entries(profileCounts).map(([profile, count]) => ({
         profile,
         count,
         percentage: profileTotal > 0 ? (count / profileTotal) * 100 : 0,
-        color: profileColors[index % profileColors.length]
+        color: profileColorMap[profile]
       }));
 
       const hourlyData = new Map();
@@ -316,19 +318,10 @@ export const useEventAnalytics = (eventId?: string) => {
         statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
       });
 
-      const statusColors = {
-        fila: '#6B7280',
-        pendente: '#6B7280',
-        enviado: '#3B82F6',
-        lido: '#8B5CF6',
-        respondido: '#10B981',
-        erro: '#EF4444'
-      };
-
       const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({
         status,
         count,
-        color: statusColors[status as keyof typeof statusColors] || '#9CA3AF'
+        color: statusColors[status] || '#9CA3AF'
       }));
 
       return {
