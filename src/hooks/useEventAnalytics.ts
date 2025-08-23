@@ -151,6 +151,7 @@ export const useEventAnalytics = (eventId?: string) => {
         const statusMapping: Record<string, string> = {
           'fila': 'fila',
           'queued': 'fila',
+          'pendente': 'fila', // Normalize pendente to fila
           'true': 'enviado',
           'READ': 'lido',
           'delivered': 'enviado',
@@ -314,7 +315,7 @@ export const useEventAnalytics = (eventId?: string) => {
       // Distribuição por status
       const statusCounts = new Map();
       normalizedMessages?.forEach(message => {
-        const status = message.status || 'pendente';
+        const status = message.status || 'fila';
         statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
       });
 

@@ -40,6 +40,7 @@ function normalizeStatus(status: string): string {
   const statusMapping: Record<string, string> = {
     'fila': 'fila',
     'queued': 'fila',
+    'pendente': 'fila', // Normalize pendente to fila
     'true': 'enviado',
     'READ': 'lido',
     'delivered': 'enviado',
@@ -267,22 +268,23 @@ Deno.serve(async (req) => {
     });
 
     const statusColors: Record<string, string> = {
+      'fila': '#6B7280',
+      'enviado': '#3B82F6',
+      'lido': '#8B5CF6',
+      'respondido': '#10B981',
+      'erro': '#EF4444',
+      'pendente': '#F59E0B', // Different from 'fila'
+      // Legacy mappings
       'enviada': '#3B82F6',
       'entregue': '#10B981', 
-      'lida': '#8B5CF6',
-      'respondida': '#F59E0B',
-      'erro': '#EF4444',
-      'fila': '#6B7280',
+      'respondida': '#10B981',
       'failed': '#EF4444',
-      'pending': '#6B7280',
+      'pending': '#F59E0B',
       'delivered': '#10B981',
       'read': '#8B5CF6',
-      'responded': '#F59E0B',
+      'responded': '#10B981',
       'error': '#EF4444',
       'queued': '#6B7280',
-      'enviado': '#3B82F6',
-      'respondido': '#10B981',
-      'pendente': '#6B7280'
     };
 
     const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({

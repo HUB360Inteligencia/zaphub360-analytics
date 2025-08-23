@@ -37,16 +37,16 @@ const EventDetails = () => {
 
   // Real-time status updates
   const { data: publicEventData } = useQuery({
-    queryKey: ['public-event-status-sync', id],
+    queryKey: ['public-event-status-sync', event?.event_id],
     queryFn: async () => {
-      if (!id) return null;
+      if (!event?.event_id) return null;
       const { data, error } = await supabase.functions.invoke('public-event-status', {
-        body: { eventId: id }
+        body: { eventId: event.event_id }
       });
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !!event?.event_id,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
