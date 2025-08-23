@@ -23,12 +23,12 @@ function computeEventStatus(analytics: any): string {
     return 'draft';
   }
 
-  const processedMessages = analytics.deliveredMessages + analytics.readMessages + analytics.errorMessages;
-  
-  if (processedMessages < analytics.totalMessages) {
+  // Progress = total - queued (unified logic)
+  if (analytics.queuedMessages > 0) {
     return 'sending';
   }
 
+  // Se todas as mensagens falharam e nenhuma foi entregue
   if (analytics.errorMessages > 0 && analytics.deliveredMessages === 0) {
     return 'failed';
   }
@@ -188,7 +188,10 @@ Deno.serve(async (req) => {
     const totalMessages = normalizedMessages.length;
     const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
     const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-    const responseMessages = normalizedMessages.filter(m => m.data_resposta != null).length;
+    // Improved response counting: status 'respondido' OR data_resposta exists
+    const responseMessages = normalizedMessages.filter(m => 
+      m.status === 'respondido' || m.data_resposta != null
+    ).length;
     const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
     
     // Delivered = enviado + lido (matching private page)
@@ -202,7 +205,15 @@ Deno.serve(async (req) => {
     
     const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
     const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
-    const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
+    // Improved response rate: fallback to total if no reads
+    const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 
+                        (totalMessages > 0 ? (responseMessages / totalMessages) * 100 : 0);
+    
+    // Log analytics for debugging
+    console.log('Public analytics calculated:', {
+      totalMessages, queuedMessages, deliveredMessages, readMessages, 
+      responseMessages, errorMessages, deliveryRate, readRate, responseRate, progressRate
+    });
 
     // Calculate hourly activity matching private page format
     const hourlyData = new Map();
@@ -275,7 +286,7 @@ Deno.serve(async (req) => {
       'positivo': normalizedMessages.filter(m => m.sentimento === 'positivo').length,
       'neutro': normalizedMessages.filter(m => m.sentimento === 'neutro').length,
       'negativo': normalizedMessages.filter(m => m.sentimento === 'negativo').length,
-      'sem_classificacao': normalizedMessages.filter(m => !m.sentimento).length,
+      'sem_classificacao': normalizedMessages.filter(m => !m.sentimento || m.sentimento === null).length,
     };
 
     const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
@@ -306,14 +317,14 @@ Deno.serve(async (req) => {
         sentiment: 'Negativo',
         count: sentimentCounts.negativo,
         percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0,
-        color: '#DC2626',
+        color: '#EF4444',
         emoji: '😞'
       },
       {
         sentiment: 'Sem Classificação',
         count: sentimentCounts.sem_classificacao,
         percentage: sentimentTotal > 0 ? (sentimentCounts.sem_classificacao / sentimentTotal) * 100 : 0,
-        color: '#9CA3AF',
+        color: '#D1D5DB',
         emoji: '⚪'
       }
     ];

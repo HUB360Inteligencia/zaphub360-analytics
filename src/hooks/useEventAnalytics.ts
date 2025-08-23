@@ -87,21 +87,62 @@ export const useEventAnalytics = (eventId?: string) => {
         };
       }
 
-      // Buscar dados das mensagens do evento da tabela mensagens_enviadas
-      let messagesQuery = supabase
+      // Try multiple data sources (unified fallback logic)
+      let messages: any[] = [];
+      
+      // First try mensagens_enviadas table
+      const { data: messages1, error: messagesError1 } = await supabase
         .from('mensagens_enviadas')
         .select('*')
-        .eq('organization_id', organization.id);
+        .eq('organization_id', organization.id)
+        .eq('id_campanha', eventId || '');
 
-      if (eventId) {
-        messagesQuery = messagesQuery.eq('id_campanha', eventId);
+      if (messages1 && messages1.length > 0) {
+        messages = messages1;
+        console.log('Analytics data source: mensagens_enviadas:', messages1.length);
+      } else {
+        // Try event_messages table if no messages in mensagens_enviadas
+        const { data: messages2, error: messagesError2 } = await supabase
+          .from('event_messages')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .eq('event_id', eventId || '');
+
+        if (messages2 && messages2.length > 0) {
+          messages = messages2.map(msg => ({
+            ...msg,
+            status: msg.status,
+            sentimento: msg.sentiment,
+            data_envio: msg.sent_at,
+            data_leitura: msg.read_at,
+            data_resposta: msg.responded_at,
+            perfil_contato: null // event_messages doesn't have contact_profile field
+          }));
+          console.log('Analytics data source: event_messages:', messages2.length);
+        } else {
+          // Last resort: try new_contact_event table
+          const { data: contacts, error: contactsError } = await supabase
+            .from('new_contact_event')
+            .select('*')
+            .eq('organization_id', organization.id)
+            .eq('event_id', parseInt(eventId || '0'));
+
+          if (contacts && contacts.length > 0) {
+            messages = contacts.map(contact => ({
+              status: contact.status_envio || 'fila',
+              sentimento: contact.sentimento,
+              data_envio: null,
+              data_leitura: null,
+              data_resposta: null,
+              perfil_contato: null
+            }));
+            console.log('Analytics data source: new_contact_event:', contacts.length);
+          }
+        }
       }
 
-      const { data: messages, error } = await messagesQuery;
-
-      if (error) {
-        console.error('Error fetching event analytics:', error);
-        throw error;
+      if (messages.length === 0) {
+        console.log('No messages found in any table for event:', eventId);
       }
 
       // Normalizar status
@@ -132,10 +173,13 @@ export const useEventAnalytics = (eventId?: string) => {
       const totalMessages = normalizedMessages.length;
       const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-      const responseMessages = normalizedMessages.filter(m => m.responded_at != null).length;
+      // Improved response counting: status 'respondido' OR data_resposta exists
+      const responseMessages = normalizedMessages.filter(m => 
+        m.status === 'respondido' || m.responded_at != null || m.data_resposta != null
+      ).length;
       const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
       
-      // CORREÇÃO: Enviados agora inclui enviado + lido
+      // Delivered = enviado + lido (unified with public page)
       const deliveredMessages = normalizedMessages.filter(m => 
         m.status === 'enviado' || m.status === 'lido'
       ).length;
@@ -146,7 +190,15 @@ export const useEventAnalytics = (eventId?: string) => {
 
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
-      const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 0;
+      // Improved response rate: fallback to total if no reads
+      const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 
+                          (totalMessages > 0 ? (responseMessages / totalMessages) * 100 : 0);
+      
+      // Log analytics for debugging
+      console.log('Analytics calculated:', {
+        totalMessages, queuedMessages, deliveredMessages, readMessages, 
+        responseMessages, errorMessages, deliveryRate, readRate, responseRate, progressRate
+      });
 
       // Análise de sentimento incluindo NULL
       const sentimentCounts = {

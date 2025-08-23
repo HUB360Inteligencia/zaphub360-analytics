@@ -12,14 +12,15 @@ export function computeEventStatus(analytics?: EventAnalytics): string {
     return 'draft';
   }
 
-  const processedMessages = analytics.deliveredMessages + analytics.readMessages + analytics.errorMessages;
+  // Progress = total - queued (unified logic)
+  const processedMessages = analytics.totalMessages - analytics.queuedMessages;
   
-  // Se ainda há mensagens na fila (não processadas)
-  if (processedMessages < analytics.totalMessages) {
+  // Se ainda há mensagens na fila
+  if (analytics.queuedMessages > 0) {
     return 'sending';
   }
 
-  // Se todas as mensagens falharam
+  // Se todas as mensagens falharam e nenhuma foi entregue
   if (analytics.errorMessages > 0 && analytics.deliveredMessages === 0) {
     return 'failed';
   }
