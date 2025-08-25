@@ -6,9 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   ArrowLeft, Edit, ExternalLink, Send, CheckCircle, Eye, MessageSquare, 
   Calendar, MapPin, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle, Webhook
@@ -39,9 +36,7 @@ const EventDetails = () => {
   const { data: eventInstances, isLoading: instancesLoading } = useEventInstances(id || '');
   
   // N8N Webhook state
-  const [webhookUrl, setWebhookUrl] = useState('');
   const [isWebhookLoading, setIsWebhookLoading] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Real-time status updates
   const { data: publicEventData } = useQuery({
@@ -83,8 +78,10 @@ const EventDetails = () => {
   };
 
   const triggerN8NWebhook = async () => {
-    if (!webhookUrl.trim()) {
-      toast.error('Por favor, insira a URL do webhook N8N');
+    const webhookUrl = (event as any)?.webhook_url;
+    
+    if (!webhookUrl?.trim()) {
+      toast.error('URL do webhook N8N não configurada. Configure na edição do evento.');
       return;
     }
 
@@ -100,7 +97,7 @@ const EventDetails = () => {
         triggeredFrom: window.location.origin,
       };
 
-      const response = await fetch(webhookUrl, {
+      await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +107,6 @@ const EventDetails = () => {
       });
 
       toast.success('Webhook N8N disparado com sucesso!');
-      setIsDialogOpen(false);
     } catch (error) {
       console.error('Erro ao disparar webhook:', error);
       toast.error('Erro ao disparar o webhook. Verifique a URL e tente novamente.');
@@ -159,55 +155,24 @@ const EventDetails = () => {
           </div>
         </div>
         <div className="flex gap-3">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={triggerN8NWebhook}
+            disabled={isWebhookLoading || !(event as any)?.webhook_url}
+          >
+            {isWebhookLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Disparando...
+              </>
+            ) : (
+              <>
                 <Webhook className="w-4 h-4 mr-2" />
                 Webhook N8N
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Configurar Webhook N8N</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="webhookUrl">URL do Webhook N8N</Label>
-                  <Input
-                    id="webhookUrl"
-                    placeholder="https://webhook.n8n.cloud/webhook/..."
-                    value={webhookUrl}
-                    onChange={(e) => setWebhookUrl(e.target.value)}
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Cole aqui a URL do webhook fornecida pelo N8N
-                  </p>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button 
-                    onClick={triggerN8NWebhook} 
-                    disabled={isWebhookLoading || !webhookUrl.trim()}
-                  >
-                    {isWebhookLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Disparando...
-                      </>
-                    ) : (
-                      <>
-                        <Webhook className="w-4 h-4 mr-2" />
-                        Disparar Webhook
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </>
+            )}
+          </Button>
           <Button variant="outline" size="sm" onClick={copyPublicLink}>
             <Copy className="w-4 h-4 mr-2" />
             Copiar Link Público

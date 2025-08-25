@@ -22,6 +22,7 @@ const eventSchema = z.object({
   location: z.string().optional(),
   event_date: z.string().optional(),
   message_text: z.string().min(1, 'Texto da mensagem é obrigatório'),
+  webhook_url: z.string().optional(),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
@@ -55,6 +56,7 @@ const EventForm = () => {
       location: '',
       event_date: '',
       message_text: '',
+      webhook_url: '',
     }
   });
 
@@ -65,6 +67,7 @@ const EventForm = () => {
       setValue('location', currentEvent.location || '');
       setValue('event_date', currentEvent.event_date ? format(new Date(currentEvent.event_date), "yyyy-MM-dd'T'HH:mm") : '');
       setValue('message_text', currentEvent.message_text);
+      setValue('webhook_url', (currentEvent as any).webhook_url || '');
       
       if (currentEvent.message_image) {
         setImagePreview(currentEvent.message_image);
@@ -149,7 +152,8 @@ const EventForm = () => {
         mime_type: mimeType,
         media_type: mediaType,
         status: 'draft' as const,
-        instance_ids: selectedInstances
+        instance_ids: selectedInstances,
+        webhook_url: data.webhook_url || null
       };
 
       let eventId: string;
@@ -265,6 +269,18 @@ const EventForm = () => {
                 />
                 <p className="text-xs text-muted-foreground">
                   Selecione as instâncias que serão usadas para enviar as mensagens
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="webhook_url">Webhook N8N</Label>
+                <Input
+                  id="webhook_url"
+                  {...register('webhook_url')}
+                  placeholder="https://webhook.n8n.cloud/webhook/..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  URL do webhook N8N que será disparado ao clicar no botão de trigger
                 </p>
               </div>
             </CardContent>
