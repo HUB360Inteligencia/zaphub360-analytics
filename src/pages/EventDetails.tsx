@@ -58,8 +58,10 @@ const EventDetails = () => {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
+      sending: { label: 'Disparando', variant: 'default' as const, className: 'bg-blue-500/10 text-blue-600 border-blue-200' },
       active: { label: 'Ativo', variant: 'default' as const, className: 'bg-primary/10 text-primary' },
-      completed: { label: 'Concluído', variant: 'secondary' as const, className: 'bg-primary/10 text-primary' },
+      completed: { label: 'Concluído', variant: 'secondary' as const, className: 'bg-green-500/10 text-green-600 border-green-200' },
+      failed: { label: 'Falhado', variant: 'destructive' as const, className: 'bg-red-500/10 text-red-600 border-red-200' },
       cancelled: { label: 'Cancelado', variant: 'destructive' as const, className: 'bg-destructive/10 text-destructive' },
     };
     

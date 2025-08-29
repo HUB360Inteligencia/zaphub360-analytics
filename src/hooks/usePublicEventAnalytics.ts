@@ -108,6 +108,10 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         const statusMapping: Record<string, string> = {
           'fila': 'fila',
           'queued': 'fila',
+          'pendente': 'fila', // Normalize pendente to fila
+          'processando': 'fila', // Normalize processando to fila
+          'pending': 'fila', // Normalize pending to fila
+          'processing': 'fila', // Normalize processing to fila
           'true': 'enviado',
           'READ': 'lido',
           'delivered': 'enviado',
