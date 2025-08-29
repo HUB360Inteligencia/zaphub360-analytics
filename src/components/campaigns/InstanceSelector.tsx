@@ -1,6 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useInstances } from '@/hooks/useInstances';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,6 +22,41 @@ interface InstanceSelectorProps {
 
 export const InstanceSelector = ({ selectedInstances, onInstancesChange }: InstanceSelectorProps) => {
   const { instances, activeInstances, isLoading } = useInstances();
+
+  // Automatically remove inactive instances from selection
+  useEffect(() => {
+    const activeInstanceIds = new Set(activeInstances.map(i => i.id));
+    const filteredSelected = selectedInstances.filter(id => activeInstanceIds.has(id));
+    
+    // If any instances were removed, update the selection
+    if (filteredSelected.length !== selectedInstances.length) {
+      onInstancesChange(filteredSelected);
+    }
+  }, [activeInstances, selectedInstances, onInstancesChange]);
+
+  // Subscribe to real-time instance updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('instances_status_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'instances',
+          filter: `organization_id=eq.${instances[0]?.organization_id}`
+        },
+        (payload) => {
+          // The useInstances hook will automatically refetch when this change occurs
+          // and the useEffect above will handle removing inactive instances from selection
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [instances]);
 
   const handleSelectInstance = (instanceId: string) => {
     const isSelected = selectedInstances.includes(instanceId);

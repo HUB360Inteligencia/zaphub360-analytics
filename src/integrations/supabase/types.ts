@@ -302,8 +302,8 @@ export type Database = {
           event_date: string | null
           event_id: string
           id: string
+          id_tipo_mensagem: number | null
           image_filename: string | null
-          instance_id: string | null
           instance_ids: string[]
           location: string | null
           media_type: string | null
@@ -316,14 +316,15 @@ export type Database = {
           tempo_max: number | null
           tempo_min: number | null
           updated_at: string
+          webhook_url: string | null
         }
         Insert: {
           created_at?: string
           event_date?: string | null
           event_id: string
           id?: string
+          id_tipo_mensagem?: number | null
           image_filename?: string | null
-          instance_id?: string | null
           instance_ids?: string[]
           location?: string | null
           media_type?: string | null
@@ -336,14 +337,15 @@ export type Database = {
           tempo_max?: number | null
           tempo_min?: number | null
           updated_at?: string
+          webhook_url?: string | null
         }
         Update: {
           created_at?: string
           event_date?: string | null
           event_id?: string
           id?: string
+          id_tipo_mensagem?: number | null
           image_filename?: string | null
-          instance_id?: string | null
           instance_ids?: string[]
           location?: string | null
           media_type?: string | null
@@ -356,23 +358,9 @@ export type Database = {
           tempo_max?: number | null
           tempo_min?: number | null
           updated_at?: string
+          webhook_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "events_instance_id_fkey"
-            columns: ["instance_id"]
-            isOneToOne: false
-            referencedRelation: "instances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "events_instance_id_fkey"
-            columns: ["instance_id"]
-            isOneToOne: false
-            referencedRelation: "instances_safe"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       instances: {
         Row: {
@@ -467,6 +455,7 @@ export type Database = {
           id: string
           id_campanha: string | null
           id_mensagem_wpp: string | null
+          id_tipo_mensagem: number | null
           instancia_id: string | null
           limite_inicio: string | null
           limite_termino: string | null
@@ -482,7 +471,6 @@ export type Database = {
           status: string
           "tempo delay": number | null
           tipo_fluxo: string
-          tipo_mensagem: number | null
           url_media: string | null
         }
         Insert: {
@@ -494,6 +482,7 @@ export type Database = {
           id?: string
           id_campanha?: string | null
           id_mensagem_wpp?: string | null
+          id_tipo_mensagem?: number | null
           instancia_id?: string | null
           limite_inicio?: string | null
           limite_termino?: string | null
@@ -509,7 +498,6 @@ export type Database = {
           status: string
           "tempo delay"?: number | null
           tipo_fluxo: string
-          tipo_mensagem?: number | null
           url_media?: string | null
         }
         Update: {
@@ -521,6 +509,7 @@ export type Database = {
           id?: string
           id_campanha?: string | null
           id_mensagem_wpp?: string | null
+          id_tipo_mensagem?: number | null
           instancia_id?: string | null
           limite_inicio?: string | null
           limite_termino?: string | null
@@ -536,7 +525,6 @@ export type Database = {
           status?: string
           "tempo delay"?: number | null
           tipo_fluxo?: string
-          tipo_mensagem?: number | null
           url_media?: string | null
         }
         Relationships: []
