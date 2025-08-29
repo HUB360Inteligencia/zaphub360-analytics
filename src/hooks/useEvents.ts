@@ -1,5 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -53,6 +54,32 @@ export const useEvents = () => {
     retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  // Subscribe to real-time updates for events (instance_ids changes)
+  useEffect(() => {
+    if (!organization?.id) return;
+
+    const channel = supabase
+      .channel('events_instance_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'events',
+          filter: `organization_id=eq.${organization.id}`
+        },
+        () => {
+          // Invalidate events query to refetch updated instance_ids
+          queryClient.invalidateQueries({ queryKey: ['events', organization.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organization?.id, queryClient]);
 
   const createEvent = useMutation({
     mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>) => {
