@@ -266,6 +266,7 @@ const EventForm = () => {
                 <InstanceSelector
                   selectedInstances={selectedInstances}
                   onInstancesChange={setSelectedInstances}
+                  currentEventInstanceIds={currentEvent?.instance_ids || []}
                 />
                 <p className="text-xs text-muted-foreground">
                   Selecione as instâncias que serão usadas para enviar as mensagens

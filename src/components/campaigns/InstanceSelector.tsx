@@ -18,21 +18,33 @@ interface Instance {
 interface InstanceSelectorProps {
   selectedInstances: string[];
   onInstancesChange: (instanceIds: string[]) => void;
+  currentEventInstanceIds?: string[]; // Instance IDs from the current event
 }
 
-export const InstanceSelector = ({ selectedInstances, onInstancesChange }: InstanceSelectorProps) => {
+export const InstanceSelector = ({ selectedInstances, onInstancesChange, currentEventInstanceIds = [] }: InstanceSelectorProps) => {
   const { instances, activeInstances, isLoading } = useInstances();
 
-  // Automatically remove inactive instances from selection
+  // Handle instance status changes and auto-select based on event instance_ids
   useEffect(() => {
     const activeInstanceIds = new Set(activeInstances.map(i => i.id));
-    const filteredSelected = selectedInstances.filter(id => activeInstanceIds.has(id));
+    let newSelection = [...selectedInstances];
     
-    // If any instances were removed, update the selection
-    if (filteredSelected.length !== selectedInstances.length) {
-      onInstancesChange(filteredSelected);
+    // Remove inactive instances from selection
+    newSelection = newSelection.filter(id => activeInstanceIds.has(id));
+    
+    // Auto-select instances that become active and are in currentEventInstanceIds
+    currentEventInstanceIds.forEach(instanceId => {
+      if (activeInstanceIds.has(instanceId) && !newSelection.includes(instanceId)) {
+        newSelection.push(instanceId);
+      }
+    });
+    
+    // Update selection if changed
+    if (newSelection.length !== selectedInstances.length || 
+        !newSelection.every(id => selectedInstances.includes(id))) {
+      onInstancesChange(newSelection);
     }
-  }, [activeInstances, selectedInstances, onInstancesChange]);
+  }, [activeInstances, selectedInstances, currentEventInstanceIds, onInstancesChange]);
 
   // Subscribe to real-time instance updates
   useEffect(() => {
@@ -59,6 +71,10 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
   }, [instances]);
 
   const handleSelectInstance = (instanceId: string) => {
+    const instance = instances.find(i => i.id === instanceId);
+    // Only allow selection if instance is active
+    if (instance?.status !== 'active') return;
+    
     const isSelected = selectedInstances.includes(instanceId);
     if (isSelected) {
       onInstancesChange(selectedInstances.filter(id => id !== instanceId));
@@ -104,7 +120,7 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
     );
   }
 
-  if (activeInstances.length === 0) {
+  if (instances.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -120,7 +136,7 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Nenhuma instância ativa encontrada. Você precisa ter pelo menos uma instância ativa para criar campanhas.
+              Nenhuma instância encontrada. Você precisa criar pelo menos uma instância primeiro.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -160,23 +176,28 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
           </div>
         </div>
 
-        {/* Lista de instâncias ativas */}
+        {/* Lista de todas as instâncias */}
         <div className="space-y-2">
           <h4 className="font-medium text-gray-900">Instâncias Disponíveis</h4>
           <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
-            {activeInstances.map((instance) => {
+            {instances.map((instance) => {
               const isSelected = selectedInstances.includes(instance.id);
+              const isActive = instance.status === 'active';
               return (
                 <div
                   key={instance.id}
-                  className="flex items-center space-x-3 p-3 hover:bg-gray-50"
+                  className={`flex items-center space-x-3 p-3 ${isActive ? 'hover:bg-gray-50' : 'bg-gray-50/50'}`}
                 >
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={() => handleSelectInstance(instance.id)}
+                    disabled={!isActive}
+                    className={!isActive ? 'opacity-50' : ''}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900">{instance.name}</div>
+                    <div className={`font-medium ${isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                      {instance.name}
+                    </div>
                     <div className="text-sm text-gray-500">{instance.phone_number}</div>
                   </div>
                   <Badge className={`${getStatusColor(instance.status)} border`}>
@@ -204,11 +225,21 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange }: Insta
         )}
 
         {/* Alerta para seleção */}
-        {selectedInstances.length === 0 && (
+        {selectedInstances.length === 0 && activeInstances.length > 0 && (
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Selecione pelo menos uma instância para poder criar a campanha.
+              Selecione pelo menos uma instância ativa para poder criar a campanha.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Alerta quando não há instâncias ativas */}
+        {activeInstances.length === 0 && instances.length > 0 && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Todas as instâncias estão inativas. Você precisa ter pelo menos uma instância ativa para criar campanhas.
             </AlertDescription>
           </Alert>
         )}
