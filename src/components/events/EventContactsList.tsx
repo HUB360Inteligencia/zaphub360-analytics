@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Download, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Download, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsImport from './EventContactsImport';
 import SentimentSelect from './SentimentSelect';
@@ -31,12 +32,20 @@ const contactSchema = z.object({
 
 type ContactFormData = z.infer<typeof contactSchema>;
 
+type SortField = 'status' | 'profile' | 'sentiment' | 'name' | 'created_at';
+type SortDirection = 'asc' | 'desc';
+
 const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [sentimentFilter, setSentimentFilter] = useState<string>('todos');
+  const [profileFilter, setProfileFilter] = useState<string>('todos');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedContactPhone, setSelectedContactPhone] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   
   const { contacts, isLoading, createEventContact, deleteEventContact, updateContactSentiment, getContactStats } = useEventContacts(eventId);
   
@@ -95,23 +104,95 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
     );
   };
 
-  const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = !search || 
-      contact.contact_phone?.includes(search);
-    
-    const matchesStatus = statusFilter === 'todos' || contact.status === statusFilter;
-    
-    let matchesSentiment = true;
-    if (sentimentFilter !== 'todos') {
-      if (sentimentFilter === 'sem_classificacao') {
-        matchesSentiment = contact.sentiment === null || contact.sentiment === undefined;
-      } else {
-        matchesSentiment = normalizeSentiment(contact.sentiment) === sentimentFilter;
-      }
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
     }
-    
-    return matchesSearch && matchesStatus && matchesSentiment;
-  });
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4" />;
+    return sortDirection === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />;
+  };
+
+  // Get unique profiles for filter
+  const uniqueProfiles = Array.from(new Set(contacts.map(c => c.profile).filter(Boolean)));
+
+  const filteredAndSortedContacts = contacts
+    .filter(contact => {
+      const matchesSearch = !search || 
+        contact.contact_phone?.includes(search) ||
+        contact.contact_name?.toLowerCase().includes(search.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'todos' || contact.status === statusFilter;
+      
+      const matchesProfile = profileFilter === 'todos' || contact.profile === profileFilter;
+      
+      let matchesSentiment = true;
+      if (sentimentFilter !== 'todos') {
+        if (sentimentFilter === 'sem_classificacao') {
+          matchesSentiment = contact.sentiment === null || contact.sentiment === undefined;
+        } else {
+          const normalizedSentiment = normalizeSentiment(contact.sentiment);
+          matchesSentiment = normalizedSentiment === sentimentFilter;
+        }
+      }
+      
+      return matchesSearch && matchesStatus && matchesSentiment && matchesProfile;
+    })
+    .sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortField) {
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        case 'profile':
+          aValue = a.profile || '';
+          bValue = b.profile || '';
+          break;
+        case 'sentiment':
+          aValue = normalizeSentiment(a.sentiment) || '';
+          bValue = normalizeSentiment(b.sentiment) || '';
+          break;
+        case 'name':
+          aValue = a.contact_name || '';
+          bValue = b.contact_name || '';
+          break;
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortDirection === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedContacts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedContacts = filteredAndSortedContacts.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  };
 
   const onSubmit = async (data: ContactFormData) => {
     try {
@@ -130,11 +211,12 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
 
   const exportContacts = () => {
     const csvContent = [
-      ['Telefone', 'Status', 'Sentimento', 'Nome', 'Data Cadastro'].join(','),
-      ...filteredContacts.map(contact => [
+      ['Telefone', 'Status', 'Sentimento', 'Perfil', 'Nome', 'Data Cadastro'].join(','),
+      ...filteredAndSortedContacts.map(contact => [
         contact.contact_phone || '',
         contact.status,
         contact.sentiment || 'Sem classificação',
+        contact.profile || 'Sem classificação',
         contact.contact_name || '',
         format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })
       ].join(','))
@@ -296,12 +378,12 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
+          <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex-1 min-w-64">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por telefone..."
+                  placeholder="Buscar por telefone ou nome..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-10"
@@ -334,6 +416,37 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                 <SelectItem value="sem_classificacao">⚪ Sem classificação</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={profileFilter} onValueChange={setProfileFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Perfil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos Perfis</SelectItem>
+                {uniqueProfiles.map(profile => (
+                  <SelectItem key={profile} value={profile}>
+                    {profile}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} - {Math.min(endIndex, filteredAndSortedContacts.length)} de {filteredAndSortedContacts.length} contatos
+            </div>
+            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50 por página</SelectItem>
+                <SelectItem value="100">100 por página</SelectItem>
+                <SelectItem value="500">500 por página</SelectItem>
+                <SelectItem value="1000">1000 por página</SelectItem>
+                <SelectItem value="2000">2000 por página</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Table */}
@@ -342,26 +455,71 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sentimento</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Data Cadastro</TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort('status')}
+                      className="h-auto p-0 font-medium"
+                    >
+                      Status {getSortIcon('status')}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort('sentiment')}
+                      className="h-auto p-0 font-medium"
+                    >
+                      Sentimento {getSortIcon('sentiment')}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort('profile')}
+                      className="h-auto p-0 font-medium"
+                    >
+                      Perfil {getSortIcon('profile')}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort('name')}
+                      className="h-auto p-0 font-medium"
+                    >
+                      Nome {getSortIcon('name')}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort('created_at')}
+                      className="h-auto p-0 font-medium"
+                    >
+                      Data Cadastro {getSortIcon('created_at')}
+                    </Button>
+                  </TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredContacts.length === 0 ? (
+                {paginatedContacts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      {search || statusFilter !== 'todos' || sentimentFilter !== 'todos'
+                      {search || statusFilter !== 'todos' || sentimentFilter !== 'todos' || profileFilter !== 'todos'
                         ? 'Nenhum contato encontrado com os filtros aplicados'
                         : 'Nenhum contato cadastrado ainda'
                       }
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredContacts.map((contact) => (
+                  paginatedContacts.map((contact) => (
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">
                         {contact.contact_phone || 'Sem telefone'}
@@ -418,6 +576,46 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                    if (page > totalPages) return null;
+                    
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => handlePageChange(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 

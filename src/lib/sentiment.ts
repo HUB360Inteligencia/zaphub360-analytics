@@ -21,6 +21,7 @@ export const normalizeSentiment = (sentiment: string | null): string | null => {
   switch (normalized) {
     case 'super engajado':
     case 'super_engajado':
+    case 'superengajado':
       return SENTIMENT_VALUES.SUPER_ENGAJADO;
     case 'positivo':
       return SENTIMENT_VALUES.POSITIVO;
@@ -29,6 +30,10 @@ export const normalizeSentiment = (sentiment: string | null): string | null => {
     case 'negativo':
       return SENTIMENT_VALUES.NEGATIVO;
     default:
+      // Return the normalized sentiment value if it matches our constants
+      if (Object.values(SENTIMENT_VALUES).includes(normalized as any)) {
+        return normalized;
+      }
       return sentiment;
   }
 };

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, ExternalLink, Send, CheckCircle, Eye, MessageSquare, 
@@ -37,6 +38,7 @@ const EventDetails = () => {
   
   // N8N Webhook state
   const [isWebhookLoading, setIsWebhookLoading] = useState(false);
+  const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
 
   // Real-time status updates
   const { data: publicEventData } = useQuery({
@@ -157,24 +159,52 @@ const EventDetails = () => {
           </div>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={triggerN8NWebhook}
-            disabled={isWebhookLoading || !(event as any)?.webhook_url}
-          >
-            {isWebhookLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Disparando...
-              </>
-            ) : (
-              <>
+          <Dialog open={isWebhookDialogOpen} onOpenChange={setIsWebhookDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={!(event as any)?.webhook_url}
+              >
                 <Webhook className="w-4 h-4 mr-2" />
                 Webhook N8N
-              </>
-            )}
-          </Button>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirmar Disparo do Webhook N8N</DialogTitle>
+                <DialogDescription>
+                  Tem certeza que deseja disparar o webhook N8N para este evento?<br/>
+                  Esta ação irá enviar os dados do evento para o fluxo configurado no N8N.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsWebhookDialogOpen(false)}
+                  disabled={isWebhookLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={() => {
+                    triggerN8NWebhook();
+                    setIsWebhookDialogOpen(false);
+                  }}
+                  disabled={isWebhookLoading}
+                >
+                  {isWebhookLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Disparando...
+                    </>
+                  ) : (
+                    'Confirmar Disparo'
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" size="sm" onClick={copyPublicLink}>
             <Copy className="w-4 h-4 mr-2" />
             Copiar Link Público
