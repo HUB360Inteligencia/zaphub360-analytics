@@ -410,9 +410,10 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos Sentimentos</SelectItem>
-                <SelectItem value="super_engajado">🔥 Super Engajado</SelectItem>
+                <SelectItem value="super engajado">🔥 Super Engajado</SelectItem>
                 <SelectItem value="positivo">😊 Positivo</SelectItem>
                 <SelectItem value="neutro">😐 Neutro</SelectItem>
+                <SelectItem value="negativo">😞 Negativo</SelectItem>
                 <SelectItem value="sem_classificacao">⚪ Sem classificação</SelectItem>
               </SelectContent>
             </Select>
