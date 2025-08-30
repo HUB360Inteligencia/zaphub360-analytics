@@ -25,7 +25,8 @@ const getGradientId = (sentiment: string) => {
     'Super Engajado': 'superEngajadoGradient',
     'Positivo': 'positivoGradient',
     'Neutro': 'neutroGradient',
-    'Negativo': 'negativoGradient'
+    'Negativo': 'negativoGradient',
+    'Sem classificação': 'defaultGradient'
   };
   return gradientMap[sentiment] || 'defaultGradient';
 };
@@ -72,6 +73,10 @@ const SentimentAnalysisCard = ({ sentimentAnalysis }: SentimentAnalysisCardProps
                     <stop offset="0%" stopColor="#ef4444" />
                     <stop offset="100%" stopColor="#f87171" />
                   </linearGradient>
+                  <linearGradient id="defaultGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#9ca3af" />
+                    <stop offset="100%" stopColor="#d1d5db" />
+                  </linearGradient>
                 </defs>
                 <Pie
                   data={sentimentAnalysis.distribution.filter(item => item.count > 0)}
@@ -102,7 +107,7 @@ const SentimentAnalysisCard = ({ sentimentAnalysis }: SentimentAnalysisCardProps
                           <div className="flex items-center gap-2 mb-1">
                             {(() => {
                               const IconComponent = getSentimentIcon(data.sentiment);
-                              return <IconComponent className="w-4 h-4" />;
+                              return <IconComponent className="w-3 h-3" />;
                             })()}
                             <span className="font-medium">{data.sentiment}</span>
                           </div>
@@ -129,10 +134,10 @@ const SentimentAnalysisCard = ({ sentimentAnalysis }: SentimentAnalysisCardProps
                   >
                     <div className="flex items-center gap-3">
                       <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background: sentimentOption?.gradientColor || item.color }}
                       >
-                        <IconComponent className="w-5 h-5 text-white" />
+                        <IconComponent className="w-3.5 h-3.5 text-white" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-foreground">{item.sentiment}</div>

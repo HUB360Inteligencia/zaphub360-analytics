@@ -87,7 +87,7 @@ export const ProfileAnalysisCard = ({ data, isLoading }: ProfileAnalysisCardProp
       return (
         <div className="chart-tooltip p-3">
           <div className="flex items-center gap-2 mb-1">
-            <Users className="w-4 h-4" />
+            <Users className="w-3 h-3" />
             <span className="font-medium">{data.payload.name}</span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -162,7 +162,7 @@ export const ProfileAnalysisCard = ({ data, isLoading }: ProfileAnalysisCardProp
                 >
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-8 h-8 rounded-lg"
+                      className="w-6 h-6 rounded-md"
                       style={{ background: item.gradient }}
                     />
                     <div>
