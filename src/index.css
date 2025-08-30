@@ -92,7 +92,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -104,5 +104,21 @@
   
   .text-gradient {
     @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  }
+  
+  .mobile-responsive {
+    @apply min-w-0 w-full break-words;
+  }
+  
+  .mobile-table-hidden {
+    @apply hidden md:table;
+  }
+  
+  .mobile-list-visible {
+    @apply block md:hidden;
+  }
+  
+  .mobile-stack {
+    @apply space-y-3 md:space-y-0;
   }
 }

@@ -378,58 +378,60 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4 mb-4">
-            <div className="flex-1 min-w-64">
+          <div className="mobile-stack">
+            <div className="w-full">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por telefone ou nome..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 w-full"
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos Status</SelectItem>
-                <SelectItem value="fila">Fila</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="enviado">Enviado</SelectItem>
-                <SelectItem value="lido">Lido</SelectItem>
-                <SelectItem value="respondido">Respondido</SelectItem>
-                <SelectItem value="erro">Erro</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Sentimento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos Sentimentos</SelectItem>
-                <SelectItem value="super engajado">🔥 Super Engajado</SelectItem>
-                <SelectItem value="positivo">😊 Positivo</SelectItem>
-                <SelectItem value="neutro">😐 Neutro</SelectItem>
-                <SelectItem value="negativo">😞 Negativo</SelectItem>
-                <SelectItem value="sem_classificacao">⚪ Sem classificação</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={profileFilter} onValueChange={setProfileFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Perfil" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos Perfis</SelectItem>
-                {uniqueProfiles.map(profile => (
-                  <SelectItem key={profile} value={profile}>
-                    {profile}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Status</SelectItem>
+                  <SelectItem value="fila">Fila</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="enviado">Enviado</SelectItem>
+                  <SelectItem value="lido">Lido</SelectItem>
+                  <SelectItem value="respondido">Respondido</SelectItem>
+                  <SelectItem value="erro">Erro</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Sentimento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Sentimentos</SelectItem>
+                  <SelectItem value="super engajado">🔥 Super Engajado</SelectItem>
+                  <SelectItem value="positivo">😊 Positivo</SelectItem>
+                  <SelectItem value="neutro">😐 Neutro</SelectItem>
+                  <SelectItem value="negativo">😞 Negativo</SelectItem>
+                  <SelectItem value="sem_classificacao">⚪ Sem classificação</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={profileFilter} onValueChange={setProfileFilter}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Perfis</SelectItem>
+                  {uniqueProfiles.map(profile => (
+                    <SelectItem key={profile} value={profile}>
+                      {profile}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex items-center justify-between mb-4">
@@ -450,8 +452,8 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
             </Select>
           </div>
 
-          {/* Table */}
-          <div className="rounded-md border">
+          {/* Desktop Table */}
+          <div className="mobile-table-hidden rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -523,7 +525,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   paginatedContacts.map((contact) => (
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">
-                        {contact.contact_phone || 'Sem telefone'}
+                        <span className="break-all">{contact.contact_phone || 'Sem telefone'}</span>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(contact.status)}
@@ -541,11 +543,11 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="truncate max-w-[120px]">
                           {contact.profile || 'Sem classificação'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground truncate max-w-[120px]">
                         {contact.contact_name || 'Sistema'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
@@ -576,6 +578,82 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Stacked List */}
+          <div className="mobile-list-visible space-y-3">
+            {paginatedContacts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {search || statusFilter !== 'todos' || sentimentFilter !== 'todos' || profileFilter !== 'todos'
+                  ? 'Nenhum contato encontrado com os filtros aplicados'
+                  : 'Nenhum contato cadastrado ainda'
+                }
+              </div>
+            ) : (
+              paginatedContacts.map((contact) => (
+                <Card key={contact.id} className="p-4">
+                  <div className="space-y-3">
+                    {/* Primeira linha: Telefone + Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm break-all flex-1 mr-2">
+                        {contact.contact_phone || 'Sem telefone'}
+                      </div>
+                      {getStatusBadge(contact.status)}
+                    </div>
+
+                    {/* Segunda linha: Sentimento + Perfil */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <SentimentSelect
+                          value={contact.sentiment}
+                          onValueChange={(sentiment) => 
+                            updateContactSentiment.mutate({ 
+                              contactId: contact.id, 
+                              sentiment 
+                            })
+                          }
+                          disabled={updateContactSentiment.isPending}
+                        />
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {contact.profile || 'Sem classificação'}
+                      </Badge>
+                    </div>
+
+                    {/* Terceira linha: Nome + Data */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="truncate flex-1 mr-2">
+                        {contact.contact_name || 'Sistema'}
+                      </span>
+                      <span className="shrink-0">
+                        {format(new Date(contact.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedContactPhone(contact.contact_phone)}
+                        className="flex-1"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver Perfil
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteEventContact.mutate(contact.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
 
           {/* Pagination */}

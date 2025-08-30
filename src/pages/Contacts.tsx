@@ -147,7 +147,7 @@ const Contacts = () => {
                 const formData = new FormData(e.currentTarget);
                 handleCreateContact(formData);
               }}>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name">Nome *</Label>
                     <Input id="name" name="name" placeholder="Nome completo" className="mt-1" required />
@@ -164,7 +164,7 @@ const Contacts = () => {
                     <Label htmlFor="company">Empresa</Label>
                     <Input id="company" name="company" placeholder="Nome da empresa" className="mt-1" />
                   </div>
-                  <div className="col-span-2">
+                  <div className="md:col-span-2">
                     <Label htmlFor="notes">Observações</Label>
                     <Textarea id="notes" name="notes" placeholder="Observações sobre o contato..." className="mt-1" />
                   </div>
@@ -281,9 +281,9 @@ const Contacts = () => {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Select defaultValue="all">
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-full sm:w-[130px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,11 +292,11 @@ const Contacts = () => {
                   <SelectItem value="inactive">Inativos</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <Filter className="w-4 h-4 mr-2" />
                 Filtros
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <Download className="w-4 h-4 mr-2" />
                 Exportar
               </Button>

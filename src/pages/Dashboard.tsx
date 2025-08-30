@@ -134,7 +134,7 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mobile-responsive">
         {/* Engagement Chart */}
         <Card className="bg-white border-0 shadow-sm">
           <CardHeader>

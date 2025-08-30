@@ -200,7 +200,7 @@ const Layout = ({ children }: LayoutProps) => {
         </header>
 
         {/* Page Content */}
-        <main className="min-h-screen">
+        <main className="min-h-screen w-full min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>
