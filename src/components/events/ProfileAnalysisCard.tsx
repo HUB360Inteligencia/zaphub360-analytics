@@ -60,7 +60,7 @@ export const ProfileAnalysisCard = ({ data, isLoading }: ProfileAnalysisCardProp
 
   const RADIAN = Math.PI / 180;
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const radius = outerRadius + 20; // Position labels outside the chart
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -70,11 +70,12 @@ export const ProfileAnalysisCard = ({ data, isLoading }: ProfileAnalysisCardProp
       <text 
         x={x} 
         y={y} 
-        fill="white" 
+        fill="hsl(var(--foreground))" 
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central"
-        fontSize={12}
-        fontWeight="bold"
+        fontSize={11}
+        fontWeight="600"
+        className="drop-shadow-sm"
       >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
