@@ -2,6 +2,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { SENTIMENT_OPTIONS, normalizeSentiment } from '@/lib/sentiment';
+import { TrendingUp, ThumbsUp, Minus, ThumbsDown, Circle } from 'lucide-react';
 
 interface SentimentSelectProps {
   value?: string | null;
@@ -18,6 +19,11 @@ const SentimentSelect = ({ value, onValueChange, disabled }: SentimentSelectProp
     onValueChange(newValue === 'null' ? null : newValue);
   };
 
+  const getIcon = (iconName: string) => {
+    const icons = { TrendingUp, ThumbsUp, Minus, ThumbsDown, Circle };
+    return icons[iconName as keyof typeof icons] || Circle;
+  };
+
   return (
     <Select 
       value={normalizedValue || 'null'} 
@@ -28,7 +34,10 @@ const SentimentSelect = ({ value, onValueChange, disabled }: SentimentSelectProp
         <SelectValue>
           {selectedOption ? (
             <Badge variant="outline" className={selectedOption.color}>
-              <span className="mr-1">{selectedOption.emoji}</span>
+              {(() => {
+                const IconComponent = getIcon(selectedOption.icon);
+                return <IconComponent className="w-3 h-3 mr-1" />;
+              })()}
               {selectedOption.label}
             </Badge>
           ) : (
@@ -37,14 +46,17 @@ const SentimentSelect = ({ value, onValueChange, disabled }: SentimentSelectProp
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {SENTIMENT_OPTIONS.map((option) => (
-          <SelectItem key={option.value || 'null'} value={option.value || 'null'}>
-            <div className="flex items-center gap-2">
-              <span>{option.emoji}</span>
-              <span>{option.label}</span>
-            </div>
-          </SelectItem>
-        ))}
+        {SENTIMENT_OPTIONS.map((option) => {
+          const IconComponent = getIcon(option.icon);
+          return (
+            <SelectItem key={option.value || 'null'} value={option.value || 'null'}>
+              <div className="flex items-center gap-2">
+                <IconComponent className="w-4 h-4" />
+                <span>{option.label}</span>
+              </div>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );
