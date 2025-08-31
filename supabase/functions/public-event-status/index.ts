@@ -190,6 +190,7 @@ Deno.serve(async (req) => {
 
     // Calculate analytics matching private page logic
     const totalMessages = normalizedMessages.length;
+    // Fila: "Fila", "Processando", "Pendente" 
     const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
     const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
     // Improved response counting: status 'respondido' OR data_resposta exists
@@ -198,9 +199,14 @@ Deno.serve(async (req) => {
     ).length;
     const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
     
-    // Delivered = enviado + lido (matching private page)
+    // Enviados: "enviado" + "erro" statuses
+    const sentMessages = normalizedMessages.filter(m => 
+      m.status === 'enviado' || m.status === 'erro'
+    ).length;
+    
+    // Entregue: only "enviado" status
     const deliveredMessages = normalizedMessages.filter(m => 
-      m.status === 'enviado' || m.status === 'lido'
+      m.status === 'enviado'
     ).length;
 
     // Progress = total - queued
@@ -390,6 +396,7 @@ Deno.serve(async (req) => {
 
     const analytics = {
       totalMessages,
+      sentMessages,
       deliveredMessages,
       readMessages,
       responseMessages,

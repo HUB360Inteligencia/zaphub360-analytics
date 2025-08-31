@@ -6,6 +6,7 @@ import { statusColors, generateProfileColors } from '@/lib/colorUtils';
 
 export interface EventAnalytics {
   totalMessages: number;
+  sentMessages: number;
   deliveredMessages: number;
   readMessages: number;
   responseMessages: number;
@@ -63,6 +64,7 @@ export const useEventAnalytics = (eventId?: string) => {
       if (!organization?.id) {
         return {
           totalMessages: 0,
+          sentMessages: 0,
           deliveredMessages: 0,
           readMessages: 0,
           responseMessages: 0,
@@ -176,6 +178,7 @@ export const useEventAnalytics = (eventId?: string) => {
       }));
 
       const totalMessages = normalizedMessages.length;
+      // Fila: "Fila", "Processando", "Pendente" 
       const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
       // Improved response counting: status 'respondido' OR data_resposta exists
@@ -184,9 +187,14 @@ export const useEventAnalytics = (eventId?: string) => {
       ).length;
       const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
       
-      // Delivered = enviado + lido (unified with public page)
+      // Enviados: "enviado" + "erro" statuses
+      const sentMessages = normalizedMessages.filter(m => 
+        m.status === 'enviado' || m.status === 'erro'
+      ).length;
+      
+      // Entregue: only "enviado" status
       const deliveredMessages = normalizedMessages.filter(m => 
-        m.status === 'enviado' || m.status === 'lido'
+        m.status === 'enviado'
       ).length;
 
       // CORREÇÃO: Progresso é total - na fila
@@ -330,6 +338,7 @@ export const useEventAnalytics = (eventId?: string) => {
 
       return {
         totalMessages,
+        sentMessages,
         deliveredMessages,
         readMessages,
         responseMessages,

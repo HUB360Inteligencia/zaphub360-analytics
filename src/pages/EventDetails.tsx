@@ -293,14 +293,18 @@ const EventDetails = () => {
                 <Progress value={analytics.progressRate} className="h-3" />
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4">
                 <div className="text-center">
                   <div className="text-lg font-bold text-blue-600">{analytics.queuedMessages}</div>
-                  <div className="text-xs text-muted-foreground">Na Fila</div>
+                  <div className="text-xs text-muted-foreground">Fila</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-orange-600">{analytics.sentMessages}</div>
+                  <div className="text-xs text-muted-foreground">Enviados</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-green-600">{analytics.deliveredMessages}</div>
-                  <div className="text-xs text-muted-foreground">Enviados (Env + Lido)</div>
+                  <div className="text-xs text-muted-foreground">Entregue</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-purple-600">{analytics.readMessages}</div>
@@ -334,19 +338,19 @@ const EventDetails = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Enviados (Env + Lido)</p>
-                <p className="text-2xl font-bold text-card-foreground">
-                  {analytics ? Math.round(analytics.deliveryRate) : 0}%
-                </p>
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                 <div>
+                   <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
+                   <p className="text-2xl font-bold text-card-foreground">
+                     {analytics ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                   </p>
+                 </div>
+                <CheckCircle className="w-8 h-8 text-primary" />
               </div>
-              <CheckCircle className="w-8 h-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
         <Card className="bg-card border-border">
           <CardContent className="p-6">

@@ -32,19 +32,21 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange, current
     // Remove inactive instances from selection
     newSelection = newSelection.filter(id => activeInstanceIds.has(id));
     
-    // Auto-select instances that become active and are in currentEventInstanceIds
-    currentEventInstanceIds.forEach(instanceId => {
-      if (activeInstanceIds.has(instanceId) && !newSelection.includes(instanceId)) {
-        newSelection.push(instanceId);
-      }
-    });
+    // Only auto-select instances on initial load if no instances are selected
+    if (selectedInstances.length === 0 && currentEventInstanceIds.length > 0) {
+      currentEventInstanceIds.forEach(instanceId => {
+        if (activeInstanceIds.has(instanceId) && !newSelection.includes(instanceId)) {
+          newSelection.push(instanceId);
+        }
+      });
+    }
     
     // Update selection if changed
     if (newSelection.length !== selectedInstances.length || 
         !newSelection.every(id => selectedInstances.includes(id))) {
       onInstancesChange(newSelection);
     }
-  }, [activeInstances, selectedInstances, currentEventInstanceIds, onInstancesChange]);
+  }, [activeInstances, currentEventInstanceIds, onInstancesChange]);
 
   // Subscribe to real-time instance updates
   useEffect(() => {
@@ -190,7 +192,14 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange, current
                 >
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={() => handleSelectInstance(instance.id)}
+                    onCheckedChange={(checked) => {
+                      if (!isActive) return;
+                      if (checked) {
+                        onInstancesChange([...selectedInstances, instance.id]);
+                      } else {
+                        onInstancesChange(selectedInstances.filter(id => id !== instance.id));
+                      }
+                    }}
                     disabled={!isActive}
                     className={!isActive ? 'opacity-50' : ''}
                   />

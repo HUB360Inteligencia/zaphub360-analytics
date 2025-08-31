@@ -4,6 +4,7 @@ import { normalizeSentiment, SENTIMENT_VALUES } from '@/lib/sentiment';
 
 export interface EventAnalytics {
   totalMessages: number;
+  sentMessages: number;
   deliveredMessages: number;
   readMessages: number;
   responseMessages: number;
@@ -56,6 +57,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       if (!eventId) {
         return {
           totalMessages: 0,
+          sentMessages: 0,
           deliveredMessages: 0,
           readMessages: 0,
           responseMessages: 0,
@@ -133,15 +135,21 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       }));
 
       const totalMessages = normalizedMessages.length;
+      // Fila: "Fila", "Processando", "Pendente" 
       const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
       // CORREÇÃO: Contar por responded_at ao invés de status
       const responseMessages = normalizedMessages.filter(m => m.responded_at != null).length;
       const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
       
-      // CORREÇÃO: Enviados agora inclui enviado + lido
+      // Enviados: "enviado" + "erro" statuses
+      const sentMessages = normalizedMessages.filter(m => 
+        m.status === 'enviado' || m.status === 'erro'
+      ).length;
+      
+      // Entregue: only "enviado" status
       const deliveredMessages = normalizedMessages.filter(m => 
-        m.status === 'enviado' || m.status === 'lido'
+        m.status === 'enviado'
       ).length;
 
       // CORREÇÃO: Progresso é total - na fila
@@ -283,6 +291,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
 
       return {
         totalMessages,
+        sentMessages,
         deliveredMessages,
         readMessages,
         responseMessages,
