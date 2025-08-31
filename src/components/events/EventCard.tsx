@@ -52,9 +52,11 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
     );
   };
 
+  const getSentCount = () => stats.enviado + stats.erro;
+
   const getProgressPercentage = () => {
     if (stats.total === 0) return 0;
-    return Math.round((stats.enviado / stats.total) * 100);
+    return Math.round((getSentCount() / stats.total) * 100);
   };
 
   const handleDelete = () => {
@@ -123,9 +125,9 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Send className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">
-                {stats.enviado} de {stats.total} enviados
-              </span>
+               <span className="text-sm font-medium">
+                 {getSentCount()} de {stats.total} enviados
+               </span>
               <span className="text-sm text-muted-foreground">
                 ({getProgressPercentage()}%)
               </span>
