@@ -307,10 +307,6 @@ const EventDetails = () => {
                   <div className="text-xs text-muted-foreground">Entregue</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-purple-600">{analytics.readMessages}</div>
-                  <div className="text-xs text-muted-foreground">Lidos</div>
-                </div>
-                <div className="text-center">
                   <div className="text-lg font-bold text-emerald-600">{analytics.responseMessages}</div>
                   <div className="text-xs text-muted-foreground">Respondidos</div>
                 </div>
@@ -352,19 +348,6 @@ const EventDetails = () => {
             </CardContent>
           </Card>
 
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Taxa de Leitura</p>
-                <p className="text-2xl font-bold text-card-foreground">
-                  {analytics ? Math.round(analytics.readRate) : 0}%
-                </p>
-              </div>
-              <Eye className="w-8 h-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
 
         <Card className="bg-card border-border">
           <CardContent className="p-6">
