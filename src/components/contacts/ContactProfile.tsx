@@ -101,7 +101,7 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
               <div className="space-y-2">
                 <div>
                   <h2 className="text-2xl font-bold">
-                    {contact?.name || 'Contato sem nome'}
+                    {contact?.name || profileData?.fullName || 'Contato sem nome'}
                   </h2>
                   <p className="text-muted-foreground">
                     {contact ? 'Contato registrado' : 'Contato não registrado'}

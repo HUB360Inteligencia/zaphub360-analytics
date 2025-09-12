@@ -321,7 +321,7 @@ const EventDetails = () => {
       )}
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -334,20 +334,19 @@ const EventDetails = () => {
           </CardContent>
         </Card>
 
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                 <div>
-                   <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
-                   <p className="text-2xl font-bold text-card-foreground">
-                     {analytics ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
-                   </p>
-                 </div>
-                <CheckCircle className="w-8 h-8 text-primary" />
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
+                <p className="text-2xl font-bold text-card-foreground">
+                  {analytics ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                </p>
               </div>
-            </CardContent>
-          </Card>
-
+              <CheckCircle className="w-8 h-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="bg-card border-border">
           <CardContent className="p-6">

@@ -34,6 +34,7 @@ export interface ContactProfileData {
     company?: string;
     created_at: string;
   } | null;
+  fullName: string | null;
   events: ContactEvent[];
   messages: ContactMessage[];
   stats: {
@@ -60,6 +61,7 @@ export const useContactProfile = (contactPhone: string) => {
       if (!organization?.id || !contactPhone) {
         return {
           contact: null,
+          fullName: null,
           events: [],
           messages: [],
           stats: {
@@ -86,7 +88,20 @@ export const useContactProfile = (contactPhone: string) => {
         .eq('organization_id', organization.id)
         .single();
 
-      // Buscar mensagens do contato
+      // Buscar mensagens no mensagens_enviadas para obter nome completo e dados completos
+      const { data: mensagensEnviadas } = await supabase
+        .from('mensagens_enviadas')
+        .select('nome_contato, sobrenome_contato, status, sentimento, data_envio, data_leitura, data_resposta, mensagem')
+        .eq('celular', contactPhone)
+        .eq('organization_id', organization.id)
+        .order('data_envio', { ascending: false });
+
+      // Obter nome completo das mensagens enviadas
+      const fullName = mensagensEnviadas?.[0] ? 
+        `${(mensagensEnviadas[0] as any).nome_contato || ''} ${(mensagensEnviadas[0] as any).sobrenome_contato || ''}`.trim() || null 
+        : null;
+
+      // Buscar mensagens do contato na tabela event_messages também
       const { data: messages, error: messagesError } = await supabase
         .from('event_messages')
         .select(`
@@ -136,38 +151,63 @@ export const useContactProfile = (contactPhone: string) => {
         }
       });
 
-      // Processar mensagens
-      const processedMessages: ContactMessage[] = (messages || []).map(msg => ({
-        id: msg.id,
-        message_content: msg.message_content,
-        status: msg.status,
-        sentiment: msg.sentiment,
-        sent_at: msg.sent_at,
-        read_at: msg.read_at,
-        responded_at: msg.responded_at,
-        event_name: (msg as any).events?.name || 'Evento não encontrado',
-        created_at: msg.created_at,
-      }));
+      // Combinar mensagens de ambas as fontes
+      const allMessages: ContactMessage[] = [];
+      
+      // Adicionar mensagens do event_messages
+      (messages || []).forEach(msg => {
+        allMessages.push({
+          id: msg.id,
+          message_content: msg.message_content,
+          status: msg.status,
+          sentiment: msg.sentiment,
+          sent_at: msg.sent_at,
+          read_at: msg.read_at,
+          responded_at: msg.responded_at,
+          event_name: (msg as any).events?.name || 'Evento não encontrado',
+          created_at: msg.created_at,
+        });
+      });
+
+      // Adicionar mensagens do mensagens_enviadas
+      (mensagensEnviadas || []).forEach(msg => {
+        const msgAny = msg as any;
+        allMessages.push({
+          id: `me_${msgAny.data_envio}`,
+          message_content: msgAny.mensagem || 'Mensagem enviada',
+          status: msgAny.status,
+          sentiment: msgAny.sentimento,
+          sent_at: msgAny.data_envio,
+          read_at: msgAny.data_leitura,
+          responded_at: msgAny.data_resposta,
+          event_name: 'Evento',
+          created_at: msgAny.data_envio || new Date().toISOString(),
+        });
+      });
+
+      // Ordenar por data de criação
+      allMessages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       // Calcular estatísticas
       const stats = {
         totalEvents: uniqueEvents.length,
-        totalMessages: processedMessages.length,
-        readMessages: processedMessages.filter(m => m.read_at).length,
-        respondedMessages: processedMessages.filter(m => m.responded_at).length,
+        totalMessages: allMessages.length,
+        readMessages: allMessages.filter(m => m.read_at).length,
+        respondedMessages: allMessages.filter(m => m.responded_at).length,
         sentimentCounts: {
-          superEngajado: processedMessages.filter(m => m.sentiment === 'super_engajado').length,
-          positivo: processedMessages.filter(m => m.sentiment === 'positivo').length,
-          neutro: processedMessages.filter(m => m.sentiment === 'neutro').length,
-          negativo: processedMessages.filter(m => m.sentiment === 'negativo').length,
-          semClassificacao: processedMessages.filter(m => m.sentiment === null).length,
+          superEngajado: allMessages.filter(m => m.sentiment === 'super_engajado').length,
+          positivo: allMessages.filter(m => m.sentiment === 'positivo').length,
+          neutro: allMessages.filter(m => m.sentiment === 'neutro').length,
+          negativo: allMessages.filter(m => m.sentiment === 'negativo').length,
+          semClassificacao: allMessages.filter(m => m.sentiment === null).length,
         },
       };
 
       return {
         contact,
+        fullName,
         events: uniqueEvents,
-        messages: processedMessages,
+        messages: allMessages,
         stats,
       };
     },

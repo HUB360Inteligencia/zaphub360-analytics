@@ -246,9 +246,9 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full">
       {/* Sentiment Stats Cards - Apenas os com emojis */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -311,7 +311,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
       </div>
 
       {/* Controls */}
-      <Card>
+      <Card className="w-full max-w-full">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>

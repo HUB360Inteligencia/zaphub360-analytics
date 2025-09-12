@@ -132,7 +132,7 @@ const PublicEventStatus = () => {
                   <Progress value={analytics.progressRate} className="h-4" />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-6">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <div className="text-2xl font-bold text-blue-600">{analytics.queuedMessages}</div>
                     <div className="text-xs text-muted-foreground">Fila</div>
@@ -160,59 +160,58 @@ const PublicEventStatus = () => {
         )}
 
         {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total de Contatos</p>
-                  <p className="text-2xl font-bold text-card-foreground">{analytics?.totalMessages || 0}</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total de Contatos</p>
+                    <p className="text-2xl font-bold text-card-foreground">{analytics?.totalMessages || 0}</p>
+                  </div>
+                  <Send className="w-8 h-8 text-primary" />
                 </div>
-                <Send className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                 <div>
-                   <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
-                   <p className="text-2xl font-bold text-card-foreground">
-                     {analytics ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
-                   </p>
-                 </div>
-                <CheckCircle className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Taxa de Resposta</p>
-                  <p className="text-2xl font-bold text-card-foreground">
-                    {analytics ? Math.round(analytics.responseRate) : 0}%
-                  </p>
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
+                    <p className="text-2xl font-bold text-card-foreground">
+                      {analytics ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                    </p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-primary" />
                 </div>
-                <MessageSquare className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Mensagens com Erro</p>
-                  <p className="text-2xl font-bold text-red-600">{analytics?.errorMessages || 0}</p>
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Taxa de Resposta</p>
+                    <p className="text-2xl font-bold text-card-foreground">
+                      {analytics ? Math.round(analytics.responseRate) : 0}%
+                    </p>
+                  </div>
+                  <MessageSquare className="w-8 h-8 text-primary" />
                 </div>
-                <AlertTriangle className="w-8 h-8 text-red-600" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Mensagens com Erro</p>
+                    <p className="text-2xl font-bold text-red-600">{analytics?.errorMessages || 0}</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+              </CardContent>
+            </Card>
         </div>
 
         {/* Charts Grid */}
