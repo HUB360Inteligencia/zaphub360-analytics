@@ -134,23 +134,75 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         responded_at: msg.data_resposta
       }));
 
-      const totalMessages = normalizedMessages.length;
-      // Fila: "Fila", "Processando", "Pendente" 
-      const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
-      const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-      // CORREÇÃO: Contar por responded_at ao invés de status
-      const responseMessages = normalizedMessages.filter(m => m.responded_at != null).length;
-      const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
-      
-      // Enviados: "enviado" + "erro" statuses
-      const sentMessages = normalizedMessages.filter(m => 
-        m.status === 'enviado' || m.status === 'erro'
-      ).length;
-      
-      // Entregue: only "enviado" status
-      const deliveredMessages = normalizedMessages.filter(m => 
-        m.status === 'enviado'
-      ).length;
+      // Defaults from loaded page (may be limited to 1000)
+      let totalMessages = normalizedMessages.length;
+      let queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
+      let readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
+      let responseMessages = normalizedMessages.filter(m => m.responded_at != null).length;
+      let errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
+      let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+      let sentMessages = deliveredMessages + errorMessages;
+
+      // Override with exact counts from server to avoid 1000 cap
+      try {
+        const commonFilters = (q: any) => q.eq('id_campanha', eventData.id);
+
+        const [
+          totalRes,
+          queuedRes,
+          readRes,
+          respondedRes,
+          errorRes,
+          deliveredRes
+        ] = await Promise.all([
+          commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })),
+          commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })).in('status', ['fila','pendente','processando']),
+          commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })).eq('status', 'lido'),
+          commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })).not('data_resposta', 'is', null),
+          commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })).eq('status', 'erro'),
+          commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })).eq('status', 'enviado'),
+        ]);
+
+        if ((totalRes.count ?? 0) > 0) {
+          totalMessages = totalRes.count || 0;
+          queuedMessages = queuedRes.count || 0;
+          readMessages = readRes.count || 0;
+          responseMessages = respondedRes.count || 0;
+          errorMessages = errorRes.count || 0;
+          deliveredMessages = deliveredRes.count || 0;
+          sentMessages = deliveredMessages + errorMessages;
+        } else {
+          // Fallback to event_messages
+          const emFilters = (q: any) => q.eq('event_id', eventData.id);
+          const [
+            total2,
+            queued2,
+            read2,
+            responded2,
+            error2,
+            delivered2
+          ] = await Promise.all([
+            emFilters(supabase.from('event_messages').select('*', { count: 'exact', head: true })),
+            emFilters(supabase.from('event_messages').select('*', { count: 'exact', head: true })).in('status', ['queued','pending','processing']),
+            emFilters(supabase.from('event_messages').select('*', { count: 'exact', head: true })).not('read_at', 'is', null),
+            emFilters(supabase.from('event_messages').select('*', { count: 'exact', head: true })).not('responded_at', 'is', null),
+            emFilters(supabase.from('event_messages').select('*', { count: 'exact', head: true })).eq('status', 'failed'),
+            emFilters(supabase.from('event_messages').select('*', { count: 'exact', head: true })).in('status', ['sent','delivered']),
+          ]);
+
+          if ((total2.count ?? 0) > 0) {
+            totalMessages = total2.count || 0;
+            queuedMessages = queued2.count || 0;
+            readMessages = read2.count || 0;
+            responseMessages = responded2.count || 0;
+            errorMessages = error2.count || 0;
+            deliveredMessages = delivered2.count || 0;
+            sentMessages = deliveredMessages + errorMessages;
+          }
+        }
+      } catch (e) {
+        console.warn('Falling back to client-side counts due to error:', e);
+      }
 
       // CORREÇÃO: Progresso é total - na fila
       const progressMessages = normalizedMessages.filter(m => m.status !== 'fila').length;

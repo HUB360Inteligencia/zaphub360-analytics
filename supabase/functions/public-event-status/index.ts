@@ -188,29 +188,81 @@ Deno.serve(async (req) => {
       sentimento: normalizeSentiment(msg.sentimento),
     }));
 
-    // Calculate analytics matching private page logic
-    const totalMessages = normalizedMessages.length;
-    // Fila: "Fila", "Processando", "Pendente" 
-    const queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
-    const readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
+    // Calculate analytics with server-side accurate counts to avoid 1000-row cap
+    let totalMessages = normalizedMessages.length;
+    let queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
+    let readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
     // Improved response counting: status 'respondido' OR data_resposta exists
-    const responseMessages = normalizedMessages.filter(m => 
+    let responseMessages = normalizedMessages.filter(m => 
       m.status === 'respondido' || m.data_resposta != null
     ).length;
-    const errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
+    let errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
     
     // Enviados: "enviado" + "erro" statuses
-    const sentMessages = normalizedMessages.filter(m => 
-      m.status === 'enviado' || m.status === 'erro'
-    ).length;
-    
-    // Entregue: only "enviado" status
-    const deliveredMessages = normalizedMessages.filter(m => 
-      m.status === 'enviado'
-    ).length;
+    let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+    let sentMessages = deliveredMessages + errorMessages;
+
+    try {
+      // Prefer exact counts from mensagens_enviadas
+      const base = supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id);
+      const [
+        totalRes,
+        queuedRes,
+        readRes,
+        respondedRes,
+        errorRes,
+        deliveredRes
+      ] = await Promise.all([
+        base,
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).in('status', ['fila','pendente','processando']),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).eq('status', 'lido'),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).not('data_resposta', 'is', null),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).eq('status', 'erro'),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).eq('status', 'enviado'),
+      ]);
+
+      if ((totalRes.count ?? 0) > 0) {
+        totalMessages = totalRes.count || 0;
+        queuedMessages = queuedRes.count || 0;
+        readMessages = readRes.count || 0;
+        responseMessages = respondedRes.count || 0;
+        errorMessages = errorRes.count || 0;
+        deliveredMessages = deliveredRes.count || 0;
+        sentMessages = deliveredMessages + errorMessages;
+      } else {
+        // Fallback to event_messages
+        const eb = supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id);
+        const [
+          total2,
+          queued2,
+          read2,
+          responded2,
+          error2,
+          delivered2
+        ] = await Promise.all([
+          eb,
+          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).in('status', ['queued','pending','processing']),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).not('read_at', 'is', null),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).not('responded_at', 'is', null),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).eq('status', 'failed'),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).in('status', ['sent','delivered']),
+        ]);
+        if ((total2.count ?? 0) > 0) {
+          totalMessages = total2.count || 0;
+          queuedMessages = queued2.count || 0;
+          readMessages = read2.count || 0;
+          responseMessages = responded2.count || 0;
+          errorMessages = error2.count || 0;
+          deliveredMessages = delivered2.count || 0;
+          sentMessages = deliveredMessages + errorMessages;
+        }
+      }
+    } catch (e) {
+      console.warn('Public analytics: falling back to client-side counts due to error:', e);
+    }
 
     // Progress = total - queued
-    const progressMessages = normalizedMessages.filter(m => m.status !== 'fila').length;
+    const progressMessages = totalMessages - queuedMessages;
     const progressRate = totalMessages > 0 ? (progressMessages / totalMessages) * 100 : 0;
     
     const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
@@ -220,7 +272,7 @@ Deno.serve(async (req) => {
                         (totalMessages > 0 ? (responseMessages / totalMessages) * 100 : 0);
     
     // Log analytics for debugging
-    console.log('Public analytics calculated:', {
+    console.log('Public analytics calculated (server-accurate counts):', {
       totalMessages, queuedMessages, deliveredMessages, readMessages, 
       responseMessages, errorMessages, deliveryRate, readRate, responseRate, progressRate
     });
