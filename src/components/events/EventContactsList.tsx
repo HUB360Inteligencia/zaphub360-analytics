@@ -453,7 +453,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
           </div>
 
           {/* Desktop Table */}
-          <div className="mobile-table-hidden rounded-md border">
+          <div className="mobile-table-hidden rounded-md border w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -547,7 +547,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                           {contact.profile || 'Sem classificação'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground truncate max-w-[120px]">
+                      <TableCell className="text-muted-foreground">
                         {contact.contact_name || 'Sistema'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
