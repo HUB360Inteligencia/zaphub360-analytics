@@ -81,8 +81,8 @@ const Layout = ({
           {/* Logo */}
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 rounded-lg overflow-hidden">
+                <img src="/src/assets/logo.png" alt="ZapHub360 Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">ZapHub360</h1>
