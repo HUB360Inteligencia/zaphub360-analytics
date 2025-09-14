@@ -110,7 +110,7 @@ const Auth = () => {
         <CardHeader className="space-y-4 text-center">
           <div className="flex items-center justify-center gap-3">
             <div className="w-12 h-12 rounded-lg flex items-center justify-center">
-              <img src="/src/assets/logo.png" alt="ZapHub360 Logo" className="w-12 h-12 object-contain" />
+              <img src="/logo.png" alt="ZapHub360 Logo" className="w-12 h-12 object-contain" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">ZapHub360</h1>
