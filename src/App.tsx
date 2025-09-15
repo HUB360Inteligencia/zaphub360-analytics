@@ -19,6 +19,8 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PublicEventStatus from "./pages/PublicEventStatus";
 import CampaignDetails from "./pages/CampaignDetails";
+import UserSettings from "./pages/UserSettings";
+import OrganizationSettings from "./pages/OrganizationSettings";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +109,20 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Instances />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/me" element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserSettings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/org" element={
+              <ProtectedRoute>
+                <Layout>
+                  <OrganizationSettings />
                 </Layout>
               </ProtectedRoute>
             } />
