@@ -106,7 +106,7 @@ const OrganizationSettings = () => {
 
   const handleUpdateMemberRole = async (memberId: string, newRole: 'saas_admin' | 'client' | 'viewer' | 'guest' | 'manager' | 'agent') => {
     if (!canChangeRole && newRole === 'saas_admin') {
-      toast.error('Apenas administradores SaaS podem definir outros administradores');
+      toast.error('Apenas Administradores podem definir outros administradores');
       return;
     }
 
@@ -147,20 +147,15 @@ const OrganizationSettings = () => {
     setInviteLoading(true);
 
     const result = await handleAsyncError(async () => {
-      // Generate a UUID token
-      const token = crypto.randomUUID();
-      
-      const { error } = await supabase
-        .from('invitations')
-        .insert({
+      const { data, error } = await supabase.functions.invoke('send-invite', {
+        body: {
           email: inviteEmail.trim().toLowerCase(),
           role: inviteRole,
-          organization_id: profile.organization_id,
-          invited_by: profile.id,
-          token: token,
-        });
+        },
+      });
 
-      if (error) throw error;
+      if (error) throw error as any;
+      return data;
     }, 'Convite de membro', 'Convite enviado com sucesso!');
 
     setInviteLoading(false);
@@ -198,7 +193,7 @@ const OrganizationSettings = () => {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'saas_admin': return 'Admin SaaS';
+      case 'saas_admin': return 'Administrador';
       case 'client': return 'Cliente';
       case 'manager': return 'Gerente';
       case 'agent': return 'Agente';
@@ -306,7 +301,7 @@ const OrganizationSettings = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {canChangeRole && (
-                              <SelectItem value="saas_admin">Admin SaaS</SelectItem>
+                              <SelectItem value="saas_admin">Administrador</SelectItem>
                             )}
                             <SelectItem value="client">Cliente</SelectItem>
                             <SelectItem value="manager">Gerente</SelectItem>
@@ -369,7 +364,7 @@ const OrganizationSettings = () => {
                               <SelectItem value="saas_admin">
                                 <div className="flex items-center gap-2">
                                   <Crown className="w-4 h-4" />
-                                  Admin SaaS
+                                  Administrador
                                 </div>
                               </SelectItem>
                             )}
