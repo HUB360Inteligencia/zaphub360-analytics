@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,9 +30,11 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const instanceId = useState(() => Math.random().toString(36).slice(2))[0];
   const navigate = useNavigate();
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    shouldUnregister: false,
     defaultValues: {
       email: '',
       password: ''
@@ -40,6 +42,7 @@ const Auth = () => {
   });
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    shouldUnregister: false,
     defaultValues: {
       email: '',
       password: '',
@@ -48,6 +51,10 @@ const Auth = () => {
       organizationName: ''
     }
   });
+  useEffect(() => {
+    console.info('Auth page mounted', { instanceId });
+    return () => console.info('Auth page unmounted', { instanceId });
+  }, []);
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
@@ -135,7 +142,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="seu@email.com" {...field} />
+                        <Input type="email" placeholder="seu@email.com" {...field} onChange={(e) => { console.info('login.email change', e.target.value, { instanceId }); field.onChange(e); }} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -144,14 +151,24 @@ const Auth = () => {
               field
             }) => <FormItem>
                       <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
-                          <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
-                            {showPassword ? <EyeOff className="h-4 w-4 text-slate-400" /> : <Eye className="h-4 w-4 text-slate-400" />}
-                          </Button>
-                        </div>
-                      </FormControl>
+                      <div className="relative">
+                        <FormControl>
+                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pr-10" {...field} onChange={(e) => { console.info('login.password change', e.target.value, { instanceId }); field.onChange(e); }} />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-slate-400" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-slate-400" />
+                          )}
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>} />
 
@@ -167,7 +184,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Nome Completo</FormLabel>
                       <FormControl>
-                        <Input placeholder="João Silva" {...field} />
+                        <Input placeholder="João Silva" {...field} onChange={(e) => { console.info('register.fullName change', e.target.value, { instanceId }); field.onChange(e); }} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -177,7 +194,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Nome da Empresa</FormLabel>
                       <FormControl>
-                        <Input placeholder="Minha Empresa Ltda" {...field} />
+                        <Input placeholder="Minha Empresa Ltda" {...field} onChange={(e) => { console.info('register.organizationName change', e.target.value, { instanceId }); field.onChange(e); }} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -187,7 +204,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="seu@email.com" {...field} />
+                        <Input type="email" placeholder="seu@email.com" {...field} onChange={(e) => { console.info('register.email change', e.target.value, { instanceId }); field.onChange(e); }} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -198,7 +215,7 @@ const Auth = () => {
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
+                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} onChange={(e) => { console.info('register.password change', e.target.value, { instanceId }); field.onChange(e); }} />
                           <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
                             {showPassword ? <EyeOff className="h-4 w-4 text-slate-400" /> : <Eye className="h-4 w-4 text-slate-400" />}
                           </Button>
@@ -212,7 +229,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Confirmar Senha</FormLabel>
                       <FormControl>
-                        <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
+                        <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} onChange={(e) => { console.info('register.confirmPassword change', e.target.value, { instanceId }); field.onChange(e); }} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
