@@ -142,9 +142,18 @@ const Layout = ({
                   {profile?.role === 'admin' ? 'Administrador' : 'Usuário'}
                 </p>
               </div>
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4 text-slate-400" />
-              </Button>
+              <div className="flex gap-2">
+                <Link to="/me" title="Configurações do Usuário">
+                  <Button variant="ghost" size="sm">
+                    <Settings className="w-4 h-4 text-slate-400" />
+                  </Button>
+                </Link>
+                <Link to="/org" title="Configurações da Organização">
+                  <Button variant="ghost" size="sm">
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
