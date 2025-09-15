@@ -142,7 +142,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="seu@email.com" {...field} onChange={(e) => { console.info('login.email change', e.target.value, { instanceId }); field.onChange(e); }} />
+                        <Input type="email" autoComplete="email" autoFocus placeholder="seu@email.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -153,7 +153,7 @@ const Auth = () => {
                       <FormLabel>Senha</FormLabel>
                       <div className="relative">
                         <FormControl>
-                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pr-10" {...field} onChange={(e) => { console.info('login.password change', e.target.value, { instanceId }); field.onChange(e); }} />
+                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pr-10" {...field} />
                         </FormControl>
                         <Button
                           type="button"
@@ -184,7 +184,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Nome Completo</FormLabel>
                       <FormControl>
-                        <Input placeholder="João Silva" {...field} onChange={(e) => { console.info('register.fullName change', e.target.value, { instanceId }); field.onChange(e); }} />
+                        <Input placeholder="João Silva" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -194,7 +194,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Nome da Empresa</FormLabel>
                       <FormControl>
-                        <Input placeholder="Minha Empresa Ltda" {...field} onChange={(e) => { console.info('register.organizationName change', e.target.value, { instanceId }); field.onChange(e); }} />
+                        <Input placeholder="Minha Empresa Ltda" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -204,7 +204,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="seu@email.com" {...field} onChange={(e) => { console.info('register.email change', e.target.value, { instanceId }); field.onChange(e); }} />
+                        <Input type="email" placeholder="seu@email.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -215,7 +215,7 @@ const Auth = () => {
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} onChange={(e) => { console.info('register.password change', e.target.value, { instanceId }); field.onChange(e); }} />
+                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
                           <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
                             {showPassword ? <EyeOff className="h-4 w-4 text-slate-400" /> : <Eye className="h-4 w-4 text-slate-400" />}
                           </Button>
@@ -229,7 +229,7 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Confirmar Senha</FormLabel>
                       <FormControl>
-                        <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} onChange={(e) => { console.info('register.confirmPassword change', e.target.value, { instanceId }); field.onChange(e); }} />
+                        <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
