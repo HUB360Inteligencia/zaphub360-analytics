@@ -44,8 +44,8 @@ const OrganizationSettings = () => {
   const [inviteRole, setInviteRole] = useState<'saas_admin' | 'client' | 'viewer' | 'guest' | 'manager' | 'agent'>('viewer');
 
   const userRole = profile?.role;
-  const canManageOrg = userRole === 'saas_admin' || userRole === 'client';
-  const canManageMembers = userRole === 'saas_admin' || userRole === 'client';
+  const canManageOrg = userRole === 'saas_admin';
+  const canManageMembers = userRole === 'saas_admin';
   const canChangeRole = userRole === 'saas_admin';
 
   useEffect(() => {

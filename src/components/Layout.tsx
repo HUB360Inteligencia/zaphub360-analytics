@@ -139,7 +139,11 @@ const Layout = ({
                   {profile?.full_name || 'Usuário'}
                 </p>
                 <p className="text-xs text-slate-500 truncate">
-                  {profile?.role === 'admin' ? 'Administrador' : 'Usuário'}
+                  {profile?.role === 'saas_admin' ? 'Administrador' :
+                   profile?.role === 'client' ? 'Cliente' :
+                   profile?.role === 'manager' ? 'Gerente' :
+                   profile?.role === 'agent' ? 'Agente' :
+                   profile?.role === 'viewer' ? 'Visualizador' : 'Usuário'}
                 </p>
               </div>
               <div className="flex gap-2">
