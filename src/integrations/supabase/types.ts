@@ -468,6 +468,7 @@ export type Database = {
           perfil_contato: string | null
           resposta_usuario: string | null
           sentimento: string | null
+          sobrenome_contato: string | null
           status: string
           "tempo delay": number | null
           tipo_fluxo: string
@@ -495,6 +496,7 @@ export type Database = {
           perfil_contato?: string | null
           resposta_usuario?: string | null
           sentimento?: string | null
+          sobrenome_contato?: string | null
           status: string
           "tempo delay"?: number | null
           tipo_fluxo: string
@@ -522,6 +524,7 @@ export type Database = {
           perfil_contato?: string | null
           resposta_usuario?: string | null
           sentimento?: string | null
+          sobrenome_contato?: string | null
           status?: string
           "tempo delay"?: number | null
           tipo_fluxo?: string
@@ -629,6 +632,7 @@ export type Database = {
           organization_id: string | null
           responsavel_cadastro: string | null
           sentimento: string | null
+          sobrenome: string | null
           status_envio: string | null
           updated_at: string | null
         }
@@ -642,6 +646,7 @@ export type Database = {
           organization_id?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
+          sobrenome?: string | null
           status_envio?: string | null
           updated_at?: string | null
         }
@@ -655,6 +660,7 @@ export type Database = {
           organization_id?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
+          sobrenome?: string | null
           status_envio?: string | null
           updated_at?: string | null
         }
