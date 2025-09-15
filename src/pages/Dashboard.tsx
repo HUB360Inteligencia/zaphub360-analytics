@@ -9,30 +9,30 @@ import { Users, MessageSquare, TrendingUp, Clock, Send, Eye, CheckCircle, AlertC
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useCampaigns } from '@/hooks/useCampaigns';
-
 interface CampaignMetrics {
   sent?: number;
   delivered?: number;
   read?: number;
   failed?: number;
 }
-
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState('7d');
-  const { analytics, isLoading: analyticsLoading } = useAnalytics();
-  const { campaigns, isLoading: campaignsLoading } = useCampaigns();
-
+  const {
+    analytics,
+    isLoading: analyticsLoading
+  } = useAnalytics();
+  const {
+    campaigns,
+    isLoading: campaignsLoading
+  } = useCampaigns();
   if (analyticsLoading || campaignsLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           <p className="text-slate-600">Carregando dashboard...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!analytics) return null;
 
   // Preparar dados das campanhas recentes para exibição
@@ -41,21 +41,16 @@ const Dashboard = () => {
     return {
       id: campaign.id,
       name: campaign.name,
-      status: campaign.status === 'active' ? 'Ativa' : 
-              campaign.status === 'completed' ? 'Concluída' : 
-              campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho',
+      status: campaign.status === 'active' ? 'Ativa' : campaign.status === 'completed' ? 'Concluída' : campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho',
       sent: metrics?.sent || 0,
-      progress: campaign.status === 'completed' ? 100 : 
-                campaign.status === 'active' ? Math.floor(Math.random() * 80) + 20 : 0
+      progress: campaign.status === 'completed' ? 100 : campaign.status === 'active' ? Math.floor(Math.random() * 80) + 20 : 0
     };
   });
-
-  return (
-    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+  return <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard G360-Wpp</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-600">Visão geral das suas campanhas e comunicações</p>
         </div>
         <div className="flex gap-3">
@@ -147,9 +142,11 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="date" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
+                <Tooltip contentStyle={{
+                backgroundColor: 'white',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px'
+              }} />
                 <Line type="monotone" dataKey="messages" stroke="#2563EB" strokeWidth={3} name="Mensagens" />
                 <Line type="monotone" dataKey="responses" stroke="#7C3AED" strokeWidth={3} name="Respostas" />
               </LineChart>
@@ -164,52 +161,37 @@ const Dashboard = () => {
             <CardDescription>Distribuição por categorias</CardDescription>
           </CardHeader>
           <CardContent>
-            {analytics.contactsByTag.length > 0 ? (
-              <>
+            {analytics.contactsByTag.length > 0 ? <>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie
-                      data={analytics.contactsByTag}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={120}
-                      paddingAngle={5}
-                      dataKey="count"
-                    >
-                      {analytics.contactsByTag.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                    <Pie data={analytics.contactsByTag} cx="50%" cy="50%" innerRadius={60} outerRadius={120} paddingAngle={5} dataKey="count">
+                      {analytics.contactsByTag.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip formatter={(value) => [value.toLocaleString(), 'Contatos']} />
+                    <Tooltip formatter={value => [value.toLocaleString(), 'Contatos']} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                  {analytics.contactsByTag.map((segment) => (
-                    <div key={segment.name} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: segment.color }}></div>
+                  {analytics.contactsByTag.map(segment => <div key={segment.name} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{
+                  backgroundColor: segment.color
+                }}></div>
                       <span className="text-sm text-slate-600">{segment.name}</span>
                       <span className="text-sm font-medium text-slate-900">{segment.count.toLocaleString()}</span>
-                    </div>
-                  ))}
+                    </div>)}
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-slate-500">
+              </> : <div className="flex items-center justify-center h-64 text-slate-500">
                 <div className="text-center">
                   <Users className="w-12 h-12 mx-auto mb-2 text-slate-300" />
                   <p>Nenhuma segmentação disponível</p>
                   <p className="text-sm">Crie tags para segmentar seus contatos</p>
                 </div>
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
       </div>
 
       {/* Campaign Performance */}
-      {analytics.campaignPerformance.length > 0 && (
-        <Card className="bg-white border-0 shadow-sm">
+      {analytics.campaignPerformance.length > 0 && <Card className="bg-white border-0 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Performance das Campanhas</CardTitle>
             <CardDescription>Métricas detalhadas das últimas campanhas</CardDescription>
@@ -220,9 +202,11 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
+                <Tooltip contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px'
+            }} />
                 <Bar dataKey="sent" fill="#2563EB" name="Enviadas" />
                 <Bar dataKey="delivered" fill="#7C3AED" name="Entregues" />
                 <Bar dataKey="read" fill="#059669" name="Lidas" />
@@ -230,8 +214,7 @@ const Dashboard = () => {
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Recent Campaigns */}
       <Card className="bg-white border-0 shadow-sm">
@@ -247,17 +230,12 @@ const Dashboard = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {recentCampaigns.length > 0 ? (
-            <div className="space-y-4">
-              {recentCampaigns.map((campaign) => (
-                <div key={campaign.id} className="flex items-center justify-between p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+          {recentCampaigns.length > 0 ? <div className="space-y-4">
+              {recentCampaigns.map(campaign => <div key={campaign.id} className="flex items-center justify-between p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
                   <div className="flex-1">
                     <h4 className="font-medium text-slate-900">{campaign.name}</h4>
                     <div className="flex items-center gap-4 mt-2">
-                      <Badge 
-                        variant={campaign.status === 'Ativa' ? 'default' : campaign.status === 'Concluída' ? 'secondary' : 'outline'}
-                        className={campaign.status === 'Ativa' ? 'bg-green-100 text-green-800' : ''}
-                      >
+                      <Badge variant={campaign.status === 'Ativa' ? 'default' : campaign.status === 'Concluída' ? 'secondary' : 'outline'} className={campaign.status === 'Ativa' ? 'bg-green-100 text-green-800' : ''}>
                         {campaign.status}
                       </Badge>
                       <span className="text-sm text-slate-600">{campaign.sent.toLocaleString()} mensagens enviadas</span>
@@ -272,11 +250,8 @@ const Dashboard = () => {
                       <Eye className="w-4 h-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
+                </div>)}
+            </div> : <div className="text-center py-8">
               <MessageSquare className="w-12 h-12 mx-auto mb-2 text-slate-300" />
               <p className="text-slate-500">Nenhuma campanha criada ainda</p>
               <Link to="/campaigns">
@@ -284,12 +259,9 @@ const Dashboard = () => {
                   Criar primeira campanha
                 </Button>
               </Link>
-            </div>
-          )}
+            </div>}
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 };
-
 export default Dashboard;
