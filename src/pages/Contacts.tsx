@@ -131,9 +131,9 @@ const Contacts = () => {
   };
 
   // Contadores para estatísticas
-  const totalContacts = new_contact_event.length;
-  const activeContacts = new_contact_event.filter(c => c.status === 'active').length;
-  const contactsWithEmail = new_contact_event.filter(c => c.email).length;
+  const totalContacts = contacts.length;
+  const activeContacts = contacts.filter(c => c.status === 'active').length;
+  const contactsWithEmail = contacts.filter(c => c.email).length;
   const totalTags = tags.length;
 
   if (contactsLoading || tagsLoading) {
