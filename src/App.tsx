@@ -9,6 +9,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Campaigns from "./pages/Campaigns";
+import CampaignForm from "./pages/CampaignForm";
 import MessageContent from "./pages/MessageContent";
 import Events from "./pages/Events";
 import EventForm from "./pages/EventForm";
@@ -53,6 +54,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Campaigns />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/campaigns/new" element={
+              <ProtectedRoute>
+                <Layout>
+                  <CampaignForm />
                 </Layout>
               </ProtectedRoute>
             } />

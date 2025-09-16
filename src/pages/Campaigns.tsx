@@ -104,12 +104,15 @@ const Campaigns = () => {
               Templates
             </Button>
           </Link>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => setIsCreateDialogOpen(true)}
-          >
+          <Button onClick={() => navigate('/campaigns/new')}>
             <Plus className="w-4 h-4 mr-2" />
             Nova Campanha
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
+            Wizard (Antigo)
           </Button>
         </div>
       </div>
