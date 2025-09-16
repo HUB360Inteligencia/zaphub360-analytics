@@ -51,12 +51,14 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
   const eventsTyped = events as any[];
   const campaignsTyped = campaigns as any[];
 
-  // Filtrar por busca de texto
-  const searchFilteredContacts = filteredContacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.phone.includes(searchQuery) ||
-    contact.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtrar por busca de texto (memoizado)
+  const searchFilteredContacts = useMemo(() => (
+    filteredContacts.filter(contact =>
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.includes(searchQuery) ||
+      contact.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  ), [filteredContacts, searchQuery]);
 
   // Chaves estáveis para comparar seleções e evitar loops
   const selectionIdsKey = useMemo(() => searchFilteredContacts.map(c => c.id).sort().join(','), [searchFilteredContacts]);
