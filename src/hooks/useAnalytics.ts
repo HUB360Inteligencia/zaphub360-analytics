@@ -85,16 +85,13 @@ export const useAnalytics = () => {
       // Buscar mensagens enviadas
       const { data: sentMessages } = await supabase
         .from('mensagens_enviadas')
-        .select('status, data_envio, data_leitura');
+        .select('status, data_envio, data_leitura')
+        .eq('organization_id', organization.id);
 
       // Buscar tags com contagem
       const { data: tagsData } = await supabase
         .from('tags')
-        .select(`
-          name,
-          color,
-          contact_tags (count)
-        `)
+        .select('name, color')
         .eq('organization_id', organization.id);
 
       const totalContacts = totalContactsCount || 0;
