@@ -25,11 +25,15 @@ export type Database = {
           id: string
           intervalo_maximo: number | null
           intervalo_minimo: number | null
+          media_type: string | null
           mensagens_enviadas: number | null
           mensagens_lidas: number | null
           mensagens_respondidas: number | null
+          message_text: string | null
           metrics: Json | null
+          mime_type: string | null
           name: string
+          name_media: string | null
           organization_id: string
           scheduled_at: string | null
           started_at: string | null
@@ -39,6 +43,7 @@ export type Database = {
           tipo_conteudo: string[] | null
           total_mensagens: number | null
           updated_at: string
+          url_media: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -50,11 +55,15 @@ export type Database = {
           id?: string
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
+          media_type?: string | null
           mensagens_enviadas?: number | null
           mensagens_lidas?: number | null
           mensagens_respondidas?: number | null
+          message_text?: string | null
           metrics?: Json | null
+          mime_type?: string | null
           name: string
+          name_media?: string | null
           organization_id: string
           scheduled_at?: string | null
           started_at?: string | null
@@ -64,6 +73,7 @@ export type Database = {
           tipo_conteudo?: string[] | null
           total_mensagens?: number | null
           updated_at?: string
+          url_media?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -75,11 +85,15 @@ export type Database = {
           id?: string
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
+          media_type?: string | null
           mensagens_enviadas?: number | null
           mensagens_lidas?: number | null
           mensagens_respondidas?: number | null
+          message_text?: string | null
           metrics?: Json | null
+          mime_type?: string | null
           name?: string
+          name_media?: string | null
           organization_id?: string
           scheduled_at?: string | null
           started_at?: string | null
@@ -89,6 +103,7 @@ export type Database = {
           tipo_conteudo?: string[] | null
           total_mensagens?: number | null
           updated_at?: string
+          url_media?: string | null
         }
         Relationships: [
           {

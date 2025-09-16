@@ -62,9 +62,9 @@ export default function CampaignForm() {
       if (isImage || isVideo || isDocument) {
         setSelectedMedia(file);
         
-        // Generate name_media based on campaign name
-        const baseName = formData.name.replace(/[^a-zA-Z0-9]/g, '_') || 'campanha';
-        const extension = file.name.split('.').pop();
+        // Generate name_media based on campaign name - lowercase
+        const baseName = (formData.name || 'campanha').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        const extension = file.name.split('.').pop()?.toLowerCase();
         setFormData(prev => ({
           ...prev,
           name_media: `${baseName}.${extension}`,
@@ -90,8 +90,8 @@ export default function CampaignForm() {
   };
 
   const uploadMedia = async (file: File, campaignName: string) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${campaignName.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${fileExt}`;
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    const fileName = `${campaignName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { data, error } = await supabase.storage
@@ -213,7 +213,7 @@ export default function CampaignForm() {
             id_campanha: result.id,
             celular: contact.phone,
             nome_contato: contact.name,
-            mensagem: formData.message_text,
+             mensagem: formData.message_text,
             instancia_id: instanceId,
             organization_id: organization.id,
             status: 'fila',
@@ -426,7 +426,8 @@ export default function CampaignForm() {
                             ...prev,
                             media_type: '',
                             mime_type: '',
-                            name_media: ''
+                            name_media: '',
+                            url_media: ''
                           }));
                         }}
                       >
@@ -443,26 +444,23 @@ export default function CampaignForm() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="url_media">URL da Mídia (opcional)</Label>
-                <Input
-                  id="url_media"
-                  value={formData.url_media}
-                  onChange={(e) => handleInputChange('url_media', e.target.value)}
-                  placeholder="https://exemplo.com/arquivo.png"
-                />
-              </div>
-              <div>
-                <Label htmlFor="name_media_manual">Nome do Arquivo (opcional)</Label>
-                <Input
-                  id="name_media_manual"
-                  value={formData.name_media}
-                  onChange={(e) => handleInputChange('name_media', e.target.value)}
-                  placeholder="arquivo.png"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="message_text">Texto da Mensagem *</Label>
+              <Textarea
+                id="message_text"
+                value={formData.message_text}
+                onChange={(e) => handleInputChange('message_text', e.target.value)}
+                placeholder="Digite o texto da mensagem..."
+                className="min-h-[100px]"
+                required
+              />
             </div>
+
+            {formData.name_media && (
+              <p className="text-xs text-muted-foreground">
+                O arquivo será salvo como: {formData.name_media}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -477,16 +475,16 @@ export default function CampaignForm() {
           </CardHeader>
           <CardContent>
             <div className="max-w-sm mx-auto bg-green-50 p-4 rounded-lg border border-green-200">
-              {(mediaPreview || formData.url_media) && (
+              {mediaPreview && (
                 formData.media_type === 'video' ? (
                   <video 
-                    src={mediaPreview || formData.url_media} 
+                    src={mediaPreview} 
                     controls 
                     className="w-full h-32 object-cover rounded mb-3" 
                   />
                 ) : formData.media_type === 'image' ? (
                   <img
-                    src={mediaPreview || formData.url_media}
+                    src={mediaPreview}
                     alt="Preview"
                     className="w-full h-32 object-cover rounded mb-3"
                   />
