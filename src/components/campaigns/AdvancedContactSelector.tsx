@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,10 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     contact.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Chaves estáveis para comparar seleções e evitar loops
+  const selectionIdsKey = useMemo(() => searchFilteredContacts.map(c => c.id).sort().join(','), [searchFilteredContacts]);
+  const selectedIdsKey = useMemo(() => selectedContacts.map(c => c.id).sort().join(','), [selectedContacts]);
+
   const handleSelectContact = (contact: ContactWithDetails) => {
     const isSelected = selectedContacts.some(c => c.id === contact.id);
     if (isSelected) {
@@ -84,12 +88,15 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     Array.isArray(filterArray) && filterArray.length > 0
   );
 
-  // Usar contatos filtrados automaticamente quando há filtros aplicados
+  // Usar contatos filtrados automaticamente quando há filtros aplicados, evitando loops
   useEffect(() => {
     if (useFiltersAsSelection && hasFiltersApplied) {
-      onContactsChange(searchFilteredContacts as any[]);
+      if (selectionIdsKey !== selectedIdsKey) {
+        onContactsChange(searchFilteredContacts as any[]);
+      }
     }
-  }, [searchFilteredContacts, hasFiltersApplied, useFiltersAsSelection, onContactsChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionIdsKey, selectedIdsKey, hasFiltersApplied, useFiltersAsSelection]);
 
   const getSentimentColor = (sentiment?: string) => {
     switch (sentiment) {
