@@ -892,12 +892,24 @@ export type Database = {
       }
     }
     Functions: {
+      choose_best_value: {
+        Args: { val1: string; val2: string }
+        Returns: string
+      }
       expire_old_invitations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
       generate_invite_token: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_grouped_events: {
+        Args: { contact_phone: string; org_id: string }
+        Returns: string
+      }
+      get_grouped_tags: {
+        Args: { contact_phone: string; org_id: string }
         Returns: string
       }
       get_instance_api_key: {
