@@ -24,7 +24,7 @@ export default function CampaignForm() {
   const { createCampaign, activateCampaign } = useCampaigns();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedContacts, setSelectedContacts] = useState<ContactWithDetails[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<{ id: string; name: string; phone: string; ultima_instancia?: string }[]>([]);
   const [selectedInstances, setSelectedInstances] = useState<string[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');
@@ -146,8 +146,7 @@ export default function CampaignForm() {
           contacts: selectedContacts.map(contact => ({
             id: contact.id,
             name: contact.name,
-            phone: contact.phone,
-            email: contact.email
+            phone: contact.phone
           }))
         },
         horario_disparo_inicio: formData.horario_disparo_inicio + ':00',
@@ -186,13 +185,14 @@ export default function CampaignForm() {
       if (formData.status !== 'draft' && selectedContacts.length > 0) {
         // Criar entradas na tabela mensagens_enviadas
         const messagePromises = selectedContacts.map(async (contact) => {
-          const instanceId = selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
+          // Usar ultima_instancia do contato ou instância aleatória das selecionadas
+          const instanceId = contact.ultima_instancia || selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
           
           return supabase.from('mensagens_enviadas').insert({
             id_campanha: result.id,
             celular: contact.phone,
             nome_contato: contact.name,
-             mensagem: formData.message_text,
+            mensagem: formData.message_text,
             instancia_id: instanceId,
             organization_id: organization.id,
             status: 'fila',
@@ -485,7 +485,6 @@ export default function CampaignForm() {
               <AdvancedContactSelector
                 selectedContacts={selectedContacts}
                 onContactsChange={setSelectedContacts}
-                useFiltersAsSelection={true}
               />
           </CardContent>
         </Card>

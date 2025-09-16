@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X, Filter } from 'lucide-react';
@@ -87,16 +86,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             <div className="grid grid-cols-2 gap-2">
               {filterData.sentiments.map((sentiment) => (
                 <div key={sentiment} className="flex items-center space-x-2">
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     id={`sentiment-${sentiment}`}
                     checked={filters.sentiments.includes(sentiment)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
+                    onChange={(e) => {
+                      if (e.target.checked) {
                         updateFilter('sentiments', [...filters.sentiments, sentiment]);
                       } else {
                         updateFilter('sentiments', filters.sentiments.filter(s => s !== sentiment));
                       }
                     }}
+                    className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                   />
                   <Label 
                     htmlFor={`sentiment-${sentiment}`}
@@ -117,16 +118,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
               {filterData.cidades.map((cidade) => (
                 <div key={cidade} className="flex items-center space-x-2">
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     id={`cidade-${cidade}`}
                     checked={filters.cidades.includes(cidade)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
+                    onChange={(e) => {
+                      if (e.target.checked) {
                         updateFilter('cidades', [...filters.cidades, cidade]);
                       } else {
                         updateFilter('cidades', filters.cidades.filter(c => c !== cidade));
                       }
                     }}
+                    className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                   />
                   <Label 
                     htmlFor={`cidade-${cidade}`}
@@ -147,16 +150,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
               {filterData.bairros.map((bairro) => (
                 <div key={bairro} className="flex items-center space-x-2">
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     id={`bairro-${bairro}`}
                     checked={filters.bairros.includes(bairro)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
+                    onChange={(e) => {
+                      if (e.target.checked) {
                         updateFilter('bairros', [...filters.bairros, bairro]);
                       } else {
                         updateFilter('bairros', filters.bairros.filter(b => b !== bairro));
                       }
                     }}
+                    className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                   />
                   <Label 
                     htmlFor={`bairro-${bairro}`}
@@ -180,16 +185,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
                   {events.map((event) => (
                     <div key={event.id} className="flex items-center space-x-2">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         id={`include-event-${event.id}`}
                         checked={filters.includeEvents.includes(event.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
+                        onChange={(e) => {
+                          if (e.target.checked) {
                             updateFilter('includeEvents', [...filters.includeEvents, event.id]);
                           } else {
                             updateFilter('includeEvents', filters.includeEvents.filter(e => e !== event.id));
                           }
                         }}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <Label 
                         htmlFor={`include-event-${event.id}`}
@@ -206,16 +213,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
                   {events.map((event) => (
                     <div key={event.id} className="flex items-center space-x-2">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         id={`exclude-event-${event.id}`}
                         checked={filters.excludeEvents.includes(event.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
+                        onChange={(e) => {
+                          if (e.target.checked) {
                             updateFilter('excludeEvents', [...filters.excludeEvents, event.id]);
                           } else {
                             updateFilter('excludeEvents', filters.excludeEvents.filter(e => e !== event.id));
                           }
                         }}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <Label 
                         htmlFor={`exclude-event-${event.id}`}
@@ -241,16 +250,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
                   {campaigns.map((campaign) => (
                     <div key={campaign.id} className="flex items-center space-x-2">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         id={`include-campaign-${campaign.id}`}
                         checked={filters.includeCampaigns.includes(campaign.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
+                        onChange={(e) => {
+                          if (e.target.checked) {
                             updateFilter('includeCampaigns', [...filters.includeCampaigns, campaign.id]);
                           } else {
                             updateFilter('includeCampaigns', filters.includeCampaigns.filter(c => c !== campaign.id));
                           }
                         }}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <Label 
                         htmlFor={`include-campaign-${campaign.id}`}
@@ -267,16 +278,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
                   {campaigns.map((campaign) => (
                     <div key={campaign.id} className="flex items-center space-x-2">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         id={`exclude-campaign-${campaign.id}`}
                         checked={filters.excludeCampaigns.includes(campaign.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
+                        onChange={(e) => {
+                          if (e.target.checked) {
                             updateFilter('excludeCampaigns', [...filters.excludeCampaigns, campaign.id]);
                           } else {
                             updateFilter('excludeCampaigns', filters.excludeCampaigns.filter(c => c !== campaign.id));
                           }
                         }}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <Label 
                         htmlFor={`exclude-campaign-${campaign.id}`}
@@ -302,16 +315,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
                   {tags.map((tag) => (
                     <div key={tag.id} className="flex items-center space-x-2">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         id={`include-tag-${tag.id}`}
                         checked={filters.includeTags.includes(tag.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
+                        onChange={(e) => {
+                          if (e.target.checked) {
                             updateFilter('includeTags', [...filters.includeTags, tag.id]);
                           } else {
                             updateFilter('includeTags', filters.includeTags.filter(t => t !== tag.id));
                           }
                         }}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <div className="flex items-center gap-2">
                         <Badge 
@@ -330,16 +345,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
                   {tags.map((tag) => (
                     <div key={tag.id} className="flex items-center space-x-2">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         id={`exclude-tag-${tag.id}`}
                         checked={filters.excludeTags.includes(tag.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
+                        onChange={(e) => {
+                          if (e.target.checked) {
                             updateFilter('excludeTags', [...filters.excludeTags, tag.id]);
                           } else {
                             updateFilter('excludeTags', filters.excludeTags.filter(t => t !== tag.id));
                           }
                         }}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <div className="flex items-center gap-2">
                         <Badge 

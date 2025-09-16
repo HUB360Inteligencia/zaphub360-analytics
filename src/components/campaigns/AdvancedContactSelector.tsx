@@ -1,19 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, Users, Check, X, Info } from 'lucide-react';
+import { Search, Users, Check, X } from 'lucide-react';
 import { FilterPanel } from './FilterPanel';
 import { useAdvancedContactFilter, FilterOptions, ContactWithDetails } from '@/hooks/useAdvancedContactFilter';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface AdvancedContactSelectorProps {
-  selectedContacts: ContactWithDetails[];
-  onContactsChange: (contacts: ContactWithDetails[]) => void;
-  useFiltersAsSelection?: boolean; // Novo prop para usar filtros como seleção
+  selectedContacts: { id: string; name: string; phone: string; ultima_instancia?: string }[];
+  onContactsChange: (contacts: { id: string; name: string; phone: string; ultima_instancia?: string }[]) => void;
 }
 
 // Inicializar filtros fora do componente para evitar recriação
@@ -32,7 +29,6 @@ const initialFilters: FilterOptions = {
 export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = ({
   selectedContacts,
   onContactsChange,
-  useFiltersAsSelection = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
@@ -60,16 +56,17 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     )
   ), [filteredContacts, searchQuery]);
 
-  // Chaves estáveis para comparar seleções e evitar loops
-  const selectionIdsKey = useMemo(() => searchFilteredContacts.map(c => c.id).sort().join(','), [searchFilteredContacts]);
-  const selectedIdsKey = useMemo(() => selectedContacts.map(c => c.id).sort().join(','), [selectedContacts]);
-
   const handleSelectContact = (contact: ContactWithDetails) => {
     const isSelected = selectedContacts.some(c => c.id === contact.id);
     if (isSelected) {
       onContactsChange(selectedContacts.filter(c => c.id !== contact.id));
     } else {
-      onContactsChange([...selectedContacts, contact]);
+      onContactsChange([...selectedContacts, {
+        id: contact.id,
+        name: contact.name,
+        phone: contact.phone,
+        ultima_instancia: contact.ultima_instancia
+      }]);
     }
   };
 
@@ -77,28 +74,18 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     if (selectedContacts.length === searchFilteredContacts.length) {
       onContactsChange([]);
     } else {
-      onContactsChange(searchFilteredContacts as any[]);
+      onContactsChange(searchFilteredContacts.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        phone: contact.phone,
+        ultima_instancia: contact.ultima_instancia
+      })));
     }
   };
 
   const clearSelection = () => {
     onContactsChange([]);
   };
-
-  // Verificar se há filtros aplicados
-  const hasFiltersApplied = Object.values(filters).some(filterArray => 
-    Array.isArray(filterArray) && filterArray.length > 0
-  );
-  const autoSelection = useFiltersAsSelection && hasFiltersApplied;
-
-  // Usar contatos filtrados automaticamente quando há filtros aplicados, evitando loops
-  useEffect(() => {
-    if (!autoSelection) return;
-    if (selectionIdsKey !== selectedIdsKey) {
-      onContactsChange(searchFilteredContacts as any[]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionIdsKey, selectedIdsKey, autoSelection]);
 
   const getSentimentColor = (sentiment?: string) => {
     switch (sentiment) {
@@ -133,15 +120,6 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
 
       {/* Lista de Contatos */}
       <div className="lg:col-span-2">
-        {autoSelection && (
-          <Alert className="mb-4">
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              Modo automático ativado: todos os contatos que atendem aos filtros serão selecionados automaticamente.
-              {selectedContacts.length} contatos selecionados pelos filtros aplicados.
-            </AlertDescription>
-          </Alert>
-        )}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -154,7 +132,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                   variant="outline"
                   size="sm"
                   onClick={handleSelectAll}
-                  disabled={autoSelection || searchFilteredContacts.length === 0}
+                  disabled={searchFilteredContacts.length === 0}
                 >
                   {selectedContacts.length === searchFilteredContacts.length ? (
                     <>
@@ -206,19 +184,16 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                   return (
                     <div
                       key={contact.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${autoSelection ? 'cursor-default' : 'cursor-pointer hover:bg-accent'} ${
+                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer hover:bg-accent ${
                         isSelected ? 'bg-accent border-primary' : 'border-border'
                       }`}
-                      onClick={!autoSelection ? () => handleSelectContact(contact as any) : undefined}
+                      onClick={() => handleSelectContact(contact)}
                     >
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         checked={isSelected}
-                        disabled={autoSelection}
-                        onCheckedChange={(checked) => {
-                          if (!autoSelection && checked !== isSelected) {
-                            handleSelectContact(contact as any);
-                          }
-                        }}
+                        onChange={() => handleSelectContact(contact)}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>
