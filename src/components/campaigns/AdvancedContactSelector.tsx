@@ -214,7 +214,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                       <Checkbox
                         checked={isSelected}
                         disabled={autoSelection}
-                        onCheckedChange={!autoSelection ? () => handleSelectContact(contact as any) : undefined}
+                        onClick={(e) => { e.stopPropagation(); if (!autoSelection) handleSelectContact(contact as any); }}
                       />
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={contact.avatar_url} />
