@@ -74,6 +74,9 @@ const Contacts = () => {
     }
   };
 
+  const [messageType, setMessageType] = useState<number>(1);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+
   const handleCreateContact = async (formData: FormData) => {
     const name = formData.get('name') as string;
     const phone = formData.get('phone') as string;
@@ -83,6 +86,10 @@ const Contacts = () => {
     const evento = formData.get('evento') as string;
 
     if (!name || !phone || !organization?.id) return;
+    if (messageType === 2 && !mediaFile) {
+      alert('Por favor, selecione um arquivo para o tipo "Arquivo + Texto"');
+      return;
+    }
 
     await createContact.mutateAsync({
       name,
@@ -93,9 +100,13 @@ const Contacts = () => {
       evento: evento || 'Contato Manual',
       status: 'active',
       organization_id: organization.id,
+      id_tipo_mensagem: messageType,
+      mediaFile: mediaFile || undefined,
     });
 
     setIsCreateDialogOpen(false);
+    setMessageType(1);
+    setMediaFile(null);
   };
 
   const handleViewProfile = (contact: Contact) => {
@@ -201,31 +212,62 @@ const Contacts = () => {
                 const formData = new FormData(e.currentTarget);
                 handleCreateContact(formData);
               }}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Nome *</Label>
-                    <Input id="name" name="name" placeholder="Nome" className="mt-1" required />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Nome *</Label>
+                      <Input id="name" name="name" placeholder="Nome" className="mt-1" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="sobrenome">Sobrenome</Label>
+                      <Input id="sobrenome" name="sobrenome" placeholder="Sobrenome" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Telefone *</Label>
+                      <Input id="phone" name="phone" placeholder="(11) 99999-9999" className="mt-1" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="evento">Evento</Label>
+                      <Input id="evento" name="evento" placeholder="Nome do evento" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="cidade">Cidade</Label>
+                      <Input id="cidade" name="cidade" placeholder="Cidade" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="bairro">Bairro</Label>
+                      <Input id="bairro" name="bairro" placeholder="Bairro" className="mt-1" />
+                    </div>
                   </div>
+
                   <div>
-                    <Label htmlFor="sobrenome">Sobrenome</Label>
-                    <Input id="sobrenome" name="sobrenome" placeholder="Sobrenome" className="mt-1" />
+                    <Label>Tipo de Mensagem *</Label>
+                    <Select value={messageType.toString()} onValueChange={(value) => setMessageType(parseInt(value))}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecione o tipo de mensagem" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Texto</SelectItem>
+                        <SelectItem value="2">Arquivo + Texto</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="phone">Telefone *</Label>
-                    <Input id="phone" name="phone" placeholder="(11) 99999-9999" className="mt-1" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="evento">Evento</Label>
-                    <Input id="evento" name="evento" placeholder="Nome do evento" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="cidade">Cidade</Label>
-                    <Input id="cidade" name="cidade" placeholder="Cidade" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="bairro">Bairro</Label>
-                    <Input id="bairro" name="bairro" placeholder="Bairro" className="mt-1" />
-                  </div>
+
+                  {messageType === 2 && (
+                    <div>
+                      <Label htmlFor="media">Arquivo *</Label>
+                      <Input 
+                        id="media" 
+                        type="file" 
+                        accept="image/*,video/*,.pdf,.doc,.docx"
+                        className="mt-1" 
+                        onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                      />
+                      <p className="text-xs text-slate-600 mt-1">
+                        Aceita imagens, vídeos e documentos (PDF, DOC, DOCX)
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
                   <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>

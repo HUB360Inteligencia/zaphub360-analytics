@@ -25,6 +25,11 @@ export interface Contact {
   responsavel_cadastro?: string;
   status_envio?: string;
   ultima_instancia?: string;
+  id_tipo_mensagem?: number;
+  media_url?: string;
+  media_name?: string;
+  media_type?: string;
+  mime_type?: string;
 }
 
 export interface Tag {
@@ -93,7 +98,34 @@ export const useContacts = () => {
   });
 
   const createContact = useMutation({
-    mutationFn: async (contactData: Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'tags'>) => {
+    mutationFn: async (contactData: Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'tags'> & { mediaFile?: File }) => {
+      let mediaUrl = null;
+      let mediaName = null;
+      let mediaType = null;
+      let mimeType = null;
+
+      // Upload media se fornecido
+      if (contactData.mediaFile) {
+        const fileExt = contactData.mediaFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('message-content-media')
+          .upload(fileName, contactData.mediaFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('message-content-media')
+          .getPublicUrl(fileName);
+
+        mediaUrl = publicUrl;
+        mediaName = contactData.mediaFile.name;
+        mediaType = contactData.mediaFile.type.startsWith('image/') ? 'image' : 
+                   contactData.mediaFile.type.startsWith('video/') ? 'video' : 'document';
+        mimeType = contactData.mediaFile.type;
+      }
+
       const { data, error } = await supabase
         .from('new_contact_event')
         .insert({
@@ -105,7 +137,7 @@ export const useContacts = () => {
           evento: contactData.evento || 'Contato Manual',
           organization_id: contactData.organization_id,
           responsavel_cadastro: 'Sistema',
-          status_envio: 'fila',
+          status_envio: 'pendente',
         })
         .select()
         .single();

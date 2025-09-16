@@ -597,6 +597,7 @@ export type Database = {
           id_contact_event: number
           name: string | null
           organization_id: string | null
+          perfil: string | null
           responsavel_cadastro: string | null
           sentimento: string | null
           sobrenome: string | null
@@ -615,6 +616,7 @@ export type Database = {
           id_contact_event?: number
           name?: string | null
           organization_id?: string | null
+          perfil?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sobrenome?: string | null
@@ -633,6 +635,7 @@ export type Database = {
           id_contact_event?: number
           name?: string | null
           organization_id?: string | null
+          perfil?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sobrenome?: string | null
