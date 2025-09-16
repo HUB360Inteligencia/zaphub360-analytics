@@ -41,7 +41,7 @@ export default function CampaignForm() {
     intervalo_maximo: 60,
     horario_disparo_inicio: '09:00',
     horario_disparo_fim: '20:00',
-    status: 'draft' as 'draft' | 'active',
+    status: 'draft' as 'draft' | 'scheduled',
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -183,7 +183,7 @@ export default function CampaignForm() {
       }
 
       // Se status é 'active', iniciar disparo imediatamente
-      if (formData.status === 'active' && selectedContacts.length > 0) {
+      if (formData.status !== 'draft' && selectedContacts.length > 0) {
         // Criar entradas na tabela mensagens_enviadas
         const messagePromises = selectedContacts.map(async (contact) => {
           const instanceId = selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
@@ -263,15 +263,15 @@ export default function CampaignForm() {
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Rascunho</SelectItem>
-                    <SelectItem value="scheduled">Agendada</SelectItem>
-                  </SelectContent>
-                </Select>
+                <select
+                  id="status"
+                  className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={formData.status}
+                  onChange={(e) => handleInputChange('status', e.target.value)}
+                >
+                  <option value="draft">Rascunho</option>
+                  <option value="scheduled">Agendada</option>
+                </select>
               </div>
             </div>
             
