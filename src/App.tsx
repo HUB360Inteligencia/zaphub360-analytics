@@ -71,6 +71,13 @@ const App = () => (
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/campaigns/:id/edit" element={
+              <ProtectedRoute>
+                <Layout>
+                  <CampaignForm />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/message-content" element={
               <ProtectedRoute>
                 <Layout>

@@ -171,11 +171,11 @@ export const useCampaigns = () => {
       targetContacts: any[];
       templateData?: any;
     }) => {
-      // Primeiro, atualizar status para "disparando"
+      // Primeiro, atualizar status para "active"
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .update({ 
-          status: 'disparando',
+          status: 'active',
           started_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

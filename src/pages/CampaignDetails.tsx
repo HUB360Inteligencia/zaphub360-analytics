@@ -63,7 +63,7 @@ const CampaignDetails = () => {
     const statusConfig = {
       draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
       scheduled: { label: 'Agendada', variant: 'default' as const, className: 'bg-blue-500/10 text-blue-600 border-blue-200' },
-      disparando: { label: 'Disparando', variant: 'default' as const, className: 'bg-primary/10 text-primary' },
+      active: { label: 'Ativa', variant: 'default' as const, className: 'bg-primary/10 text-primary' },
       paused: { label: 'Pausada', variant: 'secondary' as const, className: 'bg-orange-500/10 text-orange-600 border-orange-200' },
       completed: { label: 'Concluída', variant: 'secondary' as const, className: 'bg-green-500/10 text-green-600 border-green-200' },
       cancelled: { label: 'Cancelada', variant: 'destructive' as const, className: 'bg-destructive/10 text-destructive' },
@@ -153,7 +153,7 @@ const CampaignDetails = () => {
               Ativar Campanha
             </Button>
           )}
-          {campaign.status === 'disparando' && (
+          {campaign.status === 'active' && (
             <Button onClick={handlePauseCampaign} variant="outline" size="sm">
               <Pause className="w-4 h-4 mr-2" />
               Pausar Campanha
@@ -347,51 +347,113 @@ const CampaignDetails = () => {
 
         <TabsContent value="contacts" className="space-y-6">
           <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Lista de Contatos</CardTitle>
-              <CardDescription>Contatos da campanha e status das mensagens</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold">Lista de Contatos</CardTitle>
+                <CardDescription>Contatos da campanha e status das mensagens</CardDescription>
+              </div>
+              {campaign.status === 'draft' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Gerenciar Audiência
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Enviado em</TableHead>
-                      <TableHead>Lido em</TableHead>
-                      <TableHead>Respondido em</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {campaignMessages?.map((message) => (
-                      <TableRow key={message.id}>
-                        <TableCell>{message.nome_contato}</TableCell>
-                        <TableCell>{message.celular}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            message.status === 'enviado' ? 'default' :
-                            message.status === 'erro' ? 'destructive' :
-                            'outline'
-                          }>
-                            {message.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {message.data_envio ? format(new Date(message.data_envio), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {message.data_leitura ? format(new Date(message.data_leitura), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {message.data_resposta ? format(new Date(message.data_resposta), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
-                        </TableCell>
+              {campaignMessages && campaignMessages.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Enviado em</TableHead>
+                        <TableHead>Lido em</TableHead>
+                        <TableHead>Respondido em</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {campaignMessages.map((message) => (
+                        <TableRow key={message.id}>
+                          <TableCell>{message.nome_contato}</TableCell>
+                          <TableCell>{message.celular}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              message.status === 'enviado' ? 'default' :
+                              message.status === 'erro' ? 'destructive' :
+                              'outline'
+                            }>
+                              {message.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {message.data_envio ? format(new Date(message.data_envio), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {message.data_leitura ? format(new Date(message.data_leitura), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {message.data_resposta ? format(new Date(message.data_resposta), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                // Show target contacts from campaign if no messages sent yet
+                <div>
+                  {campaign.target_contacts && (campaign.target_contacts as any)?.contacts?.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>Telefone</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {((campaign.target_contacts as any).contacts || []).map((contact: any, index: number) => (
+                            <TableRow key={index}>
+                              <TableCell>{contact.name}</TableCell>
+                              <TableCell>{contact.phone}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  Aguardando
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                          <Users className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold mb-2">Nenhum contato selecionado</h3>
+                          <p className="text-muted-foreground mb-4">
+                            Adicione contatos à campanha para começar o envio das mensagens.
+                          </p>
+                          <Button onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}>
+                            <Users className="w-4 h-4 mr-2" />
+                            Gerenciar Audiência
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

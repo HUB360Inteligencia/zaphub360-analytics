@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,9 +19,13 @@ import { toast } from 'sonner';
 
 export default function CampaignForm() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { organization } = useAuth();
   const { templates } = useTemplates();
-  const { createCampaign, activateCampaign } = useCampaigns();
+  const { campaigns, createCampaign, updateCampaign, activateCampaign } = useCampaigns();
+  
+  const isEditMode = !!id;
+  const campaign = campaigns?.find(c => c.id === id);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<{ id: string; name: string; phone: string; ultima_instancia?: string }[]>([]);
@@ -41,8 +45,37 @@ export default function CampaignForm() {
     intervalo_maximo: 60,
     horario_disparo_inicio: '09:00',
     horario_disparo_fim: '20:00',
-    status: 'draft' as 'draft' | 'scheduled',
+    status: 'draft' as 'draft' | 'active',
   });
+
+  // Load campaign data when editing
+  useEffect(() => {
+    if (isEditMode && campaign) {
+      setFormData({
+        name: campaign.name || '',
+        description: campaign.description || '',
+        message_text: campaign.message_text || '',
+        url_media: campaign.url_media || '',
+        name_media: campaign.name_media || '',
+        mime_type: campaign.mime_type || '',
+        media_type: campaign.media_type || '',
+        intervalo_minimo: campaign.intervalo_minimo || 30,
+        intervalo_maximo: campaign.intervalo_maximo || 60,
+        horario_disparo_inicio: campaign.horario_disparo_inicio?.substring(0, 5) || '09:00',
+        horario_disparo_fim: campaign.horario_disparo_fim?.substring(0, 5) || '20:00',
+        status: campaign.status as 'draft' | 'active',
+      });
+
+      // Load existing contacts
+      const targetContacts = (campaign.target_contacts as any)?.contacts || [];
+      setSelectedContacts(targetContacts);
+
+      // Set media preview if exists
+      if (campaign.url_media) {
+        setMediaPreview(campaign.url_media);
+      }
+    }
+  }, [isEditMode, campaign]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -138,7 +171,7 @@ export default function CampaignForm() {
         mediaFilename = uploadResult.filename;
       }
 
-      // Criar a campanha
+      // Preparar dados da campanha
       const campaignData = {
         ...formData,
         organization_id: organization.id,
@@ -160,12 +193,31 @@ export default function CampaignForm() {
         name_media: mediaFilename,
       };
 
-      const result = await createCampaign.mutateAsync(campaignData);
+      // Criar ou atualizar a campanha
+      let result;
+      if (isEditMode && campaign) {
+        result = await updateCampaign.mutateAsync({
+          id: campaign.id,
+          ...campaignData,
+        });
+      } else {
+        result = await createCampaign.mutateAsync(campaignData);
+      }
+
+      const resultId = result?.id || campaign?.id;
 
       // Associar instâncias à campanha
-      if (result?.id && selectedInstances.length > 0) {
+      if (resultId && selectedInstances.length > 0) {
+        // Remove existing associations if editing
+        if (isEditMode) {
+          await supabase
+            .from('campanha_instancia')
+            .delete()
+            .eq('id_campanha', resultId);
+        }
+
         const instanceAssociations = selectedInstances.map((instanceId, index) => ({
-          id_campanha: result.id,
+          id_campanha: resultId,
           id_instancia: instanceId,
           prioridade: index
         }));
@@ -177,19 +229,19 @@ export default function CampaignForm() {
 
         if (instanceError) {
           console.error('Erro ao associar instâncias:', instanceError);
-          toast.error("Campanha criada, mas houve erro ao associar instâncias");
+          toast.error("Campanha salva, mas houve erro ao associar instâncias");
         }
       }
 
       // Se status é 'active', iniciar disparo imediatamente
-      if (formData.status !== 'draft' && selectedContacts.length > 0) {
+      if (formData.status === 'active' && selectedContacts.length > 0) {
         // Criar entradas na tabela mensagens_enviadas
         const messagePromises = selectedContacts.map(async (contact) => {
           // Usar ultima_instancia do contato ou instância aleatória das selecionadas
           const instanceId = contact.ultima_instancia || selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
           
           return supabase.from('mensagens_enviadas').insert({
-            id_campanha: result.id,
+            id_campanha: resultId,
             celular: contact.phone,
             nome_contato: contact.name,
             mensagem: formData.message_text,
@@ -208,12 +260,12 @@ export default function CampaignForm() {
         await Promise.all(messagePromises);
       }
 
-      toast.success("Campanha criada com sucesso!");
+      toast.success(isEditMode ? "Campanha atualizada com sucesso!" : "Campanha criada com sucesso!");
       
       navigate('/campaigns');
     } catch (error) {
-      console.error('Erro ao criar campanha:', error);
-      toast.error("Erro ao criar campanha. Tente novamente.");
+      console.error('Erro ao salvar campanha:', error);
+      toast.error(isEditMode ? "Erro ao atualizar campanha. Tente novamente." : "Erro ao criar campanha. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -233,9 +285,9 @@ export default function CampaignForm() {
           Voltar
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Nova Campanha</h1>
+          <h1 className="text-2xl font-bold">{isEditMode ? 'Editar Campanha' : 'Nova Campanha'}</h1>
           <p className="text-muted-foreground">
-            Configure uma nova campanha de mensagens WhatsApp
+            {isEditMode ? 'Edite os detalhes da campanha de mensagens WhatsApp' : 'Configure uma nova campanha de mensagens WhatsApp'}
           </p>
         </div>
       </div>
@@ -270,7 +322,7 @@ export default function CampaignForm() {
                   onChange={(e) => handleInputChange('status', e.target.value)}
                 >
                   <option value="draft">Rascunho</option>
-                  <option value="scheduled">Agendada</option>
+                  <option value="active">Ativa</option>
                 </select>
               </div>
             </div>
@@ -530,12 +582,12 @@ export default function CampaignForm() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Criando...
+                      {isEditMode ? 'Salvando...' : 'Criando...'}
                     </>
                   ) : (
                     <>
-                      <Send className="h-4 w-4" />
-                      Criar Campanha
+                      <Send className="w-4 h-4" />
+                      {isEditMode ? 'Salvar Alterações' : 'Criar Campanha'}
                     </>
                   )}
                 </Button>
