@@ -14,22 +14,25 @@ interface AdvancedContactSelectorProps {
   onContactsChange: (contacts: ContactWithDetails[]) => void;
 }
 
+// Inicializar filtros fora do componente para evitar recriação
+const initialFilters: FilterOptions = {
+  sentiments: [],
+  cidades: [],
+  bairros: [],
+  includeEvents: [],
+  excludeEvents: [],
+  includeCampaigns: [],
+  excludeCampaigns: [],
+  includeTags: [],
+  excludeTags: [],
+};
+
 export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = ({
   selectedContacts,
   onContactsChange,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<FilterOptions>({
-    sentiments: [],
-    cidades: [],
-    bairros: [],
-    includeEvents: [],
-    excludeEvents: [],
-    includeCampaigns: [],
-    excludeCampaigns: [],
-    includeTags: [],
-    excludeTags: [],
-  });
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
 
   const {
     filteredContacts,

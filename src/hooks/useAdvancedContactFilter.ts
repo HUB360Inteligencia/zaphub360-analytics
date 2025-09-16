@@ -209,7 +209,8 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         campaignParticipations: campaignParticipationMap.get(contact.phone) || [],
       };
     });
-  }, [contacts, contactDetails, eventParticipations, campaignParticipations, filters]);
+  }, [contacts, contactDetails, eventParticipations, campaignParticipations, 
+      JSON.stringify(filters)]); // Usar JSON.stringify para comparação deep
 
   return {
     filteredContacts,
