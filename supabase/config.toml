@@ -2,3 +2,6 @@ project_id = "getjlrpfsssuztcbfsbu"
 
 [functions.public-event-status]
 verify_jwt = false
+
+[functions.public-campaign-status]
+verify_jwt = false

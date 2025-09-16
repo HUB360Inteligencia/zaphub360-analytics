@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Copy, ExternalLink } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -26,16 +26,6 @@ const CampaignContactsTable = ({ campaignMessages, campaign, navigate }: Campaig
   const endIndex = startIndex + itemsPerPage;
   const currentMessages = campaignMessages?.slice(startIndex, endIndex) || [];
 
-  const handleCopyPublicLink = () => {
-    const publicUrl = `${window.location.origin}/public/campaign/${campaign.id}`;
-    navigator.clipboard.writeText(publicUrl);
-    toast.success('Link público copiado!');
-  };
-
-  const handleOpenPublicLink = () => {
-    const publicUrl = `${window.location.origin}/public/campaign/${campaign.id}`;
-    window.open(publicUrl, '_blank');
-  };
 
   return (
     <Card className="bg-card border-border">
@@ -47,14 +37,6 @@ const CampaignContactsTable = ({ campaignMessages, campaign, navigate }: Campaig
           </CardDescription>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleCopyPublicLink}>
-            <Copy className="w-4 h-4 mr-2" />
-            Copiar Link Público
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleOpenPublicLink}>
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Abrir Link Público
-          </Button>
           {campaign.status === 'draft' && (
             <Button 
               variant="outline" 
