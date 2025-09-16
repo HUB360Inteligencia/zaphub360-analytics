@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
 
 const PublicCampaignStatus = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -252,19 +253,13 @@ const PublicCampaignStatus = () => {
             <CardDescription>Prévia da mensagem enviada aos contatos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="bg-muted p-6 rounded-lg">
-              <p className="text-sm whitespace-pre-wrap">{campaign.message_text}</p>
-              {campaign.url_media && (
-                <div className="mt-4">
-                  <img 
-                    src={campaign.url_media} 
-                    alt="Mídia da campanha" 
-                    className="max-w-full h-auto rounded-lg border border-border"
-                    style={{ maxHeight: '300px' }}
-                  />
-                </div>
-              )}
-            </div>
+            <WhatsAppMessagePreview
+              message={campaign.message_text}
+              mediaType={campaign.media_type}
+              mediaUrl={campaign.url_media}
+              mediaName={campaign.name_media}
+              mimeType={campaign.mime_type}
+            />
           </CardContent>
         </Card>
       </div>

@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import CampaignContactsTable from '@/components/campaigns/CampaignContactsTable';
+import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
 
 const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -377,30 +378,13 @@ const CampaignDetails = () => {
               <CardDescription>Visualize o conteúdo que está sendo enviado</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="max-w-sm mx-auto bg-green-50 p-4 rounded-lg border border-green-200">
-                {(campaign as any).url_media && (
-                  (campaign as any).media_type === 'video' ? (
-                    <video 
-                      src={(campaign as any).url_media} 
-                      controls 
-                      className="w-full h-32 object-cover rounded mb-3" 
-                    />
-                  ) : (campaign as any).media_type === 'image' ? (
-                    <img
-                      src={(campaign as any).url_media}
-                      alt="Media"
-                      className="w-full h-32 object-cover rounded mb-3"
-                    />
-                  ) : (campaign as any).media_type === 'document' ? (
-                    <div className="w-full h-16 flex items-center justify-center bg-muted rounded mb-3">
-                      <span className="text-xs text-muted-foreground">📄 {(campaign as any).name_media}</span>
-                    </div>
-                  ) : null
-                )}
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                  {(campaign as any).message_text || 'Conteúdo da mensagem não definido'}
-                </p>
-              </div>
+              <WhatsAppMessagePreview
+                message={(campaign as any).message_text || 'Conteúdo da mensagem não definido'}
+                mediaType={(campaign as any).media_type}
+                mediaUrl={(campaign as any).url_media}
+                mediaName={(campaign as any).name_media}
+                mimeType={(campaign as any).mime_type}
+              />
             </CardContent>
           </Card>
         </TabsContent>
