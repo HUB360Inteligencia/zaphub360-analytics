@@ -59,16 +59,16 @@ export const useAnalytics = () => {
 
       // Buscar contatos - count total
       const { count: totalContactsCount } = await supabase
-        .from('contacts')
+        .from('new_contact_event')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id);
 
-      // Buscar contatos ativos
+      // Buscar contatos ativos  
       const { count: activeContactsCount } = await supabase
-        .from('contacts')
+        .from('new_contact_event')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id)
-        .eq('status', 'active');
+        .eq('status_envio', 'enviado');
 
       // Buscar campanhas
       const { data: campaigns } = await supabase

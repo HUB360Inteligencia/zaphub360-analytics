@@ -151,7 +151,7 @@ export const ContactSelector = ({ selectedContacts, onContactsChange }: ContactS
                   >
                     <Checkbox
                       checked={isSelected}
-                      onChange={() => handleSelectContact(contact)}
+                      onCheckedChange={() => handleSelectContact(contact)}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900">{contact.name}</div>

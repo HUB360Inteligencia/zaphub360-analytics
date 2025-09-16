@@ -19,7 +19,6 @@ import { toast } from 'sonner';
 
 export default function CampaignForm() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { organization } = useAuth();
   const { templates } = useTemplates();
   const { createCampaign, activateCampaign } = useCampaigns();
@@ -79,13 +78,9 @@ export default function CampaignForm() {
         } else {
           setMediaPreview('');
         }
-      } else {
-        toast({
-          title: "Erro",
-          description: "Selecione uma imagem, vídeo .mp4 ou documento .pdf",
-          variant: "destructive"
-        });
-      }
+        } else {
+          toast.error("Selecione uma imagem, vídeo .mp4 ou documento .pdf");
+        }
     }
   };
 
@@ -116,29 +111,17 @@ export default function CampaignForm() {
     e.preventDefault();
     
     if (!organization?.id) {
-      toast({
-        title: "Erro",
-        description: "Organização não encontrada",
-        variant: "destructive"
-      });
+      toast.error("Organização não encontrada");
       return;
     }
 
     if (selectedContacts.length === 0) {
-      toast({
-        title: "Erro",
-        description: "Selecione pelo menos um contato para a campanha",
-        variant: "destructive"
-      });
+      toast.error("Selecione pelo menos um contato para a campanha");
       return;
     }
 
     if (selectedInstances.length === 0) {
-      toast({
-        title: "Erro",
-        description: "Selecione pelo menos uma instância para envio",
-        variant: "destructive"
-      });
+      toast.error("Selecione pelo menos uma instância para envio");
       return;
     }
 
@@ -195,11 +178,7 @@ export default function CampaignForm() {
 
         if (instanceError) {
           console.error('Erro ao associar instâncias:', instanceError);
-          toast({
-            title: "Atenção",
-            description: "Campanha criada, mas houve erro ao associar instâncias",
-            variant: "destructive"
-          });
+          toast.error("Campanha criada, mas houve erro ao associar instâncias");
         }
       }
 
@@ -229,19 +208,12 @@ export default function CampaignForm() {
         await Promise.all(messagePromises);
       }
 
-      toast({
-        title: "Sucesso",
-        description: "Campanha criada com sucesso!"
-      });
+      toast.success("Campanha criada com sucesso!");
       
       navigate('/campaigns');
     } catch (error) {
       console.error('Erro ao criar campanha:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao criar campanha. Tente novamente.",
-        variant: "destructive"
-      });
+      toast.error("Erro ao criar campanha. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }

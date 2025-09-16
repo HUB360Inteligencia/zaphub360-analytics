@@ -80,13 +80,25 @@ export const useContactProfile = (contactPhone: string) => {
         };
       }
 
-      // Buscar contato na tabela contacts
-      const { data: contact } = await supabase
-        .from('contacts')
-        .select('id, name, phone, email, avatar_url, company, created_at')
-        .eq('phone', contactPhone)
+      // Buscar contato na tabela new_contact_event
+      const { data: contactData } = await supabase
+        .from('new_contact_event')
+        .select('id_contact_event, name, sobrenome, celular, cidade, bairro, created_at')
+        .eq('celular', contactPhone)
         .eq('organization_id', organization.id)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const contact = contactData ? {
+        id: contactData.id_contact_event.toString(),
+        name: `${contactData.name || ''} ${contactData.sobrenome || ''}`.trim() || 'Sem nome',
+        phone: contactData.celular,
+        email: null, // new_contact_event não tem email
+        avatar_url: null, // new_contact_event não tem avatar
+        company: null, // new_contact_event não tem empresa  
+        created_at: contactData.created_at,
+      } : null;
 
       // Buscar mensagens no mensagens_enviadas para obter nome completo e dados completos
       const { data: mensagensEnviadas } = await supabase

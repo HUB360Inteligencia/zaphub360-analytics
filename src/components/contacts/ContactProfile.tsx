@@ -5,11 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, MessageSquare, TrendingUp, User, Mail, Phone, Building, Upload } from 'lucide-react';
+import { CalendarDays, MessageSquare, TrendingUp, User, Mail, Phone, Building } from 'lucide-react';
 import { useContactProfile } from '@/hooks/useContactProfile';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import ContactPhotoUpload from './ContactPhotoUpload';
 
 interface ContactProfileProps {
   contactPhone: string;
@@ -18,7 +17,6 @@ interface ContactProfileProps {
 
 const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
   const { profileData, isLoading } = useContactProfile(contactPhone);
-  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
 
   if (isLoading) {
     return (
@@ -81,7 +79,6 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
-              <div className="relative">
                 <Avatar className="h-16 w-16">
                   <AvatarImage src={contact?.avatar_url || undefined} />
                   <AvatarFallback>
@@ -89,15 +86,6 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
                      contactPhone.slice(-2)}
                   </AvatarFallback>
                 </Avatar>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                  onClick={() => setShowPhotoUpload(true)}
-                >
-                  <Upload className="h-3 w-3" />
-                </Button>
-              </div>
               <div className="space-y-2">
                 <div>
                   <h2 className="text-2xl font-bold">
@@ -330,19 +318,6 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Modal de Upload de Foto */}
-      {showPhotoUpload && contact && (
-        <ContactPhotoUpload
-          contactId={contact.id}
-          currentAvatarUrl={contact.avatar_url}
-          onClose={() => setShowPhotoUpload(false)}
-          onUploadSuccess={() => {
-            setShowPhotoUpload(false);
-            // Aqui você pode adicionar lógica para recarregar o perfil
-          }}
-        />
-      )}
     </div>
   );
 };
