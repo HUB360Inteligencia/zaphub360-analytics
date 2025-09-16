@@ -9,7 +9,7 @@ export interface Campaign {
   id: string;
   name: string;
   description?: string;
-  status: 'draft' | 'scheduled' | 'active' | 'paused' | 'completed' | 'cancelled';
+  status: 'draft' | 'scheduled' | 'active' | 'disparando' | 'paused' | 'completed' | 'cancelled';
   organization_id: string;
   template_id?: string;
   target_contacts?: any;
@@ -166,11 +166,16 @@ export const useCampaigns = () => {
 
   // Nova função para ativar campanha
   const activateCampaign = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, targetContacts, templateData }: { 
+      id: string; 
+      targetContacts: any[];
+      templateData?: any;
+    }) => {
+      // Primeiro, atualizar status para "disparando"
+      const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .update({ 
-          status: 'active',
+          status: 'disparando',
           started_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -178,16 +183,70 @@ export const useCampaigns = () => {
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (campaignError) throw campaignError;
+
+      // Buscar instâncias ativas da organização
+      const { data: instances, error: instancesError } = await supabase
+        .from('instances')
+        .select('id')
+        .eq('organization_id', campaign.organization_id)
+        .eq('status', 'active');
+
+      if (instancesError) throw instancesError;
+
+      if (!instances || instances.length === 0) {
+        throw new Error('Nenhuma instância ativa encontrada para disparar a campanha');
+      }
+
+      // Preparar mensagens para inserção na tabela mensagens_enviadas
+      const messages = targetContacts.map((contact, index) => {
+        // Usar instância salva do contato ou atribuir uma aleatória
+        const instanceId = contact.ultima_instancia || 
+          instances[Math.floor(Math.random() * instances.length)].id;
+
+        return {
+          tipo_fluxo: 'campanha',
+          celular: contact.phone,
+          instancia_id: instanceId,
+          status: 'pendente',
+          media_type: templateData?.media_type || null,
+          name_media: templateData?.name_media || null,
+          url_media: templateData?.url_media || null,
+          caption_media: templateData?.caption_media || templateData?.content || null,
+          mime_type: templateData?.mime_type || null,
+          nome_contato: contact.name,
+          id_campanha: id,
+          organization_id: campaign.organization_id
+        };
+      });
+
+      // Inserir mensagens na tabela mensagens_enviadas
+      const { error: messagesError } = await supabase
+        .from('mensagens_enviadas')
+        .insert(messages);
+
+      if (messagesError) throw messagesError;
+
+      // Atualizar métricas da campanha
+      const { error: updateError } = await supabase
+        .from('campaigns')
+        .update({
+          total_mensagens: messages.length,
+          status: 'active'
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      return campaign;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      toast.success('Campanha ativada! O N8n iniciará o processamento.');
+      toast.success('Campanha ativada! Mensagens sendo preparadas para disparo.');
     },
     onError: (error) => {
       console.error('Erro ao ativar campanha:', error);
-      toast.error('Erro ao ativar campanha');
+      toast.error(error.message || 'Erro ao ativar campanha');
     },
   });
 

@@ -98,7 +98,14 @@ export default function CampaignDetails() {
 
   const handleActivate = async () => {
     try {
-      await activateCampaign.mutateAsync(campaign.id);
+      // Para campanhas já criadas, usar contatos salvos em target_contacts
+      const targetContacts = (campaign.target_contacts as any)?.contacts || [];
+      
+      await activateCampaign.mutateAsync({
+        id: campaign.id,
+        targetContacts,
+        templateData: undefined // Template já definido na criação
+      });
     } catch (error) {
       console.error('Erro ao ativar campanha:', error);
     }

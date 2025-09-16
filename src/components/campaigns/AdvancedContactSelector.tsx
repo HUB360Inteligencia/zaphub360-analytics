@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, Users, Check, X } from 'lucide-react';
+import { Search, Users, Check, X, Info } from 'lucide-react';
 import { FilterPanel } from './FilterPanel';
 import { useAdvancedContactFilter, FilterOptions, ContactWithDetails } from '@/hooks/useAdvancedContactFilter';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AdvancedContactSelectorProps {
   selectedContacts: ContactWithDetails[];
   onContactsChange: (contacts: ContactWithDetails[]) => void;
+  useFiltersAsSelection?: boolean; // Novo prop para usar filtros como seleção
 }
 
 // Inicializar filtros fora do componente para evitar recriação
@@ -30,6 +32,7 @@ const initialFilters: FilterOptions = {
 export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = ({
   selectedContacts,
   onContactsChange,
+  useFiltersAsSelection = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
@@ -76,6 +79,18 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     onContactsChange([]);
   };
 
+  // Verificar se há filtros aplicados
+  const hasFiltersApplied = Object.values(filters).some(filterArray => 
+    Array.isArray(filterArray) && filterArray.length > 0
+  );
+
+  // Usar contatos filtrados automaticamente quando há filtros aplicados
+  useEffect(() => {
+    if (useFiltersAsSelection && hasFiltersApplied) {
+      onContactsChange(searchFilteredContacts as any[]);
+    }
+  }, [searchFilteredContacts, hasFiltersApplied, useFiltersAsSelection, onContactsChange]);
+
   const getSentimentColor = (sentiment?: string) => {
     switch (sentiment) {
       case 'Super Engajado':
@@ -109,6 +124,15 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
 
       {/* Lista de Contatos */}
       <div className="lg:col-span-2">
+        {useFiltersAsSelection && hasFiltersApplied && (
+          <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Modo automático ativado: todos os contatos que atendem aos filtros serão selecionados automaticamente.
+              {selectedContacts.length} contatos selecionados pelos filtros aplicados.
+            </AlertDescription>
+          </Alert>
+        )}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

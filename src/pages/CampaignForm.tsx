@@ -21,7 +21,7 @@ export default function CampaignForm() {
   const { toast } = useToast();
   const { organization } = useAuth();
   const { templates } = useTemplates();
-  const { createCampaign } = useCampaigns();
+  const { createCampaign, activateCampaign } = useCampaigns();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<ContactWithDetails[]>([]);
@@ -35,7 +35,7 @@ export default function CampaignForm() {
     intervalo_maximo: 60,
     horario_disparo_inicio: '09:00',
     horario_disparo_fim: '20:00',
-    status: 'draft' as const,
+    status: 'draft' as 'draft' | 'active',
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -122,6 +122,25 @@ export default function CampaignForm() {
             variant: "destructive"
           });
         }
+      }
+
+      // Se status é 'active', iniciar disparo imediatamente
+      if (formData.status === 'active' && selectedContacts.length > 0) {
+        const selectedTemplate = templates.find(t => t.id === formData.template_id);
+        
+        await activateCampaign.mutateAsync({
+          id: result.id,
+          targetContacts: selectedContacts,
+          templateData: selectedTemplate ? {
+            content: selectedTemplate.content,
+            media_type: selectedTemplate.media_type,
+            media_url: selectedTemplate.media_url,
+            name_media: selectedTemplate.media_name,
+            caption_media: selectedTemplate.caption || selectedTemplate.content,
+            mime_type: selectedTemplate.media_type ? 
+              `${selectedTemplate.media_type}/${selectedTemplate.media_url?.split('.').pop()}` : null
+          } : undefined
+        });
       }
 
       toast({
@@ -279,10 +298,11 @@ export default function CampaignForm() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <AdvancedContactSelector
-              selectedContacts={selectedContacts}
-              onContactsChange={setSelectedContacts}
-            />
+              <AdvancedContactSelector
+                selectedContacts={selectedContacts}
+                onContactsChange={setSelectedContacts}
+                useFiltersAsSelection={true}
+              />
           </CardContent>
         </Card>
 

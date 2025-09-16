@@ -43,7 +43,8 @@ export const useContacts = () => {
           )
         `)
         .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10000); // Remover limitação anterior de 1000, aumentar para 10000
 
       if (error) throw error;
 

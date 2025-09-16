@@ -63,7 +63,15 @@ const Campaigns = () => {
 
   const handleActivateCampaign = async (campaignId: string) => {
     try {
-      await activateCampaign.mutateAsync(campaignId);
+      // Buscar dados da campanha para obter contatos
+      const campaign = campaigns.find(c => c.id === campaignId);
+      const targetContacts = (campaign?.target_contacts as any)?.contacts || [];
+      
+      await activateCampaign.mutateAsync({
+        id: campaignId,
+        targetContacts,
+        templateData: undefined // Template já definido na criação
+      });
     } catch (error) {
       console.error('Erro ao ativar campanha:', error);
     }
