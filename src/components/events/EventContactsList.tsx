@@ -41,7 +41,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const [sentimentFilter, setSentimentFilter] = useState<string>('todos');
   const [profileFilter, setProfileFilter] = useState<string>('todos');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedContactPhone, setSelectedContactPhone] = useState<string | null>(null);
+  const [selectedContact, setSelectedContact] = useState<any | null>(null);
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -558,7 +558,16 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setSelectedContactPhone(contact.contact_phone)}
+                            onClick={() => setSelectedContact({
+                              id: contact.id,
+                              name: contact.contact_name || 'Sem nome',
+                              phone: contact.contact_phone,
+                              sentimento: contact.sentiment,
+                              status: 'active',
+                              organization_id: '',
+                              created_at: contact.created_at,
+                              updated_at: contact.created_at,
+                            })}
                             className="text-primary hover:text-primary"
                           >
                             <Eye className="w-4 h-4" />
@@ -635,7 +644,16 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSelectedContactPhone(contact.contact_phone)}
+                        onClick={() => setSelectedContact({
+                          id: contact.id,
+                          name: contact.contact_name || 'Sem nome',
+                          phone: contact.contact_phone,
+                          sentimento: contact.sentiment,
+                          status: 'active',
+                          organization_id: '',
+                          created_at: contact.created_at,
+                          updated_at: contact.created_at,
+                        })}
                         className="flex-1"
                       >
                         <Eye className="w-4 h-4 mr-2" />
@@ -699,13 +717,12 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
       </Card>
 
       {/* Modal do Perfil de Contato */}
-      {selectedContactPhone && (
-        <ContactProfileModal
-          contactPhone={selectedContactPhone}
-          isOpen={!!selectedContactPhone}
-          onClose={() => setSelectedContactPhone(null)}
-        />
-      )}
+      <ContactProfileModal
+        contact={selectedContact}
+        isOpen={!!selectedContact}
+        onClose={() => setSelectedContact(null)}
+        mode="view"
+      />
     </div>
   );
 };

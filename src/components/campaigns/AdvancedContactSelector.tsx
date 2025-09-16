@@ -217,7 +217,6 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                         onClick={(e) => { e.stopPropagation(); if (!autoSelection) handleSelectContact(contact as any); }}
                       />
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={contact.avatar_url} />
                         <AvatarFallback>
                           {contact.name.substring(0, 2).toUpperCase()}
                         </AvatarFallback>

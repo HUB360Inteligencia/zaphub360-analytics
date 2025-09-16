@@ -16,6 +16,15 @@ export interface Contact {
   created_at: string;
   updated_at: string;
   tags?: Tag[];
+  // Campos de new_contact_event
+  evento?: string;
+  sentimento?: string;
+  sobrenome?: string;
+  cidade?: string;
+  bairro?: string;
+  responsavel_cadastro?: string;
+  status_envio?: string;
+  ultima_instancia?: string;
 }
 
 export interface Tag {
@@ -42,13 +51,8 @@ export const useContacts = () => {
 
       while (true) {
         const { data, error } = await supabase
-          .from('contacts')
-          .select(`
-            *,
-            contact_tags (
-              tags (*)
-            )
-          `)
+          .from('new_contact_event')
+          .select('*')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false })
           .range(from, to);
@@ -64,8 +68,25 @@ export const useContacts = () => {
       }
 
       return allData.map(contact => ({
-        ...contact,
-        tags: contact.contact_tags?.map((ct: any) => ct.tags) || []
+        id: contact.id_contact_event.toString(),
+        name: contact.name || 'Sem nome',
+        phone: contact.celular,
+        email: null,
+        company: null,
+        notes: contact.evento ? `Evento: ${contact.evento}` : null,
+        status: (contact.status_envio === 'enviado' ? 'active' : 'active') as 'active' | 'inactive',
+        organization_id: contact.organization_id,
+        created_at: contact.created_at,
+        updated_at: contact.updated_at || contact.created_at,
+        tags: [], // TODO: implementar tags para new_contact_event
+        evento: contact.evento,
+        sentimento: contact.sentimento,
+        sobrenome: contact.sobrenome,
+        cidade: contact.cidade,
+        bairro: contact.bairro,
+        responsavel_cadastro: contact.responsavel_cadastro,
+        status_envio: contact.status_envio,
+        ultima_instancia: contact.ultima_instancia,
       }));
     },
     enabled: !!organization?.id,
@@ -74,8 +95,18 @@ export const useContacts = () => {
   const createContact = useMutation({
     mutationFn: async (contactData: Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'tags'>) => {
       const { data, error } = await supabase
-        .from('contacts')
-        .insert(contactData)
+        .from('new_contact_event')
+        .insert({
+          celular: contactData.phone,
+          name: contactData.name,
+          sobrenome: contactData.sobrenome || '',
+          cidade: contactData.cidade || '',
+          bairro: contactData.bairro || '',
+          evento: contactData.evento || 'Contato Manual',
+          organization_id: contactData.organization_id,
+          responsavel_cadastro: 'Sistema',
+          status_envio: 'fila',
+        })
         .select()
         .single();
 
@@ -95,9 +126,17 @@ export const useContacts = () => {
   const updateContact = useMutation({
     mutationFn: async ({ id, ...updateData }: Partial<Contact> & { id: string }) => {
       const { data, error } = await supabase
-        .from('contacts')
-        .update(updateData)
-        .eq('id', id)
+        .from('new_contact_event')
+        .update({
+          name: updateData.name,
+          sobrenome: updateData.sobrenome,
+          cidade: updateData.cidade,
+          bairro: updateData.bairro,
+          evento: updateData.evento,
+          sentimento: updateData.sentimento,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id_contact_event', parseInt(id))
         .select()
         .single();
 
@@ -117,9 +156,9 @@ export const useContacts = () => {
   const deleteContact = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('contacts')
+        .from('new_contact_event')
         .delete()
-        .eq('id', id);
+        .eq('id_contact_event', parseInt(id));
 
       if (error) throw error;
     },
