@@ -595,6 +595,11 @@ export type Database = {
           event_id: number | null
           evento: string | null
           id_contact_event: number
+          id_tipo_mensagem: number | null
+          media_name: string | null
+          media_type: string | null
+          media_url: string | null
+          mime_type: string | null
           name: string | null
           organization_id: string | null
           perfil: string | null
@@ -614,6 +619,11 @@ export type Database = {
           event_id?: number | null
           evento?: string | null
           id_contact_event?: number
+          id_tipo_mensagem?: number | null
+          media_name?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          mime_type?: string | null
           name?: string | null
           organization_id?: string | null
           perfil?: string | null
@@ -633,6 +643,11 @@ export type Database = {
           event_id?: number | null
           evento?: string | null
           id_contact_event?: number
+          id_tipo_mensagem?: number | null
+          media_name?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          mime_type?: string | null
           name?: string | null
           organization_id?: string | null
           perfil?: string | null

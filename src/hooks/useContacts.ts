@@ -138,6 +138,11 @@ export const useContacts = () => {
           organization_id: contactData.organization_id,
           responsavel_cadastro: 'Sistema',
           status_envio: 'pendente',
+          id_tipo_mensagem: contactData.id_tipo_mensagem || 1,
+          media_url: mediaUrl,
+          media_name: mediaName,
+          media_type: mediaType,
+          mime_type: mimeType,
         })
         .select()
         .single();
