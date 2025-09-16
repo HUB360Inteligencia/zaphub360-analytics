@@ -187,6 +187,7 @@ export type Database = {
           origin: string
           phone: string
           status: string
+          ultima_instancia: string | null
           updated_at: string
         }
         Insert: {
@@ -203,6 +204,7 @@ export type Database = {
           origin?: string
           phone: string
           status?: string
+          ultima_instancia?: string | null
           updated_at?: string
         }
         Update: {
@@ -219,6 +221,7 @@ export type Database = {
           origin?: string
           phone?: string
           status?: string
+          ultima_instancia?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -623,7 +626,9 @@ export type Database = {
       }
       new_contact_event: {
         Row: {
+          bairro: string | null
           celular: string | null
+          cidade: string | null
           created_at: string
           event_id: number | null
           evento: string | null
@@ -634,10 +639,14 @@ export type Database = {
           sentimento: string | null
           sobrenome: string | null
           status_envio: string | null
+          tag: string | null
+          ultima_instancia: string | null
           updated_at: string | null
         }
         Insert: {
+          bairro?: string | null
           celular?: string | null
+          cidade?: string | null
           created_at?: string
           event_id?: number | null
           evento?: string | null
@@ -648,10 +657,14 @@ export type Database = {
           sentimento?: string | null
           sobrenome?: string | null
           status_envio?: string | null
+          tag?: string | null
+          ultima_instancia?: string | null
           updated_at?: string | null
         }
         Update: {
+          bairro?: string | null
           celular?: string | null
+          cidade?: string | null
           created_at?: string
           event_id?: number | null
           evento?: string | null
@@ -662,6 +675,8 @@ export type Database = {
           sentimento?: string | null
           sobrenome?: string | null
           status_envio?: string | null
+          tag?: string | null
+          ultima_instancia?: string | null
           updated_at?: string | null
         }
         Relationships: []
