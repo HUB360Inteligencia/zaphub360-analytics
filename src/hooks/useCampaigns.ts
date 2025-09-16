@@ -133,6 +133,33 @@ export const useCampaigns = () => {
         .single();
 
       if (error) throw error;
+
+      // Se os intervalos foram atualizados, atualizar tempo_delay das mensagens não enviadas
+      if (updateData.intervalo_minimo !== undefined || updateData.intervalo_maximo !== undefined) {
+        const minDelay = updateData.intervalo_minimo || data.intervalo_minimo || 30;
+        const maxDelay = updateData.intervalo_maximo || data.intervalo_maximo || 60;
+
+        // Buscar mensagens não enviadas desta campanha
+        const { data: pendingMessages, error: messagesError } = await supabase
+          .from('mensagens_enviadas')
+          .select('id')
+          .eq('id_campanha', id)
+          .eq('status', 'pendente');
+
+        if (!messagesError && pendingMessages && pendingMessages.length > 0) {
+          // Atualizar tempo_delay para cada mensagem pendente
+          const updates = pendingMessages.map(message => {
+            const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+            return supabase
+              .from('mensagens_enviadas')
+              .update({ 'tempo delay': randomDelay })
+              .eq('id', message.id);
+          });
+
+          await Promise.all(updates);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -198,11 +225,23 @@ export const useCampaigns = () => {
         throw new Error('Nenhuma instância ativa encontrada para disparar a campanha');
       }
 
+      const activeInstanceIds = instances.map(i => i.id);
+
       // Preparar mensagens para inserção na tabela mensagens_enviadas
       const messages = targetContacts.map((contact, index) => {
-        // Usar instância salva do contato ou atribuir uma aleatória
-        const instanceId = contact.ultima_instancia || 
-          instances[Math.floor(Math.random() * instances.length)].id;
+        // Verificar se a última instância do contato ainda está ativa
+        let instanceId;
+        if (contact.ultima_instancia && activeInstanceIds.includes(contact.ultima_instancia)) {
+          instanceId = contact.ultima_instancia;
+        } else {
+          // Usar instância aleatória das ativas
+          instanceId = instances[Math.floor(Math.random() * instances.length)].id;
+        }
+
+        // Gerar delay aleatório entre intervalo mínimo e máximo (em segundos)
+        const minDelay = campaign.intervalo_minimo || 30;
+        const maxDelay = campaign.intervalo_maximo || 60;
+        const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
 
         return {
           tipo_fluxo: 'campanha',
@@ -216,7 +255,8 @@ export const useCampaigns = () => {
           mime_type: templateData?.mime_type || null,
           nome_contato: contact.name,
           id_campanha: id,
-          organization_id: campaign.organization_id
+          organization_id: campaign.organization_id,
+          'tempo delay': randomDelay
         };
       });
 
