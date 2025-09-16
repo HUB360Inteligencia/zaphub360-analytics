@@ -157,6 +157,45 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          notes: string | null
+          organization_id: string | null
+          origin: string | null
+          phone: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          origin?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          origin?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       event_messages: {
         Row: {
           contact_name: string | null

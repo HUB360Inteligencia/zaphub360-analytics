@@ -87,6 +87,14 @@ const CampaignDetails = () => {
       await activateCampaign.mutateAsync({
         id: campaign.id,
         targetContacts: contacts,
+        templateData: {
+          message_text: campaign.message_text,
+          content: campaign.message_text,
+          media_type: campaign.media_type,
+          name_media: campaign.name_media,
+          url_media: campaign.url_media,
+          mime_type: campaign.mime_type
+        }
       });
       toast.success('Campanha ativada com sucesso!');
     } catch (error) {

@@ -243,16 +243,20 @@ export const useCampaigns = () => {
         const maxDelay = campaign.intervalo_maximo || 60;
         const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
 
+        // Usar dados da campanha se templateData não fornecido
+        const messageData = templateData || campaign;
+
         return {
           tipo_fluxo: 'campanha',
-          celular: contact.phone,
+          celular: contact.phone || contact.celular,
           instancia_id: instanceId,
           status: 'pendente',
-          media_type: templateData?.media_type || null,
-          name_media: templateData?.name_media || null,
-          url_media: templateData?.url_media || null,
-          caption_media: templateData?.caption_media || templateData?.content || null,
-          mime_type: templateData?.mime_type || null,
+          mensagem: messageData.message_text || messageData.content || null,
+          media_type: messageData.media_type || null,
+          name_media: messageData.name_media || null,
+          url_media: messageData.url_media || null,
+          caption_media: messageData.caption_media || messageData.message_text || messageData.content || null,
+          mime_type: messageData.mime_type || null,
           nome_contato: contact.name,
           id_campanha: id,
           organization_id: campaign.organization_id,
