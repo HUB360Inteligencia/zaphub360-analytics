@@ -126,33 +126,88 @@ export const useContacts = () => {
         mimeType = contactData.mediaFile.type;
       }
 
-      const { data, error } = await supabase
+      // Primeiro verificar se já existe um contato com o mesmo telefone
+      const { data: existingContact, error: checkError } = await supabase
         .from('new_contact_event')
-        .insert({
-          celular: contactData.phone,
-          name: contactData.name,
-          sobrenome: contactData.sobrenome || '',
-          cidade: contactData.cidade || '',
-          bairro: contactData.bairro || '',
-          evento: contactData.evento || 'Contato Manual',
-          organization_id: contactData.organization_id,
-          responsavel_cadastro: 'Sistema',
-          status_envio: 'pendente',
-          id_tipo_mensagem: contactData.id_tipo_mensagem || 1,
-          media_url: mediaUrl,
-          media_name: mediaName,
-          media_type: mediaType,
-          mime_type: mimeType,
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('celular', contactData.phone)
+        .eq('organization_id', contactData.organization_id)
+        .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (checkError) throw checkError;
+
+      // Se contato já existe, atualizar com informações complementares
+      if (existingContact) {
+        const updateData: any = {
+          updated_at: new Date().toISOString()
+        };
+
+        // Atualizar apenas campos que estão vazios ou menos completos
+        if (contactData.name && (!existingContact.name || existingContact.name.length < contactData.name.length)) {
+          updateData.name = contactData.name;
+        }
+        if (contactData.sobrenome && (!existingContact.sobrenome || existingContact.sobrenome.length < contactData.sobrenome.length)) {
+          updateData.sobrenome = contactData.sobrenome;
+        }
+        if (contactData.cidade && (!existingContact.cidade || existingContact.cidade.length < contactData.cidade.length)) {
+          updateData.cidade = contactData.cidade;
+        }
+        if (contactData.bairro && (!existingContact.bairro || existingContact.bairro.length < contactData.bairro.length)) {
+          updateData.bairro = contactData.bairro;
+        }
+        if (contactData.evento && contactData.evento !== 'Contato Manual') {
+          // Agrupar eventos se já existe um evento diferente
+          const existingEvents = existingContact.evento ? existingContact.evento.split(', ') : [];
+          if (!existingEvents.includes(contactData.evento)) {
+            updateData.evento = [...existingEvents, contactData.evento].join(', ');
+          }
+        }
+        if (mediaUrl) {
+          updateData.media_url = mediaUrl;
+          updateData.media_name = mediaName;
+          updateData.media_type = mediaType;
+          updateData.mime_type = mimeType;
+        }
+
+        const { data, error } = await supabase
+          .from('new_contact_event')
+          .update(updateData)
+          .eq('id_contact_event', existingContact.id_contact_event)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } else {
+        // Criar novo contato se não existir
+        const { data, error } = await supabase
+          .from('new_contact_event')
+          .insert({
+            celular: contactData.phone,
+            name: contactData.name,
+            sobrenome: contactData.sobrenome || '',
+            cidade: contactData.cidade || '',
+            bairro: contactData.bairro || '',
+            evento: contactData.evento || 'Contato Manual',
+            organization_id: contactData.organization_id,
+            responsavel_cadastro: 'Sistema',
+            status_envio: 'pendente',
+            id_tipo_mensagem: contactData.id_tipo_mensagem || 1,
+            media_url: mediaUrl,
+            media_name: mediaName,
+            media_type: mediaType,
+            mime_type: mimeType,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      toast.success('Contato criado com sucesso!');
+      toast.success('Contato salvo com sucesso!');
     },
     onError: (error) => {
       console.error('Erro ao criar contato:', error);
