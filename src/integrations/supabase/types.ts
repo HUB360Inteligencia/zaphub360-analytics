@@ -924,6 +924,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      sync_ultima_instancia_manual: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          updated_contacts: number
+        }[]
+      }
+      update_contact_ultima_instancia: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       status_message: "enviado" | "pendente" | "lido" | "inexistente" | "fila"
