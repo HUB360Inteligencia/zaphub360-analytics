@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,8 @@ import { AdvancedContactSelector } from '@/components/campaigns/AdvancedContactS
 import { InstanceSelector } from '@/components/campaigns/InstanceSelector';
 import { ContactWithDetails } from '@/hooks/useAdvancedContactFilter';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Users, MessageCircle, Settings, Send } from 'lucide-react';
+import { ArrowLeft, Users, MessageCircle, Settings, Send, Eye, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function CampaignForm() {
   const navigate = useNavigate();
@@ -26,11 +27,17 @@ export default function CampaignForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<ContactWithDetails[]>([]);
   const [selectedInstances, setSelectedInstances] = useState<any[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string>('');
   
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    template_id: '',
+    message_text: '',
+    url_media: '',
+    name_media: '',
+    mime_type: '',
+    media_type: '',
     intervalo_minimo: 30,
     intervalo_maximo: 60,
     horario_disparo_inicio: '09:00',
@@ -43,6 +50,66 @@ export default function CampaignForm() {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type === 'video/mp4';
+      const isDocument = file.type === 'application/pdf';
+      
+      if (isImage || isVideo || isDocument) {
+        setSelectedMedia(file);
+        
+        // Generate name_media based on campaign name
+        const baseName = formData.name.replace(/[^a-zA-Z0-9]/g, '_') || 'campanha';
+        const extension = file.name.split('.').pop();
+        setFormData(prev => ({
+          ...prev,
+          name_media: `${baseName}.${extension}`,
+          mime_type: file.type,
+          media_type: isImage ? 'image' : isVideo ? 'video' : 'document'
+        }));
+
+        if (isImage || isVideo) {
+          const reader = new FileReader();
+          reader.onload = (evt) => setMediaPreview(evt.target?.result as string);
+          reader.readAsDataURL(file);
+        } else {
+          setMediaPreview('');
+        }
+      } else {
+        toast({
+          title: "Erro",
+          description: "Selecione uma imagem, vídeo .mp4 ou documento .pdf",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const uploadMedia = async (file: File, campaignName: string) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${campaignName.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('message-content-media')
+      .upload(filePath, file);
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('message-content-media')
+      .getPublicUrl(filePath);
+
+    return {
+      url: publicUrl,
+      filename: fileName
+    };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +145,16 @@ export default function CampaignForm() {
     setIsSubmitting(true);
 
     try {
+      let mediaUrl = formData.url_media;
+      let mediaFilename = formData.name_media;
+
+      // Upload da mídia se uma nova foi selecionada
+      if (selectedMedia) {
+        const uploadResult = await uploadMedia(selectedMedia, formData.name);
+        mediaUrl = uploadResult.url;
+        mediaFilename = uploadResult.filename;
+      }
+
       // Criar a campanha
       const campaignData = {
         ...formData,
@@ -92,11 +169,13 @@ export default function CampaignForm() {
         },
         horario_disparo_inicio: formData.horario_disparo_inicio + ':00',
         horario_disparo_fim: formData.horario_disparo_fim + ':00',
-        tipo_conteudo: ['texto'],
-        total_mensagens: 0,
+        tipo_conteudo: selectedMedia ? [formData.media_type, 'texto'] : ['texto'],
+        total_mensagens: selectedContacts.length,
         mensagens_enviadas: 0,
         mensagens_lidas: 0,
         mensagens_respondidas: 0,
+        url_media: mediaUrl,
+        name_media: mediaFilename,
       };
 
       const result = await createCampaign.mutateAsync(campaignData);
@@ -126,26 +205,33 @@ export default function CampaignForm() {
 
       // Se status é 'active', iniciar disparo imediatamente
       if (formData.status === 'active' && selectedContacts.length > 0) {
-        const selectedTemplate = templates.find(t => t.id === formData.template_id);
-        
-        await activateCampaign.mutateAsync({
-          id: result.id,
-          targetContacts: selectedContacts,
-          templateData: selectedTemplate ? {
-            content: selectedTemplate.content,
-            media_type: selectedTemplate.media_type,
-            media_url: selectedTemplate.media_url,
-            name_media: selectedTemplate.media_name,
-            caption_media: selectedTemplate.caption || selectedTemplate.content,
-            mime_type: selectedTemplate.media_type ? 
-              `${selectedTemplate.media_type}/${selectedTemplate.media_url?.split('.').pop()}` : null
-          } : undefined
+        // Criar entradas na tabela mensagens_enviadas
+        const messagePromises = selectedContacts.map(async (contact) => {
+          const instanceId = selectedInstances[Math.floor(Math.random() * selectedInstances.length)].id;
+          
+          return supabase.from('mensagens_enviadas').insert({
+            id_campanha: result.id,
+            celular: contact.phone,
+            nome_contato: contact.name,
+            mensagem: formData.message_text,
+            instancia_id: instanceId,
+            organization_id: organization.id,
+            status: 'fila',
+            tipo_fluxo: 'campanha',
+            url_media: mediaUrl || null,
+            name_media: mediaFilename || null,
+            mime_type: formData.mime_type || null,
+            media_type: formData.media_type || null,
+            caption_media: formData.message_text || null
+          });
         });
+
+        await Promise.all(messagePromises);
       }
 
       toast({
         title: "Sucesso",
-        description: "Campanha criada com sucesso!",
+        description: "Campanha criada com sucesso!"
       });
       
       navigate('/campaigns');
@@ -229,19 +315,15 @@ export default function CampaignForm() {
             </div>
 
             <div>
-              <Label htmlFor="template">Template de Mensagem</Label>
-              <Select value={formData.template_id} onValueChange={(value) => handleInputChange('template_id', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name} - {template.category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="message_text">Texto da Mensagem *</Label>
+              <Textarea
+                id="message_text"
+                value={formData.message_text}
+                onChange={(e) => handleInputChange('message_text', e.target.value)}
+                placeholder="Digite o texto da mensagem..."
+                className="min-h-[100px]"
+                required
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -289,6 +371,138 @@ export default function CampaignForm() {
           </CardContent>
         </Card>
 
+        {/* Mensagem e Mídia */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Conteúdo da Mensagem
+            </CardTitle>
+            <CardDescription>Configure o texto e mídia da mensagem</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="media">Mídia da Mensagem</Label>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <Input
+                    id="media"
+                    type="file"
+                    accept="image/*,video/mp4,application/pdf"
+                    onChange={handleMediaChange}
+                  />
+                </div>
+                
+                {mediaPreview && (
+                  <div className="space-y-2">
+                    <Label>Preview da Mídia</Label>
+                    <div className="relative w-full max-w-md">
+                      {formData.media_type === 'video' ? (
+                        <video
+                          src={mediaPreview}
+                          controls
+                          className="w-full h-48 rounded-lg border border-border object-cover"
+                        />
+                      ) : formData.media_type === 'image' ? (
+                        <img
+                          src={mediaPreview}
+                          alt="Preview"
+                          className="w-full h-48 object-cover rounded-lg border border-border"
+                        />
+                      ) : (
+                        <div className="w-full h-24 flex items-center justify-center bg-muted rounded-lg border border-border">
+                          <span className="text-sm text-muted-foreground">Documento PDF</span>
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setMediaPreview('');
+                          setSelectedMedia(null);
+                          setFormData(prev => ({
+                            ...prev,
+                            media_type: '',
+                            mime_type: '',
+                            name_media: ''
+                          }));
+                        }}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {formData.name_media && (
+                <p className="text-xs text-muted-foreground">
+                  O arquivo será salvo como: {formData.name_media}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="url_media">URL da Mídia (opcional)</Label>
+                <Input
+                  id="url_media"
+                  value={formData.url_media}
+                  onChange={(e) => handleInputChange('url_media', e.target.value)}
+                  placeholder="https://exemplo.com/arquivo.png"
+                />
+              </div>
+              <div>
+                <Label htmlFor="name_media_manual">Nome do Arquivo (opcional)</Label>
+                <Input
+                  id="name_media_manual"
+                  value={formData.name_media}
+                  onChange={(e) => handleInputChange('name_media', e.target.value)}
+                  placeholder="arquivo.png"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Preview da Mensagem */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Preview da Mensagem
+            </CardTitle>
+            <CardDescription>Veja como sua mensagem ficará no WhatsApp</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="max-w-sm mx-auto bg-green-50 p-4 rounded-lg border border-green-200">
+              {(mediaPreview || formData.url_media) && (
+                formData.media_type === 'video' ? (
+                  <video 
+                    src={mediaPreview || formData.url_media} 
+                    controls 
+                    className="w-full h-32 object-cover rounded mb-3" 
+                  />
+                ) : formData.media_type === 'image' ? (
+                  <img
+                    src={mediaPreview || formData.url_media}
+                    alt="Preview"
+                    className="w-full h-32 object-cover rounded mb-3"
+                  />
+                ) : formData.media_type === 'document' ? (
+                  <div className="w-full h-16 flex items-center justify-center bg-muted rounded mb-3">
+                    <span className="text-xs text-muted-foreground">📄 {formData.name_media}</span>
+                  </div>
+                ) : null
+              )}
+              <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                {formData.message_text || 'Sua mensagem aparecerá aqui...'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Seleção de Contatos */}
         <Card>
           <CardHeader>
@@ -310,9 +524,10 @@ export default function CampaignForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
+              <Settings className="h-5 w-5" />
               Instâncias de Envio
             </CardTitle>
+            <CardDescription>Selecione as instâncias WhatsApp para enviar as mensagens</CardDescription>
           </CardHeader>
           <CardContent>
             <InstanceSelector
@@ -340,11 +555,14 @@ export default function CampaignForm() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || selectedContacts.length === 0 || selectedInstances.length === 0}
+                  disabled={isSubmitting || selectedContacts.length === 0 || selectedInstances.length === 0 || !formData.message_text}
                   className="flex items-center gap-2"
                 >
                   {isSubmitting ? (
-                    "Criando..."
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Criando...
+                    </>
                   ) : (
                     <>
                       <Send className="h-4 w-4" />

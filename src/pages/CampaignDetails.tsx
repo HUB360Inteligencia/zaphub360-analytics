@@ -1,466 +1,437 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { 
-  ArrowLeft, 
-  Play, 
-  Pause, 
-  Copy, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  Users, 
-  MessageSquare, 
-  Clock,
-  TrendingUp,
-  Eye,
-  Reply,
-  Send
+  ArrowLeft, Edit, Send, CheckCircle, Eye, MessageSquare, 
+  Calendar, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle, Play, Pause
 } from 'lucide-react';
+import { 
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  PieChart, Pie, Cell, BarChart, Bar
+} from 'recharts';
 import { useCampaigns } from '@/hooks/useCampaigns';
-import { useTemplates } from '@/hooks/useTemplates';
-import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
-export default function CampaignDetails() {
+const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { campaigns, activateCampaign, pauseCampaign, deleteCampaign } = useCampaigns();
-  const { templates } = useTemplates();
-  const [activeTab, setActiveTab] = useState('overview');
+  const { campaigns, activateCampaign, pauseCampaign, isLoading } = useCampaigns();
+  
+  const campaign = campaigns?.find(c => c.id === id);
 
-  const campaign = campaigns.find(c => c.id === id);
-  const template = templates.find(t => t.id === campaign?.template_id);
+  // Fetch campaign messages and analytics
+  const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
+    queryKey: ['campaign-messages', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from('mensagens_enviadas')
+        .select('*')
+        .eq('id_campanha', id)
+        .order('data_envio', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Campaign analytics
+  const analytics = campaignMessages ? {
+    totalMessages: campaignMessages.length,
+    sentMessages: campaignMessages.filter(m => m.status === 'enviado').length,
+    deliveredMessages: campaignMessages.filter(m => m.data_leitura).length,
+    responseMessages: campaignMessages.filter(m => m.data_resposta).length,
+    errorMessages: campaignMessages.filter(m => m.status === 'erro').length,
+    queuedMessages: campaignMessages.filter(m => m.status === 'fila').length,
+    progressRate: campaignMessages.length > 0 ? 
+      ((campaignMessages.length - campaignMessages.filter(m => m.status === 'fila').length) / campaignMessages.length) * 100 : 0,
+    responseRate: campaignMessages.filter(m => m.data_leitura).length > 0 ?
+      (campaignMessages.filter(m => m.data_resposta).length / campaignMessages.filter(m => m.data_leitura).length) * 100 : 0,
+  } : null;
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      draft: { label: 'Rascunho', variant: 'outline' as const, className: 'text-muted-foreground' },
+      scheduled: { label: 'Agendada', variant: 'default' as const, className: 'bg-blue-500/10 text-blue-600 border-blue-200' },
+      disparando: { label: 'Disparando', variant: 'default' as const, className: 'bg-primary/10 text-primary' },
+      paused: { label: 'Pausada', variant: 'secondary' as const, className: 'bg-orange-500/10 text-orange-600 border-orange-200' },
+      completed: { label: 'Concluída', variant: 'secondary' as const, className: 'bg-green-500/10 text-green-600 border-green-200' },
+      cancelled: { label: 'Cancelada', variant: 'destructive' as const, className: 'bg-destructive/10 text-destructive' },
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const handleActivateCampaign = async () => {
+    if (!campaign) return;
+    
+    try {
+      // Get campaign contacts and instances
+      const contacts = campaign.target_contacts?.contacts || [];
+      await activateCampaign.mutateAsync({
+        id: campaign.id,
+        targetContacts: contacts,
+      });
+      toast.success('Campanha ativada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao ativar campanha:', error);
+      toast.error('Erro ao ativar a campanha');
+    }
+  };
+
+  const handlePauseCampaign = async () => {
+    if (!campaign) return;
+    
+    try {
+      await pauseCampaign.mutateAsync(campaign.id);
+      toast.success('Campanha pausada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao pausar campanha:', error);
+      toast.error('Erro ao pausar a campanha');
+    }
+  };
+
+  if (isLoading || messagesLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando detalhes da campanha...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!campaign) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Campanha não encontrada</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Campanha não encontrada</h2>
           <p className="text-muted-foreground mb-4">A campanha solicitada não existe ou foi removida.</p>
           <Button onClick={() => navigate('/campaigns')}>
-            Voltar para Campanhas
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar às Campanhas
           </Button>
         </div>
       </div>
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-500';
-      case 'paused': return 'bg-yellow-500';
-      case 'completed': return 'bg-blue-500';
-      case 'cancelled': return 'bg-red-500';
-      case 'scheduled': return 'bg-purple-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active': return 'Ativa';
-      case 'paused': return 'Pausada';
-      case 'completed': return 'Concluída';
-      case 'cancelled': return 'Cancelada';
-      case 'scheduled': return 'Agendada';
-      default: return 'Rascunho';
-    }
-  };
-
-  const deliveryRate = campaign.total_mensagens > 0 
-    ? Math.round((campaign.mensagens_enviadas / campaign.total_mensagens) * 100)
-    : 0;
-
-  const readRate = campaign.mensagens_enviadas > 0 
-    ? Math.round((campaign.mensagens_lidas / campaign.mensagens_enviadas) * 100)
-    : 0;
-
-  const responseRate = campaign.mensagens_enviadas > 0 
-    ? Math.round((campaign.mensagens_respondidas / campaign.mensagens_enviadas) * 100)
-    : 0;
-
-  const handleDuplicate = () => {
-    // TODO: Implementar duplicação
-    toast.success('Funcionalidade em desenvolvimento');
-  };
-
-  const handleEdit = () => {
-    // TODO: Implementar edição
-    toast.success('Funcionalidade em desenvolvimento');
-  };
-
-  const handleActivate = async () => {
-    try {
-      // Para campanhas já criadas, usar contatos salvos em target_contacts
-      const targetContacts = (campaign.target_contacts as any)?.contacts || [];
-      
-      await activateCampaign.mutateAsync({
-        id: campaign.id,
-        targetContacts,
-        templateData: undefined // Template já definido na criação
-      });
-    } catch (error) {
-      console.error('Erro ao ativar campanha:', error);
-    }
-  };
-
-  const handlePause = async () => {
-    try {
-      await pauseCampaign.mutateAsync(campaign.id);
-    } catch (error) {
-      console.error('Erro ao pausar campanha:', error);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await deleteCampaign.mutateAsync(campaign.id);
-      navigate('/campaigns');
-    } catch (error) {
-      console.error('Erro ao excluir campanha:', error);
-    }
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6 bg-background min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate('/campaigns')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
+            <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{campaign.name}</h1>
-            {campaign.description && (
-              <p className="text-muted-foreground">{campaign.description}</p>
-            )}
+            <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
+            <p className="text-muted-foreground">{campaign.description}</p>
           </div>
-          <Badge variant="secondary" className={getStatusColor(campaign.status)}>
-            {getStatusLabel(campaign.status)}
-          </Badge>
         </div>
-
-        <div className="flex items-center gap-2">
-          {campaign.status === 'draft' || campaign.status === 'paused' ? (
-            <Button onClick={handleActivate} className="bg-green-600 hover:bg-green-700">
+        <div className="flex gap-3">
+          {campaign.status === 'draft' && (
+            <Button onClick={handleActivateCampaign} size="sm">
               <Play className="w-4 h-4 mr-2" />
-              Ativar
+              Ativar Campanha
             </Button>
-          ) : campaign.status === 'active' ? (
-            <Button variant="outline" onClick={handlePause}>
+          )}
+          {campaign.status === 'disparando' && (
+            <Button onClick={handlePauseCampaign} variant="outline" size="sm">
               <Pause className="w-4 h-4 mr-2" />
-              Pausar
+              Pausar Campanha
             </Button>
-          ) : null}
-          
-          <Button variant="outline" onClick={handleDuplicate}>
-            <Copy className="w-4 h-4 mr-2" />
-            Duplicar
+          )}
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/campaigns/${campaign.id}/edit`}>
+              <Edit className="w-4 h-4 mr-2" />
+              Editar
+            </Link>
           </Button>
-          
-          <Button variant="outline" onClick={handleEdit}>
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-          
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="text-red-600 hover:text-red-700">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Excluir
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja excluir a campanha "{campaign.name}"? Esta ação não pode ser desfeita.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleDelete}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Mensagens</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{campaign.total_mensagens}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Enviadas</CardTitle>
-            <Send className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{campaign.mensagens_enviadas}</div>
-            <div className="text-xs text-muted-foreground">
-              {deliveryRate}% do total
+      {/* Campaign Info */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Status</p>
+              {getStatusBadge(campaign.status)}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lidas</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{campaign.mensagens_lidas}</div>
-            <div className="text-xs text-muted-foreground">
-              {readRate}% das enviadas
+            <div>
+              <p className="text-sm text-muted-foreground">Criada em</p>
+              <p className="text-sm">{format(new Date(campaign.created_at), 'dd/MM/yyyy', { locale: ptBR })}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Respostas</CardTitle>
-            <Reply className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{campaign.mensagens_respondidas}</div>
-            <div className="text-xs text-muted-foreground">
-              {responseRate}% das enviadas
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Progress */}
-      {campaign.total_mensagens > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Progresso da Campanha</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Enviadas</span>
-                <span>{campaign.mensagens_enviadas} / {campaign.total_mensagens}</span>
+            {campaign.started_at && (
+              <div>
+                <p className="text-sm text-muted-foreground">Iniciada em</p>
+                <p className="text-sm">{format(new Date(campaign.started_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
               </div>
-              <Progress value={deliveryRate} className="h-2" />
+            )}
+            <div>
+              <p className="text-sm text-muted-foreground">Horário de Disparo</p>
+              <p className="text-sm">{campaign.horario_disparo_inicio} - {campaign.horario_disparo_fim}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Progress Bar */}
+      {analytics && analytics.totalMessages > 0 && (
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Progresso da Campanha</h3>
+                <span className="text-sm text-muted-foreground">
+                  {analytics.totalMessages - analytics.queuedMessages} de {analytics.totalMessages} processados
+                </span>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Progresso (Total - Na Fila)</span>
+                  <span>{Math.round(analytics.progressRate)}%</span>
+                </div>
+                <Progress value={analytics.progressRate} className="h-3" />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">{analytics.queuedMessages}</div>
+                  <div className="text-xs text-muted-foreground">Fila</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-orange-600">{analytics.sentMessages}</div>
+                  <div className="text-xs text-muted-foreground">Enviados</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">{analytics.deliveredMessages}</div>
+                  <div className="text-xs text-muted-foreground">Entregue</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-emerald-600">{analytics.responseMessages}</div>
+                  <div className="text-xs text-muted-foreground">Respondidos</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-red-600">{analytics.errorMessages}</div>
+                  <div className="text-xs text-muted-foreground">Erro</div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total de Contatos</p>
+                <p className="text-2xl font-bold text-card-foreground">{analytics?.totalMessages || 0}</p>
+              </div>
+              <Send className="w-8 h-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
+                <p className="text-2xl font-bold text-card-foreground">
+                  {analytics && analytics.totalMessages > 0 ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                </p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Taxa de Resposta</p>
+                <p className="text-2xl font-bold text-card-foreground">
+                  {analytics ? Math.round(analytics.responseRate) : 0}%
+                </p>
+              </div>
+              <MessageSquare className="w-8 h-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Mensagens com Erro</p>
+                <p className="text-2xl font-bold text-red-600">{analytics?.errorMessages || 0}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="template">Template</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="contacts">
+            <Users className="w-4 h-4 mr-2" />
+            Contatos
+          </TabsTrigger>
+          <TabsTrigger value="message">Mensagem</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Informações Gerais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Criada em:</span>
-                  <span className="text-sm">
-                    {format(new Date(campaign.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </span>
-                </div>
-                {campaign.scheduled_at && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Agendada para:</span>
-                    <span className="text-sm">
-                      {format(new Date(campaign.scheduled_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                    </span>
-                  </div>
-                )}
-                {campaign.started_at && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Iniciada em:</span>
-                    <span className="text-sm">
-                      {format(new Date(campaign.started_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                    </span>
-                  </div>
-                )}
-                {campaign.completed_at && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Concluída em:</span>
-                    <span className="text-sm">
-                      {format(new Date(campaign.completed_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Configurações de Envio
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Intervalo:</span>
-                  <span className="text-sm">
-                    {campaign.intervalo_minimo}s - {campaign.intervalo_maximo}s
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Horário de envio:</span>
-                  <span className="text-sm">
-                    {campaign.horario_disparo_inicio} às {campaign.horario_disparo_fim}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Tipos de conteúdo:</span>
-                  <span className="text-sm">
-                    {campaign.tipo_conteudo.join(', ')}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="template" className="space-y-4">
-          {template ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Template: {template.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-muted p-4 rounded-lg">
-                    <h4 className="font-medium mb-2">Conteúdo:</h4>
-                    <p className="whitespace-pre-wrap">{template.content}</p>
-                  </div>
-                  
-                  {template.variables && template.variables.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-2">Variáveis:</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {template.variables.map((variable) => (
-                          <Badge key={variable} variant="outline">
-                            {`{{${variable}}}`}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Template não encontrado</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-4">
-          <Card>
+        <TabsContent value="analytics" className="space-y-6">
+          {/* Status Distribution */}
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle>Configurações da Campanha</CardTitle>
+              <CardTitle className="text-lg font-semibold">Distribuição de Status</CardTitle>
+              <CardDescription>Status atual das mensagens da campanha</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Contatos Alvo</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {(campaign.target_contacts as any)?.contact_ids?.length || 0} contatos selecionados
-                  </p>
+              {analytics && analytics.totalMessages > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{analytics.queuedMessages}</div>
+                    <div className="text-sm text-muted-foreground">Fila</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{analytics.sentMessages}</div>
+                    <div className="text-sm text-muted-foreground">Enviados</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{analytics.deliveredMessages}</div>
+                    <div className="text-sm text-muted-foreground">Entregues</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-emerald-600">{analytics.responseMessages}</div>
+                    <div className="text-sm text-muted-foreground">Respondidos</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{analytics.errorMessages}</div>
+                    <div className="text-sm text-muted-foreground">Erros</div>
+                  </div>
                 </div>
-                
-                <div>
-                  <h4 className="font-medium mb-2">Intervalos de Envio</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Mínimo: {campaign.intervalo_minimo}s | Máximo: {campaign.intervalo_maximo}s
-                  </p>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-2">Horário de Funcionamento</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Das {campaign.horario_disparo_inicio} às {campaign.horario_disparo_fim}
-                  </p>
-                </div>
+              ) : (
+                <p className="text-center text-muted-foreground">Nenhuma mensagem enviada ainda</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contacts" className="space-y-6">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Lista de Contatos</CardTitle>
+              <CardDescription>Contatos da campanha e status das mensagens</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Enviado em</TableHead>
+                      <TableHead>Lido em</TableHead>
+                      <TableHead>Respondido em</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {campaignMessages?.map((message) => (
+                      <TableRow key={message.id}>
+                        <TableCell>{message.nome_contato}</TableCell>
+                        <TableCell>{message.celular}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            message.status === 'enviado' ? 'default' :
+                            message.status === 'erro' ? 'destructive' :
+                            'outline'
+                          }>
+                            {message.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {message.data_envio ? format(new Date(message.data_envio), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {message.data_leitura ? format(new Date(message.data_leitura), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {message.data_resposta ? format(new Date(message.data_resposta), 'dd/MM HH:mm', { locale: ptBR }) : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Taxa de Entrega</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">{deliveryRate}%</div>
-                <p className="text-sm text-muted-foreground">
-                  {campaign.mensagens_enviadas} de {campaign.total_mensagens} enviadas
+        <TabsContent value="message" className="space-y-6">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Conteúdo da Mensagem</CardTitle>
+              <CardDescription>Visualize o conteúdo que está sendo enviado</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-sm mx-auto bg-green-50 p-4 rounded-lg border border-green-200">
+                {(campaign as any).url_media && (
+                  (campaign as any).media_type === 'video' ? (
+                    <video 
+                      src={(campaign as any).url_media} 
+                      controls 
+                      className="w-full h-32 object-cover rounded mb-3" 
+                    />
+                  ) : (campaign as any).media_type === 'image' ? (
+                    <img
+                      src={(campaign as any).url_media}
+                      alt="Media"
+                      className="w-full h-32 object-cover rounded mb-3"
+                    />
+                  ) : (campaign as any).media_type === 'document' ? (
+                    <div className="w-full h-16 flex items-center justify-center bg-muted rounded mb-3">
+                      <span className="text-xs text-muted-foreground">📄 {(campaign as any).name_media}</span>
+                    </div>
+                  ) : null
+                )}
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {(campaign as any).message_text || 'Conteúdo da mensagem não definido'}
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Taxa de Leitura</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">{readRate}%</div>
-                <p className="text-sm text-muted-foreground">
-                  {campaign.mensagens_lidas} de {campaign.mensagens_enviadas} lidas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Taxa de Resposta</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-purple-600">{responseRate}%</div>
-                <p className="text-sm text-muted-foreground">
-                  {campaign.mensagens_respondidas} de {campaign.mensagens_enviadas} respondidas
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
-}
+};
+
+export default CampaignDetails;
