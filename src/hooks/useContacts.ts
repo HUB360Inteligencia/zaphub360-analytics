@@ -34,21 +34,36 @@ export const useContacts = () => {
     queryFn: async () => {
       if (!organization?.id) return [];
       
-      const { data, error } = await supabase
-        .from('contacts')
-        .select(`
-          *,
-          contact_tags (
-            tags (*)
-          )
-        `)
-        .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false })
-        .limit(10000); // Remover limitação anterior de 1000, aumentar para 10000
+      // Paginar em blocos de 1000 devido ao limite do PostgREST
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
+      let allData: any[] = [];
 
-      if (error) throw error;
+      while (true) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select(`
+            *,
+            contact_tags (
+              tags (*)
+            )
+          `)
+          .eq('organization_id', organization.id)
+          .order('created_at', { ascending: false })
+          .range(from, to);
 
-      return data.map(contact => ({
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allData = allData.concat(data);
+        if (data.length < pageSize) break;
+
+        from += pageSize;
+        to += pageSize;
+      }
+
+      return allData.map(contact => ({
         ...contact,
         tags: contact.contact_tags?.map((ct: any) => ct.tags) || []
       }));
