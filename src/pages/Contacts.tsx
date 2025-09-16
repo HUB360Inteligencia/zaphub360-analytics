@@ -15,6 +15,7 @@ import { useContacts, Contact } from '@/hooks/useContacts';
 import { useTags } from '@/hooks/useTags';
 import { useAuth } from '@/contexts/AuthContext';
 import ContactProfileModal from '@/components/contacts/ContactProfileModal';
+import ContactsTable from '@/components/contacts/ContactsTable';
 
 const Contacts = () => {
   const { organization } = useAuth();

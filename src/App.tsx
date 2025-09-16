@@ -19,6 +19,7 @@ import Instances from "./pages/Instances";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PublicEventStatus from "./pages/PublicEventStatus";
+import PublicCampaignStatus from "./pages/PublicCampaignStatus";
 import CampaignDetails from "./pages/CampaignDetails";
 import UserSettings from "./pages/UserSettings";
 import OrganizationSettings from "./pages/OrganizationSettings";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             {/* Public Event Status Route - Must be before catch-all */}
             <Route path="/public/event/:eventId" element={<PublicEventStatus />} />
+            <Route path="/public/campaign/:campaignId" element={<PublicCampaignStatus />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>
