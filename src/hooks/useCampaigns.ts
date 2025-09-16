@@ -28,6 +28,13 @@ export interface Campaign {
   mensagens_respondidas: number;
   created_at: string;
   updated_at: string;
+  // Campos de mídia e tipo de mensagem
+  id_tipo_mensagem?: number;
+  message_text?: string;
+  url_media?: string;
+  name_media?: string;
+  mime_type?: string;
+  media_type?: string;
 }
 
 export const useCampaigns = () => {
@@ -67,7 +74,8 @@ export const useCampaigns = () => {
         mensagens_lidas: campaign.mensagens_lidas || 0,
         mensagens_respondidas: campaign.mensagens_respondidas || 0,
         target_contacts: campaign.target_contacts || { contacts: [] },
-        status: campaign.status || 'draft'
+        status: campaign.status || 'draft',
+        id_tipo_mensagem: campaign.id_tipo_mensagem || 1
       }));
       
       return validCampaigns;

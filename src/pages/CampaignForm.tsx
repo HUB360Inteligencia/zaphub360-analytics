@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTemplates } from '@/hooks/useTemplates';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEventInstances } from '@/hooks/useEventInstances';
 import { AdvancedContactSelector } from '@/components/campaigns/AdvancedContactSelector';
 import { InstanceSelector } from '@/components/campaigns/InstanceSelector';
 import { ContactWithDetails } from '@/hooks/useAdvancedContactFilter';
@@ -23,6 +24,7 @@ export default function CampaignForm() {
   const { organization } = useAuth();
   const { templates } = useTemplates();
   const { campaigns, createCampaign, updateCampaign, activateCampaign } = useCampaigns();
+  const { data: eventInstances } = useEventInstances(id || '');
   
   const isEditMode = !!id;
   const campaign = campaigns?.find(c => c.id === id);
@@ -46,6 +48,7 @@ export default function CampaignForm() {
     horario_disparo_inicio: '09:00',
     horario_disparo_fim: '20:00',
     status: 'draft' as 'draft' | 'active',
+    id_tipo_mensagem: 1,
   });
 
   // Load campaign data when editing
@@ -64,6 +67,7 @@ export default function CampaignForm() {
         horario_disparo_inicio: campaign.horario_disparo_inicio?.substring(0, 5) || '09:00',
         horario_disparo_fim: campaign.horario_disparo_fim?.substring(0, 5) || '20:00',
         status: campaign.status as 'draft' | 'active',
+        id_tipo_mensagem: campaign.id_tipo_mensagem || 1,
       });
 
       // Load existing contacts
@@ -76,6 +80,14 @@ export default function CampaignForm() {
       }
     }
   }, [isEditMode, campaign]);
+
+  // Load instances when editing
+  useEffect(() => {
+    if (isEditMode && eventInstances && eventInstances.length > 0) {
+      const instanceIds = eventInstances.map(ei => ei.id_instancia);
+      setSelectedInstances(instanceIds);
+    }
+  }, [isEditMode, eventInstances]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -158,6 +170,11 @@ export default function CampaignForm() {
       return;
     }
 
+    if (formData.id_tipo_mensagem === 2 && !selectedMedia && !formData.url_media) {
+      toast.error("Selecione um arquivo de mídia para mensagens do tipo 'Arquivo + Texto'");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -184,13 +201,14 @@ export default function CampaignForm() {
         },
         horario_disparo_inicio: formData.horario_disparo_inicio + ':00',
         horario_disparo_fim: formData.horario_disparo_fim + ':00',
-        tipo_conteudo: selectedMedia ? [formData.media_type, 'texto'] : ['texto'],
+        tipo_conteudo: formData.id_tipo_mensagem === 2 ? [formData.media_type, 'texto'] : ['texto'],
         total_mensagens: selectedContacts.length,
         mensagens_enviadas: 0,
         mensagens_lidas: 0,
         mensagens_respondidas: 0,
         url_media: mediaUrl,
         name_media: mediaFilename,
+        id_tipo_mensagem: formData.id_tipo_mensagem,
       };
 
       // Criar ou atualizar a campanha
@@ -338,18 +356,6 @@ export default function CampaignForm() {
               />
             </div>
 
-            <div>
-              <Label htmlFor="message_text">Texto da Mensagem *</Label>
-              <Textarea
-                id="message_text"
-                value={formData.message_text}
-                onChange={(e) => handleInputChange('message_text', e.target.value)}
-                placeholder="Digite o texto da mensagem..."
-                className="min-h-[100px]"
-                required
-              />
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="intervalo_minimo">Intervalo Mínimo (min)</Label>
@@ -405,17 +411,46 @@ export default function CampaignForm() {
             <CardDescription>Configure o texto e mídia da mensagem</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="media">Mídia da Mensagem</Label>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <Input
-                    id="media"
-                    type="file"
-                    accept="image/*,video/mp4,application/pdf"
-                    onChange={handleMediaChange}
-                  />
-                </div>
+            <div>
+              <Label htmlFor="id_tipo_mensagem">Tipo de Mensagem *</Label>
+              <Select
+                value={formData.id_tipo_mensagem.toString()}
+                onValueChange={(value) => handleInputChange('id_tipo_mensagem', parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo de mensagem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Texto</SelectItem>
+                  <SelectItem value="2">Arquivo + Texto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="message_text">Texto da Mensagem *</Label>
+              <Textarea
+                id="message_text"
+                value={formData.message_text}
+                onChange={(e) => handleInputChange('message_text', e.target.value)}
+                placeholder="Digite o texto da mensagem..."
+                className="min-h-[100px]"
+                required
+              />
+            </div>
+
+            {formData.id_tipo_mensagem === 2 && (
+              <div className="space-y-2">
+                <Label htmlFor="media">Mídia da Mensagem</Label>
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <Input
+                      id="media"
+                      type="file"
+                      accept="image/*,video/mp4,application/pdf"
+                      onChange={handleMediaChange}
+                    />
+                  </div>
                 
                 {mediaPreview && (
                   <div className="space-y-2">
@@ -460,30 +495,13 @@ export default function CampaignForm() {
                     </div>
                   </div>
                 )}
+                </div>
+                {formData.name_media && (
+                  <p className="text-xs text-muted-foreground">
+                    O arquivo será salvo como: {formData.name_media}
+                  </p>
+                )}
               </div>
-              {formData.name_media && (
-                <p className="text-xs text-muted-foreground">
-                  O arquivo será salvo como: {formData.name_media}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="message_text">Texto da Mensagem *</Label>
-              <Textarea
-                id="message_text"
-                value={formData.message_text}
-                onChange={(e) => handleInputChange('message_text', e.target.value)}
-                placeholder="Digite o texto da mensagem..."
-                className="min-h-[100px]"
-                required
-              />
-            </div>
-
-            {formData.name_media && (
-              <p className="text-xs text-muted-foreground">
-                O arquivo será salvo como: {formData.name_media}
-              </p>
             )}
           </CardContent>
         </Card>
@@ -554,6 +572,7 @@ export default function CampaignForm() {
             <InstanceSelector
               selectedInstances={selectedInstances}
               onInstancesChange={setSelectedInstances}
+              currentEventInstanceIds={eventInstances?.map(ei => ei.id_instancia) || []}
             />
           </CardContent>
         </Card>
@@ -576,7 +595,7 @@ export default function CampaignForm() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || selectedContacts.length === 0 || selectedInstances.length === 0 || !formData.message_text}
+                  disabled={isSubmitting || selectedContacts.length === 0 || selectedInstances.length === 0 || !formData.message_text || (formData.id_tipo_mensagem === 2 && !selectedMedia && !formData.url_media)}
                   className="flex items-center gap-2"
                 >
                   {isSubmitting ? (

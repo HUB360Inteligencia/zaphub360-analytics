@@ -23,6 +23,7 @@ export type Database = {
           horario_disparo_fim: string | null
           horario_disparo_inicio: string | null
           id: string
+          id_tipo_mensagem: number | null
           intervalo_maximo: number | null
           intervalo_minimo: number | null
           media_type: string | null
@@ -53,6 +54,7 @@ export type Database = {
           horario_disparo_fim?: string | null
           horario_disparo_inicio?: string | null
           id?: string
+          id_tipo_mensagem?: number | null
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
           media_type?: string | null
@@ -83,6 +85,7 @@ export type Database = {
           horario_disparo_fim?: string | null
           horario_disparo_inicio?: string | null
           id?: string
+          id_tipo_mensagem?: number | null
           intervalo_maximo?: number | null
           intervalo_minimo?: number | null
           media_type?: string | null
