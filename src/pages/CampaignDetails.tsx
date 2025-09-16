@@ -82,7 +82,8 @@ const CampaignDetails = () => {
     
     try {
       // Get campaign contacts and instances
-      const contacts = campaign.target_contacts?.contacts || [];
+      const targetContacts = campaign.target_contacts as { contacts?: any[] } | null;
+      const contacts = targetContacts?.contacts || [];
       await activateCampaign.mutateAsync({
         id: campaign.id,
         targetContacts: contacts,
