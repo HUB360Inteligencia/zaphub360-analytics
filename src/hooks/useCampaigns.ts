@@ -268,6 +268,7 @@ export const useCampaigns = () => {
           nome_contato: contact.name,
           id_campanha: id,
           organization_id: campaign.organization_id,
+          id_tipo_mensagem: campaign.id_tipo_mensagem || 1,
           'tempo delay': randomDelay
         };
       });
