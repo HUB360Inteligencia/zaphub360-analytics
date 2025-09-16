@@ -26,7 +26,7 @@ export default function CampaignForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<ContactWithDetails[]>([]);
-  const [selectedInstances, setSelectedInstances] = useState<any[]>([]);
+  const [selectedInstances, setSelectedInstances] = useState<string[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');
   
@@ -182,9 +182,9 @@ export default function CampaignForm() {
 
       // Associar instâncias à campanha
       if (result?.id && selectedInstances.length > 0) {
-        const instanceAssociations = selectedInstances.map((instance, index) => ({
+        const instanceAssociations = selectedInstances.map((instanceId, index) => ({
           id_campanha: result.id,
-          id_instancia: instance.id,
+          id_instancia: instanceId,
           prioridade: index
         }));
 
@@ -207,7 +207,7 @@ export default function CampaignForm() {
       if (formData.status === 'active' && selectedContacts.length > 0) {
         // Criar entradas na tabela mensagens_enviadas
         const messagePromises = selectedContacts.map(async (contact) => {
-          const instanceId = selectedInstances[Math.floor(Math.random() * selectedInstances.length)].id;
+          const instanceId = selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
           
           return supabase.from('mensagens_enviadas').insert({
             id_campanha: result.id,

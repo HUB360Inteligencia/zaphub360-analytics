@@ -46,7 +46,7 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange, current
         !newSelection.every(id => selectedInstances.includes(id))) {
       onInstancesChange(newSelection);
     }
-  }, [activeInstances, currentEventInstanceIds, onInstancesChange]);
+  }, [activeInstances, currentEventInstanceIds, selectedInstances]);
 
   // Subscribe to real-time instance updates
   useEffect(() => {
