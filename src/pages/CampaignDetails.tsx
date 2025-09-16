@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, Send, CheckCircle, Eye, MessageSquare, 
-  Calendar, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle, Play, Pause
+  Calendar, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle, Play, Pause, ExternalLink
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -156,6 +156,18 @@ const CampaignDetails = () => {
           </div>
         </div>
         <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              const publicUrl = `${window.location.origin}/public/campaign-status/${campaign.id}`;
+              navigator.clipboard.writeText(publicUrl);
+              toast.success('Link público copiado para a área de transferência!');
+            }}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Link Público
+          </Button>
           {campaign.status === 'draft' && (
             <Button onClick={handleActivateCampaign} size="sm">
               <Play className="w-4 h-4 mr-2" />
