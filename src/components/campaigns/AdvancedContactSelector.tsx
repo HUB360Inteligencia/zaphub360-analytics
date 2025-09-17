@@ -192,7 +192,10 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => handleSelectContact(contact)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleSelectContact(contact);
+                        }}
                         className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
                       />
                       <Avatar className="h-8 w-8">
