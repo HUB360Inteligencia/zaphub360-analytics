@@ -34,6 +34,8 @@ const CampaignDetails = () => {
 const { data: counts, isLoading: countsLoading } = useQuery({
   queryKey: ['campaign-counts', id],
   enabled: !!id,
+  refetchInterval: 30000, // Refresh every 30 seconds
+  staleTime: 0, // Always fetch fresh data
   queryFn: async () => {
     // total de mensagens da campanha
     const { count: total, error: eTotal } = await supabase
@@ -81,6 +83,11 @@ const { data: counts, isLoading: countsLoading } = useQuery({
       .eq('id_campanha', id)
       .eq('status', 'erro');
     if (eErr) throw eErr;
+
+    // Debug logs
+    console.log('Campaign metrics debug:', {
+      total, fila, enviados, entregues, respondidos, erros
+    });
 
     return { total, fila, enviados, entregues, respondidos, erros };
   },
