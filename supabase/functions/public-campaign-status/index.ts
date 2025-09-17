@@ -7,27 +7,30 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // CORS preflight
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { campaignId } = await req.json();
-
+    
     if (!campaignId) {
       return new Response(
         JSON.stringify({ error: 'Campaign ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
-    // Supabase client (Edge Function)
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1) Campanha
+    // Fetch campaign data
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
@@ -35,86 +38,61 @@ serve(async (req) => {
       .single();
 
     if (campaignError || !campaign) {
+      console.error('Campaign not found:', campaignError);
       return new Response(
         JSON.stringify({ error: 'Campaign not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
-    // Helper de contagem (NÃO baixa linhas -> não tem limite 1000)
-    const count = async (qb: ReturnType<typeof supabase.from>) => {
-      const { count, error } = await qb.select('id', { count: 'exact', head: true });
-      if (error) throw error;
-      return count ?? 0;
+    // Fetch campaign messages for analytics
+    const { data: messages, error: messagesError } = await supabase
+      .from('mensagens_enviadas')
+      .select('*')
+      .eq('id_campanha', campaignId);
+
+    if (messagesError) {
+      console.error('Error fetching messages:', messagesError);
+    }
+
+    // Calculate analytics
+    const analytics = messages ? {
+      totalMessages: messages.length,
+      sentMessages: messages.filter(m => m.status === 'enviado').length,
+      deliveredMessages: messages.filter(m => m.data_leitura).length,
+      responseMessages: messages.filter(m => m.data_resposta).length,
+      errorMessages: messages.filter(m => m.status === 'erro').length,
+      queuedMessages: messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
+      progressRate: messages.length > 0 ? 
+        ((messages.length - messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length) / messages.length) * 100 : 0,
+      responseRate: messages.filter(m => m.data_leitura).length > 0 ?
+        (messages.filter(m => m.data_resposta).length / messages.filter(m => m.data_leitura).length) * 100 : 0,
+    } : null;
+
+    const responseData = {
+      ...campaign,
+      analytics
     };
 
-    // 2) Contadores (Promise.all para performance)
-    const [
-      totalMessages,
-      queuedMessages,
-      sentMessages,
-      deliveredMessages,
-      responseMessages,
-      errorMessages,
-    ] = await Promise.all([
-      count(supabase.from('mensagens_enviadas').eq('id_campanha', campaignId)),
-      count(
-        supabase
-          .from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .in('status', ['fila', 'pendente', 'processando'])
-      ),
-      count(
-        supabase
-          .from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .eq('status', 'enviado')
-      ),
-      count(
-        supabase
-          .from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .not('data_leitura', 'is', null)
-      ),
-      count(
-        supabase
-          .from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .not('data_resposta', 'is', null)
-      ),
-      count(
-        supabase
-          .from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .eq('status', 'erro')
-      ),
-    ]);
-
-    // 3) Métricas derivadas (mesma estrutura que o front espera)
-    const analytics = {
-      totalMessages,
-      sentMessages,
-      deliveredMessages,
-      responseMessages,
-      errorMessages,
-      queuedMessages,
-      progressRate: totalMessages > 0 ? ((totalMessages - queuedMessages) / totalMessages) * 100 : 0,
-      responseRate: deliveredMessages > 0 ? (responseMessages / deliveredMessages) * 100 : 0,
-    };
-
-    // 4) Retorno final (idêntico ao original, só que com contadores reais)
-    const responseData = { ...campaign, analytics };
-
-    return new Response(JSON.stringify(responseData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify(responseData),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    );
 
   } catch (error) {
-    console.error('Error in public-campaign-status:', error);
+    console.error('Error in public-campaign-status function:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
-});
+})
