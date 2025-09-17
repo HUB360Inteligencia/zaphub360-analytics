@@ -7,25 +7,30 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { campaignId } = await req.json();
-
+    
     if (!campaignId) {
       return new Response(
         JSON.stringify({ error: 'Campaign ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Campanha
+    // Fetch campaign data (igual ao original)
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
@@ -36,18 +41,20 @@ serve(async (req) => {
       console.error('Campaign not found:', campaignError);
       return new Response(
         JSON.stringify({ error: 'Campaign not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
-    // Função segura de contagem
+    // ===== Analytics sem limite de 1000 (contagem no banco, sem baixar linhas) =====
     const countExact = async (query: any) => {
       const { count, error } = await query.select('*', { count: 'exact', head: true });
       if (error) throw error;
       return count ?? 0;
     };
 
-    // Contagens paralelas
     const [
       totalMessages,
       queuedMessages,
@@ -57,7 +64,8 @@ serve(async (req) => {
       errorMessages,
     ] = await Promise.all([
       countExact(
-        supabase.from('mensagens_enviadas').eq('id_campanha', campaignId)
+        supabase.from('mensagens_enviadas')
+          .eq('id_campanha', campaignId)
       ),
       countExact(
         supabase.from('mensagens_enviadas')
@@ -97,16 +105,27 @@ serve(async (req) => {
       responseRate: deliveredMessages > 0 ? (responseMessages / deliveredMessages) * 100 : 0,
     };
 
-    return new Response(JSON.stringify({ ...campaign, analytics }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    const responseData = {
+      ...campaign,
+      analytics
+    };
+
+    return new Response(
+      JSON.stringify(responseData),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    );
 
   } catch (error: any) {
     console.error('Error in public-campaign-status function:', error?.message || error);
     return new Response(
       JSON.stringify({ error: error?.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 })
