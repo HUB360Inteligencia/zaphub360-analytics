@@ -48,11 +48,12 @@ serve(async (req) => {
       );
     }
 
-    // Fetch campaign messages for analytics
+    // Fetch campaign messages for analytics (SEM limite de 1000)
     const { data: messages, error: messagesError } = await supabase
       .from('mensagens_enviadas')
       .select('*')
-      .eq('id_campanha', campaignId);
+      .eq('id_campanha', campaignId)
+      .range(0, 999999);  // 🔥 garante que puxa todos os contatos
 
     if (messagesError) {
       console.error('Error fetching messages:', messagesError);
