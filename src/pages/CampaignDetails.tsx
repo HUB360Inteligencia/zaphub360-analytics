@@ -50,20 +50,20 @@ const { data: counts, isLoading: countsLoading } = useQuery({
       .in('status', ['fila', 'pendente', 'processando']);
     if (eFila) throw eFila;
 
-    // enviado/enviada
+    // enviados (enviado + erro) - para cálculo da taxa de entrega e resposta
     const { count: enviados, error: eEnv } = await supabase
       .from('mensagens_enviadas')
       .select('id', { count: 'exact', head: true })
       .eq('id_campanha', id)
-      .in('status', ['enviado', 'enviada']);
+      .in('status', ['enviado', 'erro']);
     if (eEnv) throw eEnv;
 
-    // entregue (tem data_leitura)
+    // entregues (apenas status 'enviado', não inclui 'erro')
     const { count: entregues, error: eEnt } = await supabase
       .from('mensagens_enviadas')
       .select('id', { count: 'exact', head: true })
       .eq('id_campanha', id)
-      .not('data_leitura', 'is', null);
+      .eq('status', 'enviado');
     if (eEnt) throw eEnt;
 
     // respondido (tem data_resposta)
@@ -98,9 +98,13 @@ const analytics = counts
         (counts.total ?? 0) > 0
           ? (((counts.total ?? 0) - (counts.fila ?? 0)) / (counts.total ?? 0)) * 100
           : 0,
+      deliveryRate:
+        (counts.enviados ?? 0) > 0
+          ? ((counts.entregues ?? 0) / (counts.enviados ?? 0)) * 100
+          : 0,
       responseRate:
-        (counts.entregues ?? 0) > 0
-          ? ((counts.respondidos ?? 0) / (counts.entregues ?? 0)) * 100
+        (counts.enviados ?? 0) > 0
+          ? ((counts.respondidos ?? 0) / (counts.enviados ?? 0)) * 100
           : 0,
     }
   : null;
@@ -349,7 +353,7 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
                 <p className="text-2xl font-bold text-card-foreground">
-                  {analytics && analytics.totalMessages > 0 ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                  {analytics ? Math.round(analytics.deliveryRate) : 0}%
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-primary" />
