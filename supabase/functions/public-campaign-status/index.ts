@@ -48,9 +48,9 @@ serve(async (req) => {
       );
     }
 
-// === Analytics sem limite de 1000 (usa contagem no banco) ===
+// === Analytics sem limite de 1000 (usa contagem no banco, sem depender de coluna 'id') ===
 const countExact = async (qb: ReturnType<typeof supabase.from>) => {
-  const { count, error } = await qb.select('id', { count: 'exact', head: true });
+  const { count, error } = await qb.select('*', { count: 'exact', head: true }); // <- '*' evita erro de coluna inexistente
   if (error) throw error;
   return count ?? 0;
 };
