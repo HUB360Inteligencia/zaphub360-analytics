@@ -30,7 +30,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch campaign data (igual ao original)
+    // Fetch campaign data
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
@@ -48,62 +48,29 @@ serve(async (req) => {
       );
     }
 
-    // ===== Analytics sem limite de 1000 (contagem no banco, sem baixar linhas) =====
-    const countExact = async (query: any) => {
-      const { count, error } = await query.select('*', { count: 'exact', head: true });
-      if (error) throw error;
-      return count ?? 0;
-    };
+    // Fetch campaign messages for analytics
+    const { data: messages, error: messagesError } = await supabase
+      .from('mensagens_enviadas')
+      .select('*')
+      .eq('id_campanha', campaignId);
 
-    const [
-      totalMessages,
-      queuedMessages,
-      sentMessages,
-      deliveredMessages,
-      responseMessages,
-      errorMessages,
-    ] = await Promise.all([
-      countExact(
-        supabase.from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-      ),
-      countExact(
-        supabase.from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .in('status', ['fila', 'pendente', 'processando'])
-      ),
-      countExact(
-        supabase.from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .eq('status', 'enviado')
-      ),
-      countExact(
-        supabase.from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .not('data_leitura', 'is', null)
-      ),
-      countExact(
-        supabase.from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .not('data_resposta', 'is', null)
-      ),
-      countExact(
-        supabase.from('mensagens_enviadas')
-          .eq('id_campanha', campaignId)
-          .eq('status', 'erro')
-      ),
-    ]);
+    if (messagesError) {
+      console.error('Error fetching messages:', messagesError);
+    }
 
-    const analytics = {
-      totalMessages,
-      sentMessages,
-      deliveredMessages,
-      responseMessages,
-      errorMessages,
-      queuedMessages,
-      progressRate: totalMessages > 0 ? ((totalMessages - queuedMessages) / totalMessages) * 100 : 0,
-      responseRate: deliveredMessages > 0 ? (responseMessages / deliveredMessages) * 100 : 0,
-    };
+    // Calculate analytics
+    const analytics = messages ? {
+      totalMessages: messages.length,
+      sentMessages: messages.filter(m => m.status === 'enviado').length,
+      deliveredMessages: messages.filter(m => m.data_leitura).length,
+      responseMessages: messages.filter(m => m.data_resposta).length,
+      errorMessages: messages.filter(m => m.status === 'erro').length,
+      queuedMessages: messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
+      progressRate: messages.length > 0 ? 
+        ((messages.length - messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length) / messages.length) * 100 : 0,
+      responseRate: messages.filter(m => m.data_leitura).length > 0 ?
+        (messages.filter(m => m.data_resposta).length / messages.filter(m => m.data_leitura).length) * 100 : 0,
+    } : null;
 
     const responseData = {
       ...campaign,
@@ -118,10 +85,10 @@ serve(async (req) => {
       }
     );
 
-  } catch (error: any) {
-    console.error('Error in public-campaign-status function:', error?.message || error);
+  } catch (error) {
+    console.error('Error in public-campaign-status function:', error);
     return new Response(
-      JSON.stringify({ error: error?.message || 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
