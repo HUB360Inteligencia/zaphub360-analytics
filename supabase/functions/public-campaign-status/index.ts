@@ -82,16 +82,25 @@ serve(async (req) => {
     // Calculate analytics
     const analytics = messages ? {
       totalMessages: messages.length,
-      sentMessages: messages.filter(m => m.status === 'enviado').length,
-      deliveredMessages: messages.filter(m => m.data_leitura).length,
+      sentMessages: messages.filter(m => ['enviado', 'erro'].includes(m.status)).length, // enviado + erro
+      deliveredMessages: messages.filter(m => m.status === 'enviado').length, // apenas enviado
       responseMessages: messages.filter(m => m.data_resposta).length,
       errorMessages: messages.filter(m => m.status === 'erro').length,
       queuedMessages: messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
       progressRate: messages.length > 0 ? 
         ((messages.length - messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length) / messages.length) * 100 : 0,
-      responseRate: messages.filter(m => m.data_leitura).length > 0 ?
-        (messages.filter(m => m.data_resposta).length / messages.filter(m => m.data_leitura).length) * 100 : 0,
+      responseRate: messages.filter(m => ['enviado', 'erro'].includes(m.status)).length > 0 ?
+        (messages.filter(m => m.data_resposta).length / messages.filter(m => ['enviado', 'erro'].includes(m.status)).length) * 100 : 0,
     } : null;
+
+    // Debug logs
+    console.log('Public campaign analytics debug:', {
+      totalMessages: analytics?.totalMessages,
+      sentMessages: analytics?.sentMessages,
+      deliveredMessages: analytics?.deliveredMessages,
+      responseMessages: analytics?.responseMessages,
+      errorMessages: analytics?.errorMessages
+    });
 
     const responseData = {
       ...campaign,

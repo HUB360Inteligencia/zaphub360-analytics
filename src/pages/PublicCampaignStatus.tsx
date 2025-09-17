@@ -179,7 +179,7 @@ const PublicCampaignStatus = () => {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
                     <p className="text-2xl font-bold text-card-foreground">
-                      {analytics && analytics.totalMessages > 0 ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                      {analytics && analytics.sentMessages > 0 ? Math.round((analytics.deliveredMessages / analytics.sentMessages) * 100) : 0}%
                     </p>
                   </div>
                   <CheckCircle className="w-8 h-8 text-primary" />
