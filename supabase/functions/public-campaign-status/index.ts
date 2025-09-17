@@ -31,46 +31,42 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch campaign data
-    const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
-      .select('*')
-      .eq('id', campaignId)
-      .single();
+// ----------- POR ISSO -----------
+async function countMessages(filter: any) {
+  const { count, error } = await supabase
+    .from('mensagens_enviadas')
+    .select('id', { count: 'exact', head: true })
+    .eq('id_campanha', campaignId)
+    .match(filter); // aplica filtro
+  if (error) throw error;
+  return count ?? 0;
+}
 
-    if (campaignError || !campaign) {
-      console.error('Campaign not found:', campaignError);
-      return new Response(
-        JSON.stringify({ error: 'Campaign not found' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+const totalMessages   = await countMessages({});
+const sentMessages    = await countMessages({ status: 'enviado' });
+const errorMessages   = await countMessages({ status: 'erro' });
+const queuedMessages  = await countMessages({ status: 'fila' }); // ajuste se quiser incluir pendente/processando
+const deliveredMessages = await supabase
+  .from('mensagens_enviadas')
+  .select('id', { count: 'exact', head: true })
+  .eq('id_campanha', campaignId)
+  .not('data_leitura', 'is', null);
+const responseMessages = await supabase
+  .from('mensagens_enviadas')
+  .select('id', { count: 'exact', head: true })
+  .eq('id_campanha', campaignId)
+  .not('data_resposta', 'is', null);
 
-    // Fetch campaign messages for analytics
-    const { data: messages, error: messagesError } = await supabase
-      .from('mensagens_enviadas')
-      .select('*')
-      .eq('id_campanha', campaignId);
-
-    if (messagesError) {
-      console.error('Error fetching messages:', messagesError);
-    }
-
-    // Calculate analytics
-    const analytics = messages ? {
-      totalMessages: messages.length,
-      sentMessages: messages.filter(m => m.status === 'enviado').length,
-      deliveredMessages: messages.filter(m => m.data_leitura).length,
-      responseMessages: messages.filter(m => m.data_resposta).length,
-      errorMessages: messages.filter(m => m.status === 'erro').length,
-      queuedMessages: messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
-      progressRate: messages.length > 0 ? 
-        ((messages.length - messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length) / messages.length) * 100 : 0,
-      responseRate: messages.filter(m => m.data_leitura).length > 0 ?
-        (messages.filter(m => m.data_resposta).length / messages.filter(m => m.data_leitura).length) * 100 : 0,
-    } : null;
+const analytics = {
+  totalMessages,
+  sentMessages,
+  deliveredMessages: deliveredMessages.count ?? 0,
+  responseMessages: responseMessages.count ?? 0,
+  errorMessages,
+  queuedMessages,
+  progressRate: totalMessages > 0 ? ((totalMessages - queuedMessages) / totalMessages) * 100 : 0,
+  responseRate: (deliveredMessages.count ?? 0) > 0 ? ((responseMessages.count ?? 0) / (deliveredMessages.count ?? 0)) * 100 : 0,
+};
 
     const responseData = {
       ...campaign,
