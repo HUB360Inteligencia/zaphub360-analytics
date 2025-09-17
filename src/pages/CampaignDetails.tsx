@@ -50,12 +50,12 @@ const { data: counts, isLoading: countsLoading } = useQuery({
       .in('status', ['fila', 'pendente', 'processando']);
     if (eFila) throw eFila;
 
-    // enviado
+    // enviado/enviada
     const { count: enviados, error: eEnv } = await supabase
       .from('mensagens_enviadas')
       .select('id', { count: 'exact', head: true })
       .eq('id_campanha', id)
-      .eq('status', 'enviado');
+      .in('status', ['enviado', 'enviada']);
     if (eEnv) throw eEnv;
 
     // entregue (tem data_leitura)
@@ -305,7 +305,7 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
               <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4">
                 <div className="text-center">
                   <div className="text-lg font-bold text-blue-600">{analytics.queuedMessages}</div>
-                  <div className="text-xs text-muted-foreground">Fila</div>
+                  <div className="text-xs text-muted-foreground">Na Fila</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-orange-600">{analytics.sentMessages}</div>

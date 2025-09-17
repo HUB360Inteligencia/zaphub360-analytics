@@ -129,6 +129,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
               </CardTitle>
               <div className="flex gap-2">
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleSelectAll}
@@ -148,6 +149,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                 </Button>
                 {selectedContacts.length > 0 && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={clearSelection}

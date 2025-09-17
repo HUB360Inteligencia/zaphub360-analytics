@@ -135,7 +135,7 @@ const PublicCampaignStatus = () => {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <div className="text-2xl font-bold text-blue-600">{analytics.queuedMessages}</div>
-                    <div className="text-xs text-muted-foreground">Fila</div>
+                    <div className="text-xs text-muted-foreground">Na Fila</div>
                   </div>
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <div className="text-2xl font-bold text-orange-600">{analytics.sentMessages}</div>
@@ -224,7 +224,7 @@ const PublicCampaignStatus = () => {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center p-4 bg-muted rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">{analytics?.queuedMessages || 0}</div>
-                <div className="text-xs text-muted-foreground">Fila</div>
+                <div className="text-xs text-muted-foreground">Na Fila</div>
               </div>
               <div className="text-center p-4 bg-muted rounded-lg">
                 <div className="text-2xl font-bold text-orange-600">{analytics?.sentMessages || 0}</div>

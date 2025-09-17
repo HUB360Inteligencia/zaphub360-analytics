@@ -110,6 +110,7 @@ export const ContactSelector = ({ selectedContacts, onContactsChange }: ContactS
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={handleSelectAll}
@@ -118,6 +119,7 @@ export const ContactSelector = ({ selectedContacts, onContactsChange }: ContactS
             </Button>
             {selectedContacts.length > 0 && (
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={clearSelection}

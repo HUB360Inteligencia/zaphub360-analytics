@@ -206,16 +206,13 @@ export const useCampaigns = () => {
       targetContacts: any[];
       templateData?: any;
     }) => {
-      // Primeiro, atualizar status para "active"
+      console.log('Activating campaign with contacts:', targetContacts);
+
+      // Buscar dados da campanha
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
-        .update({ 
-          status: 'active',
-          started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .select('*')
         .eq('id', id)
-        .select()
         .single();
 
       if (campaignError) throw campaignError;
@@ -235,8 +232,43 @@ export const useCampaigns = () => {
 
       const activeInstanceIds = instances.map(i => i.id);
 
-      // Preparar mensagens para inserção na tabela mensagens_enviadas
-      const messages = targetContacts.map((contact, index) => {
+      // Buscar contatos que já têm mensagens na campanha (enviadas ou pendentes)
+      const { data: existingMessages, error: existingError } = await supabase
+        .from('mensagens_enviadas')
+        .select('celular')
+        .eq('id_campanha', id)
+        .in('status', ['enviado', 'enviada', 'fila', 'pendente', 'processando']);
+        
+      if (existingError) {
+        console.error('Erro ao buscar mensagens existentes:', existingError);
+      }
+      
+      const existingPhones = new Set(existingMessages?.map(m => m.celular) || []);
+      console.log(`Found ${existingPhones.size} contacts with existing messages`);
+      
+      // Filtrar contatos que ainda não têm mensagens
+      const contactsToAdd = targetContacts.filter(contact => 
+        !existingPhones.has(contact.phone || contact.celular)
+      );
+      console.log(`Will add ${contactsToAdd.length} new contacts (${targetContacts.length - contactsToAdd.length} ignored as duplicates)`);
+
+      if (contactsToAdd.length === 0) {
+        // Ainda ativar a campanha mesmo sem novos contatos
+        const { error: updateError } = await supabase
+          .from('campaigns')
+          .update({
+            status: 'active',
+            started_at: new Date().toISOString()
+          })
+          .eq('id', id);
+
+        if (updateError) throw updateError;
+        console.log('Campaign activated without new contacts');
+        return campaign;
+      }
+
+      // Preparar mensagens para inserção na tabela mensagens_enviadas (apenas contatos novos)
+      const messages = contactsToAdd.map((contact, index) => {
         // Verificar se a última instância do contato ainda está ativa
         let instanceId;
         if (contact.ultima_instancia && activeInstanceIds.includes(contact.ultima_instancia)) {
@@ -273,19 +305,33 @@ export const useCampaigns = () => {
         };
       });
 
-      // Inserir mensagens na tabela mensagens_enviadas
-      const { error: messagesError } = await supabase
-        .from('mensagens_enviadas')
-        .insert(messages);
-
-      if (messagesError) throw messagesError;
+      // Inserir mensagens na tabela mensagens_enviadas em lotes
+      const BATCH_SIZE = 100;
+      let insertedCount = 0;
+      
+      for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+        const batch = messages.slice(i, i + BATCH_SIZE);
+        const { error: batchError } = await supabase
+          .from('mensagens_enviadas')
+          .insert(batch);
+          
+        if (batchError) {
+          console.error(`Erro ao inserir lote ${i / BATCH_SIZE + 1}:`, batchError);
+          throw batchError;
+        }
+        
+        insertedCount += batch.length;
+      }
+      
+      console.log(`Successfully inserted ${insertedCount} messages`);
 
       // Atualizar métricas da campanha
       const { error: updateError } = await supabase
         .from('campaigns')
         .update({
-          total_mensagens: messages.length,
-          status: 'active'
+          total_mensagens: insertedCount,
+          status: 'active',
+          started_at: new Date().toISOString()
         })
         .eq('id', id);
 

@@ -251,32 +251,74 @@ export default function CampaignForm() {
         }
       }
 
-      // Se status é 'active', iniciar disparo imediatamente
+      // Se status é 'active', criar mensagens com deduplicação
       if (formData.status === 'active' && selectedContacts.length > 0) {
-        // Criar entradas na tabela mensagens_enviadas
-        const messagePromises = selectedContacts.map(async (contact) => {
-          // Usar ultima_instancia do contato ou instância aleatória das selecionadas
-          const instanceId = contact.ultima_instancia || selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
+        console.log(`Creating messages for ${selectedContacts.length} selected contacts...`);
+        
+        // Buscar contatos que já têm mensagens na campanha (enviadas ou pendentes)
+        const { data: existingMessages, error: existingError } = await supabase
+          .from('mensagens_enviadas')
+          .select('celular')
+          .eq('id_campanha', resultId)
+          .in('status', ['enviado', 'enviada', 'fila', 'pendente', 'processando']);
           
-          return supabase.from('mensagens_enviadas').insert({
-            id_campanha: resultId,
-            celular: contact.phone,
-            nome_contato: contact.name,
-            mensagem: formData.message_text,
-            instancia_id: instanceId,
-            organization_id: organization.id,
-            status: 'pendente',
-            tipo_fluxo: 'campanha',
-            id_tipo_mensagem: formData.id_tipo_mensagem,
-            url_media: mediaUrl || null,
-            name_media: mediaFilename || null,
-            mime_type: formData.mime_type || null,
-            media_type: formData.media_type || null,
-            caption_media: formData.message_text || null
-          });
-        });
-
-        await Promise.all(messagePromises);
+        if (existingError) {
+          console.error('Erro ao buscar mensagens existentes:', existingError);
+        }
+        
+        const existingPhones = new Set(existingMessages?.map(m => m.celular) || []);
+        console.log(`Found ${existingPhones.size} contacts with existing messages`);
+        
+        // Filtrar contatos que ainda não têm mensagens
+        const contactsToAdd = selectedContacts.filter(contact => !existingPhones.has(contact.phone));
+        console.log(`Will add ${contactsToAdd.length} new contacts (${selectedContacts.length - contactsToAdd.length} ignored as duplicates)`);
+        
+        if (contactsToAdd.length > 0) {
+          // Criar mensagens em lotes para evitar problemas de performance
+          const BATCH_SIZE = 100;
+          let insertedCount = 0;
+          
+          for (let i = 0; i < contactsToAdd.length; i += BATCH_SIZE) {
+            const batch = contactsToAdd.slice(i, i + BATCH_SIZE);
+            const messages = batch.map((contact) => {
+              const instanceId = contact.ultima_instancia || selectedInstances[Math.floor(Math.random() * selectedInstances.length)];
+              const minDelay = formData.intervalo_minimo || 30;
+              const maxDelay = formData.intervalo_maximo || 60;
+              const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+              
+              return {
+                id_campanha: resultId,
+                celular: contact.phone,
+                nome_contato: contact.name,
+                mensagem: formData.message_text,
+                instancia_id: instanceId,
+                organization_id: organization.id,
+                status: 'pendente',
+                tipo_fluxo: 'campanha',
+                id_tipo_mensagem: formData.id_tipo_mensagem,
+                url_media: mediaUrl || null,
+                name_media: mediaFilename || null,
+                mime_type: formData.mime_type || null,
+                media_type: formData.media_type || null,
+                caption_media: formData.message_text || null,
+                'tempo delay': randomDelay
+              };
+            });
+            
+            const { error: insertError } = await supabase
+              .from('mensagens_enviadas')
+              .insert(messages);
+              
+            if (insertError) {
+              console.error(`Erro ao inserir lote ${i / BATCH_SIZE + 1}:`, insertError);
+              throw insertError;
+            }
+            
+            insertedCount += messages.length;
+          }
+          
+          console.log(`Successfully inserted ${insertedCount} messages`);
+        }
       }
 
       toast.success(isEditMode ? "Campanha atualizada com sucesso!" : "Campanha criada com sucesso!");
