@@ -48,15 +48,36 @@ serve(async (req) => {
       );
     }
 
-    // Fetch campaign messages for analytics
-    const { data: messages, error: messagesError } = await supabase
-      .from('mensagens_enviadas')
-      .select('*')
-      .eq('id_campanha', campaignId);
+    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    // Fetch campaign messages for analytics (paginação p/ passar de 1000)
+    const pageSize = 1000;
+    let from = 0;
+    let to = pageSize - 1;
+    let allMessages: any[] = [];
 
-    if (messagesError) {
-      console.error('Error fetching messages:', messagesError);
+    while (true) {
+      const { data: page, error: messagesError } = await supabase
+        .from('mensagens_enviadas')
+        .select('*')
+        .eq('id_campanha', campaignId)
+        .range(from, to); // cada chamada traz até 1000
+
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
+        break; // ou: throw messagesError;
+      }
+
+      if (!page || page.length === 0) break;
+
+      allMessages = allMessages.concat(page);
+
+      if (page.length < pageSize) break; // última página
+      from += pageSize;
+      to += pageSize;
     }
+
+    const messages = allMessages;
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     // Calculate analytics
     const analytics = messages ? {
