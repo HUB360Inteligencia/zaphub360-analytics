@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,9 +8,9 @@ export interface Contact {
   id: string;
   name: string;
   phone: string;
-  email?: string | null;
-  company?: string | null;
-  notes?: string | null;
+  email?: string;
+  company?: string;
+  notes?: string;
   status: 'active' | 'inactive';
   organization_id: string;
   created_at: string;
@@ -27,10 +26,10 @@ export interface Contact {
   status_envio?: string;
   ultima_instancia?: string;
   id_tipo_mensagem?: number;
-  media_url?: string | null;
-  media_name?: string | null;
-  media_type?: string | null;
-  mime_type?: string | null;
+  media_url?: string;
+  media_name?: string;
+  media_type?: string;
+  mime_type?: string;
 }
 
 export interface Tag {
@@ -40,58 +39,51 @@ export interface Tag {
   organization_id: string;
 }
 
-const PAGE_SIZE = 1000; // pode reduzir p/ 200/500 se quiser
-
 export const useContacts = () => {
   const { organization } = useAuth();
   const queryClient = useQueryClient();
 
-  // -------- TOTAL (real, sem baixar linhas) --------
-  const totalCountQuery = useQuery({
-    queryKey: ['contacts-total', organization?.id],
-    enabled: !!organization?.id,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('new_contact_event')
-        .select('id_contact_event', { count: 'exact', head: true })
-        .eq('organization_id', organization!.id);
-
-      if (error) throw error;
-      return count ?? 0;
-    },
-  });
-
-  // -------- LISTA PAGINADA (só a página atual) --------
-  const [page, setPage] = useState(0);
-
   const contactsQuery = useQuery({
-    queryKey: ['contacts', organization?.id, page],
-    enabled: !!organization?.id,
+    queryKey: ['contacts', organization?.id],
     queryFn: async () => {
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+      if (!organization?.id) return [];
+      
+      // Paginar em blocos de 1000 devido ao limite do PostgREST
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
+      let allData: any[] = [];
 
-      const { data, error } = await supabase
-        .from('new_contact_event')
-        .select('*')
-        .eq('organization_id', organization!.id)
-        .order('created_at', { ascending: false })
-        .range(from, to); // 0–999, 1000–1999, ...
+      while (true) {
+        const { data, error } = await supabase
+          .from('new_contact_event')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .order('created_at', { ascending: false })
+          .range(from, to);
 
-      if (error) throw error;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
 
-      const mapped = (data ?? []).map((contact) => ({
-        id: contact.id_contact_event?.toString(),
+        allData = allData.concat(data);
+        if (data.length < pageSize) break;
+
+        from += pageSize;
+        to += pageSize;
+      }
+
+      return allData.map(contact => ({
+        id: contact.id_contact_event.toString(),
         name: contact.name || 'Sem nome',
         phone: contact.celular,
         email: null,
         company: null,
         notes: contact.evento ? `Evento: ${contact.evento}` : null,
-        status: 'active' as const, // ajuste se quiser usar realmente ativo/inativo
+        status: (contact.status_envio === 'enviado' ? 'active' : 'active') as 'active' | 'inactive',
         organization_id: contact.organization_id,
         created_at: contact.created_at,
         updated_at: contact.updated_at || contact.created_at,
-        tags: [],
+        tags: [], // TODO: implementar tags para new_contact_event
         evento: contact.evento,
         sentimento: contact.sentimento,
         sobrenome: contact.sobrenome,
@@ -100,36 +92,24 @@ export const useContacts = () => {
         responsavel_cadastro: contact.responsavel_cadastro,
         status_envio: contact.status_envio,
         ultima_instancia: contact.ultima_instancia,
-        media_url: contact.media_url,
-        media_name: contact.media_name,
-        media_type: contact.media_type,
-        mime_type: contact.mime_type,
-      })) as Contact[];
-
-      return mapped;
+      }));
     },
+    enabled: !!organization?.id,
   });
 
-  // utilidade para recarregar após trocar org
-  useEffect(() => {
-    setPage(0);
-  }, [organization?.id]);
-
-  // -------- MUTATIONS (mantidas) --------
   const createContact = useMutation({
-    mutationFn: async (
-      contactData: Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'tags'> & { mediaFile?: File }
-    ) => {
-      let mediaUrl: string | null = null;
-      let mediaName: string | null = null;
-      let mediaType: string | null = null;
-      let mimeType: string | null = null;
+    mutationFn: async (contactData: Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'tags'> & { mediaFile?: File }) => {
+      let mediaUrl = null;
+      let mediaName = null;
+      let mediaType = null;
+      let mimeType = null;
 
+      // Upload media se fornecido
       if (contactData.mediaFile) {
         const fileExt = contactData.mediaFile.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('message-content-media')
           .upload(fileName, contactData.mediaFile);
 
@@ -141,14 +121,12 @@ export const useContacts = () => {
 
         mediaUrl = publicUrl;
         mediaName = contactData.mediaFile.name;
-        mediaType = contactData.mediaFile.type.startsWith('image/')
-          ? 'image'
-          : contactData.mediaFile.type.startsWith('video/')
-          ? 'video'
-          : 'document';
+        mediaType = contactData.mediaFile.type.startsWith('image/') ? 'image' : 
+                   contactData.mediaFile.type.startsWith('video/') ? 'video' : 'document';
         mimeType = contactData.mediaFile.type;
       }
 
+      // Primeiro verificar se já existe um contato com o mesmo telefone
       const { data: existingContact, error: checkError } = await supabase
         .from('new_contact_event')
         .select('*')
@@ -158,9 +136,13 @@ export const useContacts = () => {
 
       if (checkError) throw checkError;
 
+      // Se contato já existe, atualizar com informações complementares
       if (existingContact) {
-        const updateData: any = { updated_at: new Date().toISOString() };
+        const updateData: any = {
+          updated_at: new Date().toISOString()
+        };
 
+        // Atualizar apenas campos que estão vazios ou menos completos
         if (contactData.name && (!existingContact.name || existingContact.name.length < contactData.name.length)) {
           updateData.name = contactData.name;
         }
@@ -174,6 +156,7 @@ export const useContacts = () => {
           updateData.bairro = contactData.bairro;
         }
         if (contactData.evento && contactData.evento !== 'Contato Manual') {
+          // Agrupar eventos se já existe um evento diferente
           const existingEvents = existingContact.evento ? existingContact.evento.split(', ') : [];
           if (!existingEvents.includes(contactData.evento)) {
             updateData.evento = [...existingEvents, contactData.evento].join(', ');
@@ -196,6 +179,7 @@ export const useContacts = () => {
         if (error) throw error;
         return data;
       } else {
+        // Criar novo contato se não existir
         const { data, error } = await supabase
           .from('new_contact_event')
           .insert({
@@ -223,7 +207,6 @@ export const useContacts = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['contacts-total'] });
       toast.success('Contato salvo com sucesso!');
     },
     onError: (error) => {
@@ -273,7 +256,6 @@ export const useContacts = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['contacts-total'] });
       toast.success('Contato excluído com sucesso!');
     },
     onError: (error) => {
@@ -282,27 +264,13 @@ export const useContacts = () => {
     },
   });
 
-  // API pública do hook
   return {
-    // lista da página atual
     contacts: contactsQuery.data || [],
-    isLoading: contactsQuery.isLoading || totalCountQuery.isLoading,
-    error: contactsQuery.error || totalCountQuery.error,
-
-    // total real (mostre esse no dashboard!)
-    totalCount: totalCountQuery.data ?? 0,
-
-    // paginação
-    page,
-    setPage,
-    PAGE_SIZE,
-
-    // mutations
+    isLoading: contactsQuery.isLoading,
+    error: contactsQuery.error,
     createContact,
     updateContact,
     deleteContact,
-
-    // util
     refetch: contactsQuery.refetch,
   };
 };
