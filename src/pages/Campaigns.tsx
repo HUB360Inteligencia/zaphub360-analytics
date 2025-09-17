@@ -231,7 +231,7 @@ const Campaigns = () => {
                   <TableHead>Campanha</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Progresso</TableHead>
-                  <TableHead>Taxa de Leitura</TableHead>
+                  <TableHead>Taxa de Resposta</TableHead>
                   <TableHead>Horário de Envio</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
@@ -240,8 +240,8 @@ const Campaigns = () => {
                 {filteredCampaigns.map((campaign) => {
                   const total = campaign.total_mensagens || 0;
                   const sent = campaign.mensagens_enviadas || 0;
-                  const read = campaign.mensagens_lidas || 0;
-                  const readRate = sent > 0 ? (read / sent) * 100 : 0;
+                  const responded = campaign.mensagens_respondidas || 0;
+                  const responseRate = sent > 0 ? (responded / sent) * 100 : 0;
                   const progressRate = total > 0 ? (sent / total) * 100 : 0;
 
                   return (
@@ -273,14 +273,14 @@ const Campaigns = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div className="font-medium">{readRate.toFixed(1)}%</div>
-                          <div className="text-slate-500">
-                            {read}/{sent}
-                          </div>
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="text-sm">
+                           <div className="font-medium">{responseRate.toFixed(1)}%</div>
+                           <div className="text-slate-500">
+                             {responded}/{sent}
+                           </div>
+                         </div>
+                       </TableCell>
                       <TableCell className="text-sm">
                         <div>
                           {campaign.horario_disparo_inicio} - {campaign.horario_disparo_fim}

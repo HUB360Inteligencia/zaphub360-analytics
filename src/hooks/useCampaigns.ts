@@ -61,24 +61,40 @@ export const useCampaigns = () => {
         throw error;
       }
       
-      // Validar e sanitizar dados com novos campos
-      const validCampaigns = (data || []).map(campaign => ({
-        ...campaign,
-        intervalo_minimo: campaign.intervalo_minimo || 30,
-        intervalo_maximo: campaign.intervalo_maximo || 60,
-        horario_disparo_inicio: campaign.horario_disparo_inicio || '09:00:00',
-        horario_disparo_fim: campaign.horario_disparo_fim || '20:00:00',
-        tipo_conteudo: campaign.tipo_conteudo || ['texto'],
-        total_mensagens: campaign.total_mensagens || 0,
-        mensagens_enviadas: campaign.mensagens_enviadas || 0,
-        mensagens_lidas: campaign.mensagens_lidas || 0,
-        mensagens_respondidas: campaign.mensagens_respondidas || 0,
-        target_contacts: campaign.target_contacts || { contacts: [] },
-        status: campaign.status || 'draft',
-        id_tipo_mensagem: campaign.id_tipo_mensagem || 1
+      // Buscar métricas reais das mensagens para cada campanha
+      const campaignsWithMetrics = await Promise.all((data || []).map(async (campaign) => {
+        // Buscar estatísticas reais da tabela mensagens_enviadas
+        const { data: messages, error: messagesError } = await supabase
+          .from('mensagens_enviadas')
+          .select('status, data_resposta')
+          .eq('id_campanha', campaign.id);
+          
+        if (messagesError) {
+          console.error('Error fetching campaign messages:', messagesError);
+        }
+        
+        const totalMessages = messages?.length || 0;
+        const sentMessages = messages?.filter(m => m.status === 'enviado' || m.status === 'enviada' || m.status === 'erro').length || 0;
+        const respondedMessages = messages?.filter(m => m.data_resposta !== null).length || 0;
+        
+        return {
+          ...campaign,
+          intervalo_minimo: campaign.intervalo_minimo || 30,
+          intervalo_maximo: campaign.intervalo_maximo || 60,
+          horario_disparo_inicio: campaign.horario_disparo_inicio || '09:00:00',
+          horario_disparo_fim: campaign.horario_disparo_fim || '20:00:00',
+          tipo_conteudo: campaign.tipo_conteudo || ['texto'],
+          total_mensagens: totalMessages,
+          mensagens_enviadas: sentMessages,
+          mensagens_lidas: campaign.mensagens_lidas || 0,
+          mensagens_respondidas: respondedMessages,
+          target_contacts: campaign.target_contacts || { contacts: [] },
+          status: campaign.status || 'draft',
+          id_tipo_mensagem: campaign.id_tipo_mensagem || 1
+        };
       }));
       
-      return validCampaigns;
+      return campaignsWithMetrics;
     },
     enabled: !!organization?.id,
     retry: 3,
