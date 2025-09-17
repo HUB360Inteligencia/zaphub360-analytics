@@ -30,36 +30,102 @@ const CampaignDetails = () => {
   
   const campaign = campaigns?.find(c => c.id === id);
 
-  // Fetch campaign messages and analytics
-  const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
-    queryKey: ['campaign-messages', id],
-    queryFn: async () => {
-      if (!id) return [];
-      const { data, error } = await supabase
-        .from('mensagens_enviadas')
-        .select('*')
-        .eq('id_campanha', id)
-        .order('data_envio', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
+// ---- CONTADORES (não sofrem o limite de 1000) ----
+const { data: counts, isLoading: countsLoading } = useQuery({
+  queryKey: ['campaign-counts', id],
+  enabled: !!id,
+  queryFn: async () => {
+    // total de mensagens da campanha
+    const { count: total, error: eTotal } = await supabase
+      .from('mensagens_enviadas')
+      .select('id', { count: 'exact', head: true })
+      .eq('id_campanha', id);
+    if (eTotal) throw eTotal;
 
-  // Campaign analytics
-  const analytics = campaignMessages ? {
-    totalMessages: campaignMessages.length,
-    sentMessages: campaignMessages.filter(m => m.status === 'enviado').length,
-    deliveredMessages: campaignMessages.filter(m => m.data_leitura).length,
-    responseMessages: campaignMessages.filter(m => m.data_resposta).length,
-    errorMessages: campaignMessages.filter(m => m.status === 'erro').length,
-    queuedMessages: campaignMessages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
-    progressRate: campaignMessages.length > 0 ? 
-      ((campaignMessages.length - campaignMessages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length) / campaignMessages.length) * 100 : 0,
-    responseRate: campaignMessages.filter(m => m.data_leitura).length > 0 ?
-      (campaignMessages.filter(m => m.data_resposta).length / campaignMessages.filter(m => m.data_leitura).length) * 100 : 0,
-  } : null;
+    // fila/pendente/processando
+    const { count: fila, error: eFila } = await supabase
+      .from('mensagens_enviadas')
+      .select('id', { count: 'exact', head: true })
+      .eq('id_campanha', id)
+      .in('status', ['fila', 'pendente', 'processando']);
+    if (eFila) throw eFila;
+
+    // enviado
+    const { count: enviados, error: eEnv } = await supabase
+      .from('mensagens_enviadas')
+      .select('id', { count: 'exact', head: true })
+      .eq('id_campanha', id)
+      .eq('status', 'enviado');
+    if (eEnv) throw eEnv;
+
+    // entregue (tem data_leitura)
+    const { count: entregues, error: eEnt } = await supabase
+      .from('mensagens_enviadas')
+      .select('id', { count: 'exact', head: true })
+      .eq('id_campanha', id)
+      .not('data_leitura', 'is', null);
+    if (eEnt) throw eEnt;
+
+    // respondido (tem data_resposta)
+    const { count: respondidos, error: eResp } = await supabase
+      .from('mensagens_enviadas')
+      .select('id', { count: 'exact', head: true })
+      .eq('id_campanha', id)
+      .not('data_resposta', 'is', null);
+    if (eResp) throw eResp;
+
+    // erro
+    const { count: erros, error: eErr } = await supabase
+      .from('mensagens_enviadas')
+      .select('id', { count: 'exact', head: true })
+      .eq('id_campanha', id)
+      .eq('status', 'erro');
+    if (eErr) throw eErr;
+
+    return { total, fila, enviados, entregues, respondidos, erros };
+  },
+});
+// métricas derivaas
+const analytics = counts
+  ? {
+      totalMessages: counts.total ?? 0,
+      queuedMessages: counts.fila ?? 0,
+      sentMessages: counts.enviados ?? 0,
+      deliveredMessages: counts.entregues ?? 0,
+      responseMessages: counts.respondidos ?? 0,
+      errorMessages: counts.erros ?? 0,
+      progressRate:
+        (counts.total ?? 0) > 0
+          ? (((counts.total ?? 0) - (counts.fila ?? 0)) / (counts.total ?? 0)) * 100
+          : 0,
+      responseRate:
+        (counts.entregues ?? 0) > 0
+          ? ((counts.respondidos ?? 0) / (counts.entregues ?? 0)) * 100
+          : 0,
+    }
+  : null;
+
+// ---- LISTA paginada só para a aba "Contatos" (opcional) ----
+const [page, setPage] = useState(0);
+const PAGE_SIZE = 200;
+
+const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
+  queryKey: ['campaign-messages', id, page],
+  enabled: !!id,
+  queryFn: async () => {
+    if (!id) return [];
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from('mensagens_enviadas')
+      .select('*')
+      .eq('id_campanha', id)
+      .order('data_envio', { ascending: false })
+      .range(from, to); // evita o corte dos 1000
+    if (error) throw error;
+    return data ?? [];
+  },
+});
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -117,7 +183,7 @@ const CampaignDetails = () => {
     }
   };
 
-  if (isLoading || messagesLoading) {
+  if (isLoading || messagesLoading || countsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
