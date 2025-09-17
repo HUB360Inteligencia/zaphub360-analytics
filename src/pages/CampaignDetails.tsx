@@ -30,49 +30,53 @@ const CampaignDetails = () => {
   
   const campaign = campaigns?.find(c => c.id === id);
 
-  // Fetch campaign messages and analytics
-  const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
+  // Fetch campaign messages and analytics (garante array vazio para evitar erro de filter)
+  const { data: campaignMessages = [], isLoading: messagesLoading } = useQuery({
     queryKey: ['campaign-messages', id],
-    queryFn: async () => {
+    queryFn: async (): Promise<any[]> => {
       if (!id) return [];
       const { data, error } = await supabase
         .from('mensagens_enviadas')
         .select('*')
         .eq('id_campanha', id)
         .order('data_envio', { ascending: false });
-      
       if (error) throw error;
-      return data;
+      return (data ?? []) as any[];
     },
     enabled: !!id,
+    initialData: [] as any[],
   });
 
-// Campaign analytics - ajustado conforme regras
-const counts = {
-  sent: campaignMessages.filter(m => m.status === 'enviado').length,
-  error: campaignMessages.filter(m => m.status === 'erro').length,
-  responded: campaignMessages.filter(m => m.data_resposta).length,
-  queued: campaignMessages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
-};
+  // Campaign analytics - Regras solicitadas
+  // - "Enviados" = enviados + erro
+  // - "Entregues" = registros com status 'enviado'
+  // - "Taxa de Entrega" = entregues / (enviados + erro)
+  // - "Taxa de Resposta" = respostas / (enviados + erro)
+  const counts = {
+    sent: campaignMessages.filter(m => m.status === 'enviado').length,
+    error: campaignMessages.filter(m => m.status === 'erro').length,
+    responded: campaignMessages.filter(m => m.data_resposta).length,
+    queued: campaignMessages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
+  };
 
-const sentAttempts = counts.sent + counts.error;   // enviados + erro
-const delivered = counts.sent;                     // entregues = 'enviado'
-const deliveryRate = sentAttempts > 0 ? (delivered / sentAttempts) * 100 : 0;
-const responseRate = sentAttempts > 0 ? (counts.responded / sentAttempts) * 100 : 0;
+  const sentAttempts = counts.sent + counts.error;           // enviados + erro
+  const delivered = counts.sent;                             // entregues = 'enviado'
+  const deliveryRate = sentAttempts > 0 ? (delivered / sentAttempts) * 100 : 0;
+  const responseRate = sentAttempts > 0 ? (counts.responded / sentAttempts) * 100 : 0;
 
-const analytics = {
-  totalMessages: campaignMessages.length,
-  enviados: sentAttempts,
-  entregues: delivered,
-  responseMessages: counts.responded,
-  errorMessages: counts.error,
-  queuedMessages: counts.queued,
-  progressRate: campaignMessages.length > 0
-    ? ((campaignMessages.length - counts.queued) / campaignMessages.length) * 100
-    : 0,
-  deliveryRate,
-  responseRate,
-};
+  const analytics = {
+    totalMessages: campaignMessages.length,
+    enviados: sentAttempts,
+    entregues: delivered,
+    responseMessages: counts.responded,
+    errorMessages: counts.error,
+    queuedMessages: counts.queued,
+    progressRate: campaignMessages.length > 0
+      ? ((campaignMessages.length - counts.queued) / campaignMessages.length) * 100
+      : 0,
+    deliveryRate,
+    responseRate,
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -255,11 +259,11 @@ const analytics = {
                   <div className="text-xs text-muted-foreground">Fila</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-orange-600">{analytics.sentMessages}</div>
+                  <div className="text-lg font-bold text-orange-600">{analytics.enviados}</div>
                   <div className="text-xs text-muted-foreground">Enviados</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">{analytics.deliveredMessages}</div>
+                  <div className="text-lg font-bold text-green-600">{analytics.entregues}</div>
                   <div className="text-xs text-muted-foreground">Entregue</div>
                 </div>
                 <div className="text-center">
@@ -296,7 +300,7 @@ const analytics = {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Taxa de Entrega</p>
                 <p className="text-2xl font-bold text-card-foreground">
-                  {analytics && analytics.totalMessages > 0 ? Math.round((analytics.deliveredMessages / analytics.totalMessages) * 100) : 0}%
+                  {Math.round(analytics.deliveryRate)}%
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-primary" />
@@ -310,7 +314,7 @@ const analytics = {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Taxa de Resposta</p>
                 <p className="text-2xl font-bold text-card-foreground">
-                  {analytics ? Math.round(analytics.responseRate) : 0}%
+                  {Math.round(analytics.responseRate)}%
                 </p>
               </div>
               <MessageSquare className="w-8 h-8 text-primary" />
@@ -357,11 +361,11 @@ const analytics = {
                     <div className="text-sm text-muted-foreground">Fila</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{analytics.sentMessages}</div>
+                    <div className="text-2xl font-bold text-orange-600">{analytics.enviados}</div>
                     <div className="text-sm text-muted-foreground">Enviados</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{analytics.deliveredMessages}</div>
+                    <div className="text-2xl font-bold text-green-600">{analytics.entregues}</div>
                     <div className="text-sm text-muted-foreground">Entregues</div>
                   </div>
                   <div className="text-center">
