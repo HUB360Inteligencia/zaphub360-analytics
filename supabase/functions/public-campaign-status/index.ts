@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignId } = await req.json();
+    const { campaignId, selectedDate } = await req.json();
     
     if (!campaignId) {
       return new Response(
@@ -100,7 +100,19 @@ serve(async (req) => {
       hourlyData.set(hour, { enviados: 0, respondidos: 0 });
     }
 
-    messages?.forEach(message => {
+    // Filter messages by selected date if provided
+    const filteredMessages = messages?.filter(message => {
+      if (!selectedDate || !message.data_envio) return true;
+      
+      const messageDate = new Date(message.data_envio);
+      const filterDate = new Date(selectedDate);
+      
+      return messageDate.getFullYear() === filterDate.getFullYear() &&
+             messageDate.getMonth() === filterDate.getMonth() &&
+             messageDate.getDate() === filterDate.getDate();
+    }) || [];
+
+    filteredMessages.forEach(message => {
       if (!message.data_envio) return;
       
       const hour = new Date(message.data_envio).getHours();

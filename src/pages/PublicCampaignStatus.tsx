@@ -25,12 +25,15 @@ const PublicCampaignStatus = () => {
   
   // Use the public edge function for campaign data with real-time updates
   const { data: campaignData, isLoading } = useQuery({
-    queryKey: ['public-campaign-status', campaignId],
+    queryKey: ['public-campaign-status', campaignId, selectedDate],
     queryFn: async () => {
       if (!campaignId) return null;
       
       const { data, error } = await supabase.functions.invoke('public-campaign-status', {
-        body: { campaignId }
+        body: { 
+          campaignId,
+          selectedDate: selectedDate ? selectedDate.toISOString() : undefined
+        }
       });
       
       if (error) throw error;
