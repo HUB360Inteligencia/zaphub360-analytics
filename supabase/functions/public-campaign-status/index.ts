@@ -97,37 +97,49 @@ serve(async (req) => {
     const hourlyData = new Map();
     for (let i = 0; i < 24; i++) {
       const hour = `${i.toString().padStart(2, '0')}:00`;
-      hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
+      hourlyData.set(hour, { enviados: 0, entregues: 0, respondidos: 0, erros: 0 });
     }
 
     messages?.forEach(message => {
-      if (message.data_envio) {
+      // Enviados: status 'enviado' ou 'erro'
+      if (['enviado', 'erro'].includes(message.status) && message.data_envio) {
         const hour = new Date(message.data_envio).getHours();
         const key = `${hour.toString().padStart(2, '0')}:00`;
         const data = hourlyData.get(key);
-        if (data) data.envio++;
+        if (data) data.enviados++;
       }
       
-      if (message.data_leitura) {
-        const hour = new Date(message.data_leitura).getHours();
+      // Entregues: apenas status 'enviado'
+      if (message.status === 'enviado' && message.data_envio) {
+        const hour = new Date(message.data_envio).getHours();
         const key = `${hour.toString().padStart(2, '0')}:00`;
         const data = hourlyData.get(key);
-        if (data) data.leitura++;
+        if (data) data.entregues++;
       }
       
+      // Respondidos: tem data_resposta
       if (message.data_resposta) {
         const hour = new Date(message.data_resposta).getHours();
         const key = `${hour.toString().padStart(2, '0')}:00`;
         const data = hourlyData.get(key);
-        if (data) data.resposta++;
+        if (data) data.respondidos++;
+      }
+      
+      // Erros: status 'erro'
+      if (message.status === 'erro' && message.data_envio) {
+        const hour = new Date(message.data_envio).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.erros++;
       }
     });
 
     const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
       hour,
-      envio: data.envio,
-      leitura: data.leitura,
-      resposta: data.resposta
+      enviados: data.enviados,
+      entregues: data.entregues,
+      respondidos: data.respondidos,
+      erros: data.erros
     })).sort((a, b) => a.hour.localeCompare(b.hour));
 
     // Calculate sentiment analysis

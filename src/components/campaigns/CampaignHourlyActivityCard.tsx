@@ -12,9 +12,10 @@ import { cn } from '@/lib/utils';
 interface CampaignHourlyActivityCardProps {
   hourlyActivity: Array<{
     hour: string;
-    envio: number;
-    leitura: number;
-    resposta: number;
+    enviados: number;
+    entregues: number;
+    respondidos: number;
+    erros: number;
   }>;
   selectedDate: Date | undefined;
   onDateChange: (date: Date | undefined) => void;
@@ -27,7 +28,7 @@ const CampaignHourlyActivityCard = ({
 }: CampaignHourlyActivityCardProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const hasData = hourlyActivity.some(item => item.envio > 0 || item.leitura > 0 || item.resposta > 0);
+  const hasData = hourlyActivity.some(item => item.enviados > 0 || item.entregues > 0 || item.respondidos > 0 || item.erros > 0);
 
   return (
     <Card className="glass-card glass-card-dark border-white/20 shadow-2xl">
@@ -39,7 +40,7 @@ const CampaignHourlyActivityCard = ({
               Atividade por Horário
             </CardTitle>
             <CardDescription className="text-foreground/70">
-              Distribuição de envios, leituras e respostas ao longo do dia
+              Distribuição de enviados, entregues, respondidos e erros ao longo do dia
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -135,24 +136,31 @@ const CampaignHourlyActivityCard = ({
                  iconType="circle"
                />
               <Bar 
-                dataKey="envio" 
+                dataKey="enviados" 
                 stackId="a"
-                name="Envios" 
-                fill="#3B82F6"
+                name="Enviados" 
+                fill="#F59E0B"
                 radius={[0, 0, 0, 0]}
               />
               <Bar 
-                dataKey="leitura" 
+                dataKey="entregues" 
                 stackId="a"
-                name="Leituras" 
+                name="Entregues" 
                 fill="#10B981"
                 radius={[0, 0, 0, 0]}
               />
               <Bar 
-                dataKey="resposta" 
+                dataKey="respondidos" 
                 stackId="a"
-                name="Respostas" 
+                name="Respondidos" 
                 fill="#8B5CF6"
+                radius={[0, 0, 0, 0]}
+              />
+              <Bar 
+                dataKey="erros" 
+                stackId="a"
+                name="Erros" 
+                fill="#EF4444"
                 radius={[2, 2, 0, 0]}
               />
             </BarChart>
