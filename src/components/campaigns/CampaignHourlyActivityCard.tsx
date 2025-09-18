@@ -133,10 +133,10 @@ const CampaignHourlyActivityCard = ({
                  wrapperStyle={{ color: 'hsl(var(--foreground))' }}
                  iconType="circle"
                />
-               <Bar 
+              <Bar 
                 dataKey="enviados" 
                 name="Enviados" 
-                fill="#6B7280"
+                fill="#FF6B35"
                 radius={[2, 2, 0, 0]}
               />
               <Bar 
