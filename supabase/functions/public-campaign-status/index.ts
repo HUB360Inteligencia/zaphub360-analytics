@@ -63,10 +63,9 @@ serve(async (req) => {
 
       // Apply date filter at database level if selectedDate is provided
       if (selectedDate) {
-        const filterDate = new Date(selectedDate);
-        const startOfDay = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
-        const endOfDay = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate() + 1);
-        
+        // Use the exact local midnight sent by the client (e.g., 03:00Z for BRT)
+        const startOfDay = new Date(selectedDate);
+        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
         query = query
           .gte('data_envio', startOfDay.toISOString())
           .lt('data_envio', endOfDay.toISOString());
@@ -117,7 +116,9 @@ serve(async (req) => {
     messages?.forEach(message => {
       if (!message.data_envio) return;
       
-      const hour = new Date(message.data_envio).getHours();
+      // Convert hour to America/Sao_Paulo timezone to match campaigns page
+      const hourStr = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' }).format(new Date(message.data_envio));
+      const hour = Number(hourStr);
       const key = `${hour.toString().padStart(2, '0')}:00`;
       const data = hourlyData.get(key);
       if (!data) return;
