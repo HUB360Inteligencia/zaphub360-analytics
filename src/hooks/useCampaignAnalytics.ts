@@ -8,9 +8,7 @@ export interface CampaignAnalytics {
   hourlyActivity: Array<{
     hour: string;
     enviados: number;
-    entregues: number;
     respondidos: number;
-    erros: number;
   }>;
   sentimentAnalysis: {
     superEngajado: number;
@@ -96,7 +94,7 @@ export const useCampaignAnalytics = (campaignId?: string, selectedDate?: Date) =
       const hourlyData = new Map();
       for (let i = 0; i < 24; i++) {
         const hour = `${i.toString().padStart(2, '0')}:00`;
-        hourlyData.set(hour, { enviados: 0, entregues: 0, respondidos: 0, erros: 0 });
+        hourlyData.set(hour, { enviados: 0, respondidos: 0 });
       }
 
       // Process hourly activity
@@ -113,28 +111,16 @@ export const useCampaignAnalytics = (campaignId?: string, selectedDate?: Date) =
           data.enviados++;
         }
         
-        // Entregues: apenas status 'enviado'
-        if (message.status === 'enviado') {
-          data.entregues++;
-        }
-        
         // Respondidos: mensagens que têm data_resposta (baseado no horário de envio)
         if (message.data_resposta) {
           data.respondidos++;
-        }
-        
-        // Erros: status 'erro'
-        if (message.status === 'erro') {
-          data.erros++;
         }
       });
 
       const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
         hour,
         enviados: data.enviados,
-        entregues: data.entregues,
-        respondidos: data.respondidos,
-        erros: data.erros
+        respondidos: data.respondidos
       })).sort((a, b) => a.hour.localeCompare(b.hour));
 
       // Calculate sentiment analysis

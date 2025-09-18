@@ -13,9 +13,7 @@ interface CampaignHourlyActivityCardProps {
   hourlyActivity: Array<{
     hour: string;
     enviados: number;
-    entregues: number;
     respondidos: number;
-    erros: number;
   }>;
   selectedDate: Date | undefined;
   onDateChange: (date: Date | undefined) => void;
@@ -28,7 +26,7 @@ const CampaignHourlyActivityCard = ({
 }: CampaignHourlyActivityCardProps) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const hasData = hourlyActivity.some(item => item.enviados > 0 || item.entregues > 0 || item.respondidos > 0 || item.erros > 0);
+  const hasData = hourlyActivity.some(item => item.enviados > 0 || item.respondidos > 0);
 
   return (
     <Card className="glass-card glass-card-dark border-white/20 shadow-2xl">
@@ -40,7 +38,7 @@ const CampaignHourlyActivityCard = ({
               Atividade por Horário
             </CardTitle>
             <CardDescription className="text-foreground/70">
-              Distribuição de enviados, entregues, respondidos e erros ao longo do dia
+              Distribuição de mensagens enviadas e respondidas ao longo do dia
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -142,21 +140,9 @@ const CampaignHourlyActivityCard = ({
                 radius={[2, 2, 0, 0]}
               />
               <Bar 
-                dataKey="entregues" 
-                name="Entregues" 
-                fill="#3B82F6"
-                radius={[2, 2, 0, 0]}
-              />
-              <Bar 
                 dataKey="respondidos" 
                 name="Respondidos" 
                 fill="#10B981"
-                radius={[2, 2, 0, 0]}
-              />
-              <Bar 
-                dataKey="erros" 
-                name="Erros" 
-                fill="#EF4444"
                 radius={[2, 2, 0, 0]}
               />
             </BarChart>
