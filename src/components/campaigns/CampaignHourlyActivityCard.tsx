@@ -135,30 +135,26 @@ const CampaignHourlyActivityCard = ({
                  wrapperStyle={{ color: 'hsl(var(--foreground))' }}
                  iconType="circle"
                />
-              <Bar 
+               <Bar 
                 dataKey="enviados" 
-                stackId="a"
                 name="Enviados" 
-                fill="#F59E0B"
-                radius={[0, 0, 0, 0]}
+                fill="#6B7280"
+                radius={[2, 2, 0, 0]}
               />
               <Bar 
                 dataKey="entregues" 
-                stackId="a"
                 name="Entregues" 
-                fill="#10B981"
-                radius={[0, 0, 0, 0]}
+                fill="#3B82F6"
+                radius={[2, 2, 0, 0]}
               />
               <Bar 
                 dataKey="respondidos" 
-                stackId="a"
                 name="Respondidos" 
-                fill="#8B5CF6"
-                radius={[0, 0, 0, 0]}
+                fill="#10B981"
+                radius={[2, 2, 0, 0]}
               />
               <Bar 
                 dataKey="erros" 
-                stackId="a"
                 name="Erros" 
                 fill="#EF4444"
                 radius={[2, 2, 0, 0]}

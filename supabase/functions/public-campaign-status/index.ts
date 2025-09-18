@@ -101,36 +101,31 @@ serve(async (req) => {
     }
 
     messages?.forEach(message => {
-      // Enviados: status 'enviado' ou 'erro'
-      if (['enviado', 'erro'].includes(message.status) && message.data_envio) {
-        const hour = new Date(message.data_envio).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.enviados++;
+      if (!message.data_envio) return;
+      
+      const hour = new Date(message.data_envio).getHours();
+      const key = `${hour.toString().padStart(2, '0')}:00`;
+      const data = hourlyData.get(key);
+      if (!data) return;
+      
+      // Enviados: todas as mensagens que tentaram ser enviadas (exceto pendente/fila)
+      if (!['pendente', 'fila'].includes(message.status)) {
+        data.enviados++;
       }
       
       // Entregues: apenas status 'enviado'
-      if (message.status === 'enviado' && message.data_envio) {
-        const hour = new Date(message.data_envio).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.entregues++;
+      if (message.status === 'enviado') {
+        data.entregues++;
       }
       
-      // Respondidos: tem data_resposta
+      // Respondidos: mensagens que têm data_resposta (baseado no horário de envio)
       if (message.data_resposta) {
-        const hour = new Date(message.data_resposta).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.respondidos++;
+        data.respondidos++;
       }
       
       // Erros: status 'erro'
-      if (message.status === 'erro' && message.data_envio) {
-        const hour = new Date(message.data_envio).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.erros++;
+      if (message.status === 'erro') {
+        data.erros++;
       }
     });
 
