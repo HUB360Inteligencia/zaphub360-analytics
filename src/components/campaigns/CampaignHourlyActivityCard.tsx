@@ -134,36 +134,25 @@ const CampaignHourlyActivityCard = ({
               />
               <Bar 
                 dataKey="envio" 
+                stackId="a"
                 name="Envios" 
-                fill="url(#envioGradient)"
-                radius={[2, 2, 0, 0]}
+                fill="#3B82F6"
+                radius={[0, 0, 0, 0]}
               />
               <Bar 
                 dataKey="leitura" 
+                stackId="a"
                 name="Leituras" 
-                fill="url(#leituraGradient)"
-                radius={[2, 2, 0, 0]}
+                fill="#10B981"
+                radius={[0, 0, 0, 0]}
               />
               <Bar 
                 dataKey="resposta" 
+                stackId="a"
                 name="Respostas" 
-                fill="url(#respostaGradient)"
+                fill="#8B5CF6"
                 radius={[2, 2, 0, 0]}
               />
-              <defs>
-                <linearGradient id="envioGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.4}/>
-                </linearGradient>
-                <linearGradient id="leituraGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.4}/>
-                </linearGradient>
-                <linearGradient id="respostaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.4}/>
-                </linearGradient>
-              </defs>
             </BarChart>
           </ResponsiveContainer>
         ) : (
