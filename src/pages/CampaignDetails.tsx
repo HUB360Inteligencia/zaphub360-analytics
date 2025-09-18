@@ -15,6 +15,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { useCampaignAnalytics } from '@/hooks/useCampaignAnalytics';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -22,11 +23,15 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import CampaignContactsTable from '@/components/campaigns/CampaignContactsTable';
 import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
+import CampaignHourlyActivityCard from '@/components/campaigns/CampaignHourlyActivityCard';
+import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentimentAnalysisCard';
 
 const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { campaigns, activateCampaign, pauseCampaign, isLoading } = useCampaigns();
+  const { analytics: campaignAnalytics } = useCampaignAnalytics(id, selectedDate);
   
   const campaign = campaigns?.find(c => c.id === id);
 
@@ -442,6 +447,25 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
               )}
             </CardContent>
           </Card>
+
+          {/* Campaign Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CampaignHourlyActivityCard 
+              hourlyActivity={campaignAnalytics?.hourlyActivity || []}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
+            <CampaignSentimentAnalysisCard 
+              sentimentAnalysis={campaignAnalytics?.sentimentAnalysis || {
+                superEngajado: 0,
+                positivo: 0,
+                neutro: 0,
+                negativo: 0,
+                semClassificacao: 0,
+                distribution: []
+              }}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="contacts" className="space-y-6">

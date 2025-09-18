@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,9 +16,12 @@ import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
+import CampaignHourlyActivityCard from '@/components/campaigns/CampaignHourlyActivityCard';
+import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentimentAnalysisCard';
 
 const PublicCampaignStatus = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
   // Use the public edge function for campaign data with real-time updates
   const { data: campaignData, isLoading } = useQuery({
@@ -245,6 +249,25 @@ const PublicCampaignStatus = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Campaign Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CampaignHourlyActivityCard 
+            hourlyActivity={analytics?.hourlyActivity || []}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
+          <CampaignSentimentAnalysisCard 
+            sentimentAnalysis={analytics?.sentimentAnalysis || {
+              superEngajado: 0,
+              positivo: 0,
+              neutro: 0,
+              negativo: 0,
+              semClassificacao: 0,
+              distribution: []
+            }}
+          />
+        </div>
 
         {/* Message Preview */}
         <Card className="bg-card border-border">

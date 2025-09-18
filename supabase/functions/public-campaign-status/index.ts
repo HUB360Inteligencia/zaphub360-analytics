@@ -93,6 +93,111 @@ serve(async (req) => {
         (messages.filter(m => m.data_resposta).length / messages.filter(m => ['enviado', 'erro'].includes(m.status)).length) * 100 : 0,
     } : null;
 
+    // Calculate hourly activity
+    const hourlyData = new Map();
+    for (let i = 0; i < 24; i++) {
+      const hour = `${i.toString().padStart(2, '0')}:00`;
+      hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
+    }
+
+    messages?.forEach(message => {
+      if (message.data_envio) {
+        const hour = new Date(message.data_envio).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.envio++;
+      }
+      
+      if (message.data_leitura) {
+        const hour = new Date(message.data_leitura).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.leitura++;
+      }
+      
+      if (message.data_resposta) {
+        const hour = new Date(message.data_resposta).getHours();
+        const key = `${hour.toString().padStart(2, '0')}:00`;
+        const data = hourlyData.get(key);
+        if (data) data.resposta++;
+      }
+    });
+
+    const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
+      hour,
+      envio: data.envio,
+      leitura: data.leitura,
+      resposta: data.resposta
+    })).sort((a, b) => a.hour.localeCompare(b.hour));
+
+    // Calculate sentiment analysis
+    const normalizeSentiment = (sentiment: string | null): string | null => {
+      if (!sentiment) return null;
+      const normalized = sentiment.toLowerCase().trim();
+      switch (normalized) {
+        case 'super engajado':
+        case 'super_engajado':
+        case 'superengajado':
+          return 'super engajado';
+        case 'positivo':
+          return 'positivo';
+        case 'neutro':
+          return 'neutro';
+        case 'negativo':
+          return 'negativo';
+        default:
+          return sentiment;
+      }
+    };
+
+    const sentimentCounts = {
+      'super engajado': messages?.filter(m => normalizeSentiment(m.sentimento) === 'super engajado').length || 0,
+      'positivo': messages?.filter(m => normalizeSentiment(m.sentimento) === 'positivo').length || 0,
+      'neutro': messages?.filter(m => normalizeSentiment(m.sentimento) === 'neutro').length || 0,
+      'negativo': messages?.filter(m => normalizeSentiment(m.sentimento) === 'negativo').length || 0,
+      'sem_classificacao': messages?.filter(m => m.sentimento === null || m.sentimento === undefined).length || 0,
+    };
+
+    const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
+
+    const sentimentDistribution = [
+      {
+        sentiment: 'Super Engajado',
+        count: sentimentCounts['super engajado'],
+        percentage: sentimentTotal > 0 ? (sentimentCounts['super engajado'] / sentimentTotal) * 100 : 0,
+        color: '#FF6B35',
+        emoji: '🔥'
+      },
+      {
+        sentiment: 'Positivo',
+        count: sentimentCounts['positivo'],
+        percentage: sentimentTotal > 0 ? (sentimentCounts['positivo'] / sentimentTotal) * 100 : 0,
+        color: '#10B981',
+        emoji: '😊'
+      },
+      {
+        sentiment: 'Neutro',
+        count: sentimentCounts['neutro'],
+        percentage: sentimentTotal > 0 ? (sentimentCounts['neutro'] / sentimentTotal) * 100 : 0,
+        color: '#6B7280',
+        emoji: '😐'
+      },
+      {
+        sentiment: 'Negativo',
+        count: sentimentCounts['negativo'],
+        percentage: sentimentTotal > 0 ? (sentimentCounts['negativo'] / sentimentTotal) * 100 : 0,
+        color: '#EF4444',
+        emoji: '😞'
+      },
+      {
+        sentiment: 'Sem Classificação',
+        count: sentimentCounts['sem_classificacao'],
+        percentage: sentimentTotal > 0 ? (sentimentCounts['sem_classificacao'] / sentimentTotal) * 100 : 0,
+        color: '#D1D5DB',
+        emoji: '⚪'
+      }
+    ];
+
     // Debug logs
     console.log('Public campaign analytics debug:', {
       totalMessages: analytics?.totalMessages,
@@ -104,7 +209,18 @@ serve(async (req) => {
 
     const responseData = {
       ...campaign,
-      analytics
+      analytics: {
+        ...analytics,
+        hourlyActivity,
+        sentimentAnalysis: {
+          superEngajado: sentimentCounts['super engajado'],
+          positivo: sentimentCounts['positivo'],
+          neutro: sentimentCounts['neutro'],
+          negativo: sentimentCounts['negativo'],
+          semClassificacao: sentimentCounts['sem_classificacao'],
+          distribution: sentimentDistribution
+        }
+      }
     };
 
     return new Response(
