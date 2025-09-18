@@ -56,10 +56,23 @@ serve(async (req) => {
     let allMessages: any[] = [];
 
     while (true) {
-      const { data: page, error: messagesError } = await supabase
+      let query = supabase
         .from('mensagens_enviadas')
         .select('*')
-        .eq('id_campanha', campaignId)
+        .eq('id_campanha', campaignId);
+
+      // Apply date filter at database level if selectedDate is provided
+      if (selectedDate) {
+        const filterDate = new Date(selectedDate);
+        const startOfDay = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate());
+        const endOfDay = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate() + 1);
+        
+        query = query
+          .gte('data_envio', startOfDay.toISOString())
+          .lt('data_envio', endOfDay.toISOString());
+      }
+
+      const { data: page, error: messagesError } = await query
         .range(from, to); // cada chamada traz até 1000
 
       if (messagesError) {
@@ -100,19 +113,8 @@ serve(async (req) => {
       hourlyData.set(hour, { enviados: 0, respondidos: 0 });
     }
 
-    // Filter messages by selected date if provided
-    const filteredMessages = messages?.filter(message => {
-      if (!selectedDate || !message.data_envio) return true;
-      
-      const messageDate = new Date(message.data_envio);
-      const filterDate = new Date(selectedDate);
-      
-      return messageDate.getFullYear() === filterDate.getFullYear() &&
-             messageDate.getMonth() === filterDate.getMonth() &&
-             messageDate.getDate() === filterDate.getDate();
-    }) || [];
-
-    filteredMessages.forEach(message => {
+    // Process all messages (already filtered by date at database level if selectedDate provided)
+    messages?.forEach(message => {
       if (!message.data_envio) return;
       
       const hour = new Date(message.data_envio).getHours();
@@ -207,6 +209,7 @@ serve(async (req) => {
 
     // Debug logs
     console.log('Public campaign analytics debug:', {
+      selectedDate: selectedDate || 'all dates',
       totalMessages: analytics?.totalMessages,
       sentMessages: analytics?.sentMessages,
       deliveredMessages: analytics?.deliveredMessages,
