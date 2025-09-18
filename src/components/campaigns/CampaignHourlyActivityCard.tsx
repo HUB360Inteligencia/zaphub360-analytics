@@ -93,20 +93,22 @@ const CampaignHourlyActivityCard = ({
         {hasData ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={hourlyActivity} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis 
-                dataKey="hour" 
-                stroke="rgba(255,255,255,0.7)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
-                stroke="rgba(255,255,255,0.7)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
+               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+               <XAxis 
+                 dataKey="hour" 
+                 stroke="hsl(var(--muted-foreground))"
+                 fontSize={12}
+                 tickLine={false}
+                 axisLine={false}
+                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
+               />
+               <YAxis 
+                 stroke="hsl(var(--muted-foreground))"
+                 fontSize={12}
+                 tickLine={false}
+                 axisLine={false}
+                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
+               />
               <Tooltip 
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -128,10 +130,10 @@ const CampaignHourlyActivityCard = ({
                   return null;
                 }}
               />
-              <Legend 
-                wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }}
-                iconType="circle"
-              />
+               <Legend 
+                 wrapperStyle={{ color: 'hsl(var(--foreground))' }}
+                 iconType="circle"
+               />
               <Bar 
                 dataKey="envio" 
                 stackId="a"
