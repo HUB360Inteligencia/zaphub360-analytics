@@ -47,31 +47,49 @@ export const useCampaignAnalytics = (campaignId?: string, selectedDate?: Date) =
         };
       }
 
-      // Build query for mensagens_enviadas
-      let query = supabase
-        .from('mensagens_enviadas')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .eq('id_campanha', campaignId);
+      // Fetch all campaign messages with pagination to handle more than 1000 records
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
+      let allMessages: any[] = [];
 
-      // Apply date filter if selected
-      if (selectedDate) {
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        query = query
-          .gte('data_envio', startOfDay.toISOString())
-          .lte('data_envio', endOfDay.toISOString());
+      while (true) {
+        let query = supabase
+          .from('mensagens_enviadas')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .eq('id_campanha', campaignId)
+          .range(from, to);
+
+        // Apply date filter if selected
+        if (selectedDate) {
+          const startOfDay = new Date(selectedDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(selectedDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          
+          query = query
+            .gte('data_envio', startOfDay.toISOString())
+            .lte('data_envio', endOfDay.toISOString());
+        }
+
+        const { data: page, error: messagesError } = await query;
+
+        if (messagesError) {
+          console.error('Error fetching campaign messages:', messagesError);
+          throw messagesError;
+        }
+
+        if (!page || page.length === 0) break;
+
+        allMessages = allMessages.concat(page);
+
+        if (page.length < pageSize) break; // última página
+        from += pageSize;
+        to += pageSize;
       }
 
-      const { data: messages, error } = await query;
-
-      if (error) {
-        console.error('Error fetching campaign analytics:', error);
-        throw error;
-      }
+      const messages = allMessages;
 
       // Initialize hourly data
       const hourlyData = new Map();
