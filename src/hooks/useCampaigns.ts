@@ -67,7 +67,8 @@ export const useCampaigns = () => {
         const { data: messages, error: messagesError } = await supabase
           .from('mensagens_enviadas')
           .select('status, data_resposta')
-          .eq('id_campanha', campaign.id);
+          .eq('id_campanha', campaign.id)
+          .limit(50000); // Definir limite alto para garantir que todas as mensagens sejam carregadas
           
         if (messagesError) {
           console.error('Error fetching campaign messages:', messagesError);
