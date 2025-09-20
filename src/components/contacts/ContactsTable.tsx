@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Phone, Edit, Trash2, Eye, MapPin, Heart } from 'lucide-react';
+import { Phone, Edit, Trash2, Eye, MapPin, Heart, Loader2 } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -28,6 +28,12 @@ interface ContactsTableProps {
   onEditProfile: (contact: Contact) => void;
   onDeleteContact: (contactId: string) => void;
   getSentimentColor: (sentiment?: string) => string;
+  currentPage: number;
+  pageSize: number;
+  totalContacts: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  isLoading: boolean;
 }
 
 const ContactsTable = ({
@@ -38,38 +44,55 @@ const ContactsTable = ({
   onViewProfile,
   onEditProfile,
   onDeleteContact,
-  getSentimentColor
+  getSentimentColor,
+  currentPage,
+  pageSize,
+  totalContacts,
+  onPageChange,
+  onPageSizeChange,
+  isLoading
 }: ContactsTableProps) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
-
-  // Calculate pagination
-  const totalItems = contacts.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentContacts = contacts.slice(startIndex, endIndex);
+  // Calculate pagination display values
+  const totalPages = Math.ceil(totalContacts / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalContacts);
 
   return (
     <Card className="bg-white border-0 shadow-sm">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Lista de Contatos</CardTitle>
         <CardDescription>
-          {totalItems} contatos encontrados - Página {currentPage} de {totalPages}
+          {totalContacts.toLocaleString()} contatos encontrados - Página {currentPage} de {totalPages}
           {selectedContacts.length > 0 && ` (${selectedContacts.length} selecionados)`}
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Bulk Actions */}
+        {selectedContacts.length > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-blue-700">
+                {selectedContacts.length} contatos selecionados
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">
+                  Exportar Selecionados
+                </Button>
+                <Button variant="destructive" size="sm">
+                  Excluir Selecionados
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Pagination Controls */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-600">Mostrar:</span>
             <Select
-              value={itemsPerPage.toString()}
-              onValueChange={(value) => {
-                setItemsPerPage(Number(value));
-                setCurrentPage(1);
-              }}
+              value={pageSize.toString()}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
             >
               <SelectTrigger className="w-20">
                 <SelectValue />
@@ -88,19 +111,19 @@ const ContactsTable = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1 || isLoading}
             >
               Anterior
             </Button>
             <span className="text-sm text-slate-600">
-              {startIndex + 1}-{Math.min(endIndex, totalItems)} de {totalItems}
+              {startIndex + 1}-{endIndex} de {totalContacts.toLocaleString()}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages || isLoading}
             >
               Próximo
             </Button>
@@ -113,7 +136,7 @@ const ContactsTable = ({
               <TableRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={currentContacts.length > 0 && selectedContacts.length === contacts.length}
+                    checked={contacts.length > 0 && selectedContacts.length === contacts.length}
                     onCheckedChange={onSelectAll}
                   />
                 </TableHead>
@@ -128,7 +151,23 @@ const ContactsTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentContacts.map((contact) => (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-slate-500">Carregando contatos...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : contacts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                    Nenhum contato encontrado
+                  </TableCell>
+                </TableRow>
+              ) : (
+                contacts.map((contact) => (
                 <TableRow key={contact.id}>
                   <TableCell>
                     <Checkbox
@@ -218,7 +257,8 @@ const ContactsTable = ({
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                ))
+              )}
             </TableBody>
           </Table>
         </div>

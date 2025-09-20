@@ -39,40 +39,73 @@ export interface Tag {
   organization_id: string;
 }
 
-export const useContacts = () => {
+interface ContactsParams {
+  page?: number;
+  pageSize?: number;
+  searchTerm?: string;
+  filterCidade?: string;
+  filterBairro?: string;
+  filterSentimento?: string;
+  selectedTag?: string;
+}
+
+// Hook para buscar contatos paginados
+export const useContacts = (params: ContactsParams = {}) => {
   const { organization } = useAuth();
   const queryClient = useQueryClient();
 
+  const { 
+    page = 1, 
+    pageSize = 50,
+    searchTerm = '',
+    filterCidade = 'all',
+    filterBairro = 'all', 
+    filterSentimento = 'all',
+    selectedTag = 'all'
+  } = params;
+
   const contactsQuery = useQuery({
-    queryKey: ['contacts', organization?.id],
+    queryKey: ['contacts', organization?.id, page, pageSize, searchTerm, filterCidade, filterBairro, filterSentimento, selectedTag],
     queryFn: async () => {
-      if (!organization?.id) return [];
+      if (!organization?.id) return { data: [], count: 0 };
       
-      // Paginar em blocos de 1000 devido ao limite do PostgREST
-      const pageSize = 1000;
-      let from = 0;
-      let to = pageSize - 1;
-      let allData: any[] = [];
+      let query = supabase
+        .from('new_contact_event')
+        .select('*', { count: 'exact' })
+        .eq('organization_id', organization.id);
 
-      while (true) {
-        const { data, error } = await supabase
-          .from('new_contact_event')
-          .select('*')
-          .eq('organization_id', organization.id)
-          .order('created_at', { ascending: false })
-          .range(from, to);
-
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-
-        allData = allData.concat(data);
-        if (data.length < pageSize) break;
-
-        from += pageSize;
-        to += pageSize;
+      // Aplicar filtros
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,celular.ilike.%${searchTerm}%,sobrenome.ilike.%${searchTerm}%`);
+      }
+      
+      if (filterCidade !== 'all') {
+        query = query.eq('cidade', filterCidade);
+      }
+      
+      if (filterBairro !== 'all') {
+        query = query.eq('bairro', filterBairro);
+      }
+      
+      if (filterSentimento !== 'all') {
+        query = query.eq('sentimento', filterSentimento);
+      }
+      
+      if (selectedTag !== 'all') {
+        query = query.like('tag', `%${selectedTag}%`);
       }
 
-      return allData.map(contact => ({
+      // Paginação
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const contacts = (data || []).map(contact => ({
         id: contact.id_contact_event.toString(),
         name: contact.name || 'Sem nome',
         phone: contact.celular,
@@ -83,7 +116,12 @@ export const useContacts = () => {
         organization_id: contact.organization_id,
         created_at: contact.created_at,
         updated_at: contact.updated_at || contact.created_at,
-        tags: [], // TODO: implementar tags para new_contact_event
+        tags: contact.tag ? contact.tag.split(', ').map((tag: string, index: number) => ({
+          id: `tag-${index}`,
+          name: tag,
+          color: '#6B7280',
+          organization_id: contact.organization_id
+        })) : [],
         evento: contact.evento,
         sentimento: contact.sentimento,
         sobrenome: contact.sobrenome,
@@ -93,6 +131,57 @@ export const useContacts = () => {
         status_envio: contact.status_envio,
         ultima_instancia: contact.ultima_instancia,
       }));
+
+      return { data: contacts, count: count || 0 };
+    },
+    enabled: !!organization?.id,
+  });
+
+  // Hook separado para estatísticas gerais (não paginadas)
+  const statsQuery = useQuery({
+    queryKey: ['contacts-stats', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return { total: 0, active: 0, withEmail: 0 };
+      
+      const { count: total } = await supabase
+        .from('new_contact_event')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id);
+
+      const { count: active } = await supabase
+        .from('new_contact_event')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id)
+        .eq('status_envio', 'enviado');
+
+      return { 
+        total: total || 0, 
+        active: active || 0, 
+        withEmail: 0 // new_contact_event não tem email
+      };
+    },
+    enabled: !!organization?.id,
+  });
+
+  // Hook para obter valores únicos para filtros
+  const filtersQuery = useQuery({
+    queryKey: ['contacts-filters', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return { cidades: [], bairros: [], sentimentos: [] };
+      
+      const { data } = await supabase
+        .from('new_contact_event')
+        .select('cidade, bairro, sentimento')
+        .eq('organization_id', organization.id)
+        .not('cidade', 'is', null)
+        .not('bairro', 'is', null)
+        .not('sentimento', 'is', null);
+
+      const cidades = Array.from(new Set(data?.map(d => d.cidade).filter(Boolean))).sort();
+      const bairros = Array.from(new Set(data?.map(d => d.bairro).filter(Boolean))).sort();
+      const sentimentos = Array.from(new Set(data?.map(d => d.sentimento).filter(Boolean))).sort();
+
+      return { cidades, bairros, sentimentos };
     },
     enabled: !!organization?.id,
   });
@@ -265,8 +354,13 @@ export const useContacts = () => {
   });
 
   return {
-    contacts: contactsQuery.data || [],
+    contacts: contactsQuery.data?.data || [],
+    contactsCount: contactsQuery.data?.count || 0,
+    stats: statsQuery.data || { total: 0, active: 0, withEmail: 0 },
+    filters: filtersQuery.data || { cidades: [], bairros: [], sentimentos: [] },
     isLoading: contactsQuery.isLoading,
+    isStatsLoading: statsQuery.isLoading,
+    isFiltersLoading: filtersQuery.isLoading,
     error: contactsQuery.error,
     createContact,
     updateContact,

@@ -1,63 +1,78 @@
-
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Plus, Filter, Download, Upload, Edit, Trash2, Tag, Users, Phone, Mail, Loader2, Eye, MapPin, Heart } from 'lucide-react';
+import { Search, Plus, Filter, Download, Upload, Users, Phone, Mail, Loader2 } from 'lucide-react';
 import { useContacts, Contact } from '@/hooks/useContacts';
 import { useTags } from '@/hooks/useTags';
 import { useAuth } from '@/contexts/AuthContext';
 import ContactProfileModal from '@/components/contacts/ContactProfileModal';
 import ContactsTable from '@/components/contacts/ContactsTable';
+import { SENTIMENT_OPTIONS, getSentimentOption } from '@/lib/sentiment';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const Contacts = () => {
   const { organization } = useAuth();
-  const { contacts, isLoading: contactsLoading, createContact, updateContact, deleteContact } = useContacts();
   const { tags, isLoading: tagsLoading } = useTags();
   
+  // Estados para controles de interface
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState('all');
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   
-  // Filtros novos
+  // Estados para filtros
   const [filterCidade, setFilterCidade] = useState('all');
   const [filterBairro, setFilterBairro] = useState('all');
   const [filterSentimento, setFilterSentimento] = useState('all');
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   
   // Modal de perfil
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalMode, setProfileModalMode] = useState<'view' | 'edit'>('view');
 
-  // Obter listas únicas para filtros
-  const uniqueCidades = Array.from(new Set(contacts.map(c => c.cidade).filter(Boolean))).sort();
-  const uniqueBairros = Array.from(new Set(contacts.map(c => c.bairro).filter(Boolean))).sort();
-  const uniqueSentimentos = Array.from(new Set(contacts.map(c => c.sentimento).filter(Boolean))).sort();
+  // Debounce da busca para evitar muitas consultas
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Filtrar contatos baseado na busca e filtros
-  const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.phone.includes(searchTerm) ||
-                         (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesTag = selectedTag === 'all' || 
-                      contact.tags?.some(tag => tag.id === selectedTag);
-    
-    const matchesCidade = filterCidade === 'all' || contact.cidade === filterCidade;
-    const matchesBairro = filterBairro === 'all' || contact.bairro === filterBairro;
-    const matchesSentimento = filterSentimento === 'all' || contact.sentimento === filterSentimento;
-    
-    return matchesSearch && matchesTag && matchesCidade && matchesBairro && matchesSentimento;
+  // Hook de contatos com parâmetros atualizados
+  const { 
+    contacts, 
+    contactsCount, 
+    stats, 
+    filters,
+    isLoading: contactsLoading, 
+    createContact, 
+    updateContact, 
+    deleteContact 
+  } = useContacts({
+    page: currentPage,
+    pageSize,
+    searchTerm: debouncedSearchTerm,
+    filterCidade,
+    filterBairro,
+    filterSentimento,
+    selectedTag
   });
+
+  // Calcular estatísticas para as tags
+  const tagStats = useMemo(() => {
+    return tags.map(tag => ({
+      ...tag,
+      count: contacts.filter(contact => 
+        contact.tags?.some(t => t.name === tag.name)
+      ).length
+    }));
+  }, [tags, contacts]);
 
   const handleSelectContact = (contactId: string) => {
     setSelectedContacts(prev => 
@@ -68,11 +83,22 @@ const Contacts = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedContacts.length === filteredContacts.length) {
+    if (selectedContacts.length === contacts.length) {
       setSelectedContacts([]);
     } else {
-      setSelectedContacts(filteredContacts.map(c => c.id));
+      setSelectedContacts(contacts.map(c => c.id));
     }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    setSelectedContacts([]); // Limpar seleção ao mudar página
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Voltar para primeira página
+    setSelectedContacts([]); // Limpar seleção
   };
 
   const [messageType, setMessageType] = useState<number>(1);
@@ -128,32 +154,16 @@ const Contacts = () => {
   };
 
   const getSentimentColor = (sentiment?: string) => {
-    switch (sentiment) {
-      case 'Super Engajado':
-        return 'bg-orange-500 text-white';
-      case 'Positivo':
-        return 'bg-green-500 text-white';
-      case 'Neutro':
-        return 'bg-gray-500 text-white';
-      case 'Negativo':
-        return 'bg-red-500 text-white';
-      default:
-        return 'bg-gray-200 text-gray-700';
-    }
+    const sentimentOption = getSentimentOption(sentiment);
+    return sentimentOption?.color || 'bg-gray-200 text-gray-700';
   };
 
-  // Contadores para estatísticas
-  const totalContacts = contacts.length;
-  const activeContacts = contacts.filter(c => c.status === 'active').length;
-  const contactsWithEmail = contacts.filter(c => c.email).length;
-  const totalTags = tags.length;
-
-  if (contactsLoading || tagsLoading) {
+  if (tagsLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <p className="text-slate-600">Carregando contatos...</p>
+          <p className="text-slate-600">Carregando dados...</p>
         </div>
       </div>
     );
@@ -291,7 +301,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Total de Contatos</p>
-                <p className="text-2xl font-bold text-slate-900">{totalContacts.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.total.toLocaleString()}</p>
               </div>
               <Users className="w-8 h-8 text-blue-600" />
             </div>
@@ -303,7 +313,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Contatos Ativos</p>
-                <p className="text-2xl font-bold text-slate-900">{activeContacts}</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.active.toLocaleString()}</p>
               </div>
               <Phone className="w-8 h-8 text-green-600" />
             </div>
@@ -315,7 +325,7 @@ const Contacts = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Com Email</p>
-                <p className="text-2xl font-bold text-slate-900">{contactsWithEmail}</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.withEmail.toLocaleString()}</p>
               </div>
               <Mail className="w-8 h-8 text-purple-600" />
             </div>
@@ -326,10 +336,10 @@ const Contacts = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Tags Ativas</p>
-                <p className="text-2xl font-bold text-slate-900">{totalTags}</p>
+                <p className="text-sm font-medium text-slate-600">Resultados</p>
+                <p className="text-2xl font-bold text-slate-900">{contactsCount.toLocaleString()}</p>
               </div>
-              <Tag className="w-8 h-8 text-orange-600" />
+              <Filter className="w-8 h-8 text-orange-600" />
             </div>
           </CardContent>
         </Card>
@@ -345,13 +355,9 @@ const Contacts = () => {
               onClick={() => setSelectedTag('all')}
               className={selectedTag === 'all' ? 'bg-slate-900' : ''}
             >
-              Todos ({totalContacts})
+              Todos ({stats.total.toLocaleString()})
             </Button>
-            {tags.map(tag => {
-              const tagContactCount = contacts.filter(contact => 
-                contact.tags?.some(t => t.id === tag.id)
-              ).length;
-              
+            {tagStats.map(tag => {
               return (
                 <Button
                   key={tag.id}
@@ -361,7 +367,7 @@ const Contacts = () => {
                   className={selectedTag === tag.id ? '' : 'hover:bg-slate-50'}
                   style={selectedTag === tag.id ? { backgroundColor: tag.color } : {}}
                 >
-                  {tag.name} ({tagContactCount})
+                  {tag.name} ({tag.count})
                 </Button>
               );
             })}
@@ -377,7 +383,7 @@ const Contacts = () => {
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por nome, telefone ou email..."
+                  placeholder="Buscar por nome, telefone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -395,7 +401,7 @@ const Contacts = () => {
               </div>
             </div>
             
-            {/* Novos Filtros */}
+            {/* Filtros */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Select value={filterCidade} onValueChange={setFilterCidade}>
                 <SelectTrigger>
@@ -403,7 +409,7 @@ const Contacts = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as cidades</SelectItem>
-                  {uniqueCidades.map(cidade => (
+                  {filters.cidades.map(cidade => (
                     <SelectItem key={cidade} value={cidade}>{cidade}</SelectItem>
                   ))}
                 </SelectContent>
@@ -415,7 +421,7 @@ const Contacts = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os bairros</SelectItem>
-                  {uniqueBairros.map(bairro => (
+                  {filters.bairros.map(bairro => (
                     <SelectItem key={bairro} value={bairro}>{bairro}</SelectItem>
                   ))}
                 </SelectContent>
@@ -427,18 +433,18 @@ const Contacts = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os sentimentos</SelectItem>
-                  {uniqueSentimentos.map(sentimento => (
-                    <SelectItem key={sentimento} value={sentimento}>{sentimento}</SelectItem>
+                  {SENTIMENT_OPTIONS.slice(1).map(option => (
+                    <SelectItem key={option.value} value={option.label}>{option.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               
-              <Select defaultValue="all">
+              <Select value="all" onValueChange={() => {}}>
                 <SelectTrigger>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="all">Todos os status</SelectItem>
                   <SelectItem value="active">Ativos</SelectItem>
                   <SelectItem value="inactive">Inativos</SelectItem>
                 </SelectContent>
@@ -449,125 +455,33 @@ const Contacts = () => {
       </Card>
 
       {/* Contacts Table */}
-      <Card className="bg-white border-0 shadow-sm">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-semibold">
-              Contatos ({filteredContacts.length})
-            </CardTitle>
-            {selectedContacts.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600">
-                  {selectedContacts.length} selecionados
-                </span>
-                <Button size="sm" variant="outline">
-                  <Tag className="w-4 h-4 mr-2" />
-                  Adicionar Tag
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Excluir
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Cidade</TableHead>
-                <TableHead>Bairro</TableHead>
-                <TableHead>Sentimento</TableHead>
-                <TableHead>Evento</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredContacts.map((contact) => (
-                <TableRow key={contact.id} className="hover:bg-slate-50">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedContacts.includes(contact.id)}
-                      onCheckedChange={() => handleSelectContact(contact.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {contact.name}
-                    {contact.sobrenome && <span className="text-muted-foreground"> {contact.sobrenome}</span>}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                  <TableCell>{contact.cidade || '-'}</TableCell>
-                  <TableCell>{contact.bairro || '-'}</TableCell>
-                  <TableCell>
-                    {contact.sentimento ? (
-                      <Badge className={getSentimentColor(contact.sentimento)}>
-                        {contact.sentimento}
-                      </Badge>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{contact.evento || '-'}</TableCell>
-                  <TableCell>
-                    <Badge variant={contact.status === 'active' ? 'default' : 'secondary'}>
-                      {contact.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-600">
-                    {new Date(contact.created_at).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleViewProfile(contact)}
-                        title="Ver perfil"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEditProfile(contact)}
-                        title="Editar contato"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          
-          {filteredContacts.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-slate-500">Nenhum contato encontrado</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Modal de Perfil */}
-      <ContactProfileModal
-        contact={selectedContact}
-        isOpen={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-        onUpdate={handleUpdateContact}
-        mode={profileModalMode}
+      <ContactsTable
+        contacts={contacts}
+        selectedContacts={selectedContacts}
+        onSelectContact={handleSelectContact}
+        onSelectAll={handleSelectAll}
+        onViewProfile={handleViewProfile}
+        onEditProfile={handleEditProfile}
+        onDeleteContact={(id) => deleteContact.mutate(id)}
+        getSentimentColor={getSentimentColor}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalContacts={contactsCount}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+        isLoading={contactsLoading}
       />
+
+      {/* Contact Profile Modal */}
+      {selectedContact && (
+        <ContactProfileModal
+          contact={selectedContact}
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          mode={profileModalMode}
+          onUpdate={handleUpdateContact}
+        />
+      )}
     </div>
   );
 };
