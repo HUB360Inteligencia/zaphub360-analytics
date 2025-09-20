@@ -263,7 +263,7 @@ const Campaigns = () => {
                       <TableCell>
                         <div className="space-y-1">
                           <div className="text-sm font-medium">
-                            {sent}/{total}
+                            {sent.toLocaleString()}/{total.toLocaleString()}
                           </div>
                           <div className="w-full bg-slate-200 rounded-full h-2">
                             <div 

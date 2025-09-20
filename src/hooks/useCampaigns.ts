@@ -64,19 +64,35 @@ export const useCampaigns = () => {
       // Buscar métricas reais das mensagens para cada campanha
       const campaignsWithMetrics = await Promise.all((data || []).map(async (campaign) => {
         // Buscar estatísticas reais da tabela mensagens_enviadas
-        const { data: messages, error: messagesError } = await supabase
-          .from('mensagens_enviadas')
-          .select('status, data_resposta')
-          .eq('id_campanha', campaign.id)
-          .limit(50000); // Definir limite alto para garantir que todas as mensagens sejam carregadas
-          
-        if (messagesError) {
-          console.error('Error fetching campaign messages:', messagesError);
+        // Count metrics without row limit using HEAD exact counts
+        const [
+          { count: totalCount, error: totalError },
+          { count: sentCount, error: sentError },
+          { count: respondedCount, error: respondedError },
+        ] = await Promise.all([
+          supabase
+            .from('mensagens_enviadas')
+            .select('*', { count: 'exact', head: true })
+            .eq('id_campanha', campaign.id),
+          supabase
+            .from('mensagens_enviadas')
+            .select('*', { count: 'exact', head: true })
+            .eq('id_campanha', campaign.id)
+            .in('status', ['enviado', 'enviada', 'erro']),
+          supabase
+            .from('mensagens_enviadas')
+            .select('*', { count: 'exact', head: true })
+            .eq('id_campanha', campaign.id)
+            .not('data_resposta', 'is', null),
+        ]);
+
+        if (totalError || sentError || respondedError) {
+          console.error('Error counting campaign messages:', { totalError, sentError, respondedError });
         }
-        
-        const totalMessages = messages?.length || 0;
-        const sentMessages = messages?.filter(m => m.status === 'enviado' || m.status === 'enviada' || m.status === 'erro').length || 0;
-        const respondedMessages = messages?.filter(m => m.data_resposta !== null).length || 0;
+
+        const totalMessages = totalCount || 0;
+        const sentMessages = sentCount || 0;
+        const respondedMessages = respondedCount || 0;
         
         return {
           ...campaign,
