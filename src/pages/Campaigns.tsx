@@ -320,7 +320,7 @@ const Campaigns = () => {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleEditCampaign(campaign)}
+                            onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
