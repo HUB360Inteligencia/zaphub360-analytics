@@ -190,7 +190,7 @@ export const useEventAnalytics = (eventId?: string) => {
       let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
       let sentMessages = deliveredMessages + errorMessages;
 
-      // Try to override counts with exact server-side counts (no 1000 cap)
+      // Always use exact server-side counts to avoid 1000 limit
       try {
         const commonFilters = (q: any) => q
           .eq('organization_id', organization.id)
@@ -212,14 +212,14 @@ export const useEventAnalytics = (eventId?: string) => {
           commonFilters(supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })).eq('status', 'enviado'),
         ]);
 
-        if ((totalRes.count ?? 0) > 0) {
-          totalMessages = totalRes.count || 0;
-          queuedMessages = queuedRes.count || 0;
-          readMessages = readRes.count || 0;
-          responseMessages = respondedRes.count || 0;
-          errorMessages = errorRes.count || 0;
-          deliveredMessages = deliveredRes.count || 0;
-          sentMessages = deliveredMessages + errorMessages;
+        // Use exact counts from server
+        totalMessages = totalRes.count || 0;
+        queuedMessages = queuedRes.count || 0;
+        readMessages = readRes.count || 0;
+        responseMessages = respondedRes.count || 0;
+        errorMessages = errorRes.count || 0;
+        deliveredMessages = deliveredRes.count || 0;
+        sentMessages = deliveredMessages + errorMessages;
         } else {
           // Fallback to event_messages if mensagens_enviadas has no records
           const emFilters = (q: any) => q
