@@ -282,7 +282,17 @@ Deno.serve(async (req) => {
     // Process hourly activity - format for new chart (enviados, respondidos)
     const hourlyData: Record<string, { enviados: number; respondidos: number }> = {};
     
-    normalizedMessages.forEach(message => {
+    // Filter messages by selected date if provided
+    const filteredMessages = selectedDate 
+      ? normalizedMessages.filter(message => {
+          if (!message.data_envio) return false;
+          const messageDate = new Date(message.data_envio);
+          const filterDate = new Date(selectedDate);
+          return messageDate.toDateString() === filterDate.toDateString();
+        })
+      : normalizedMessages;
+    
+    filteredMessages.forEach(message => {
       if (message.data_envio) {
         const hour = new Date(message.data_envio).getHours();
         const hourKey = `${hour.toString().padStart(2, '0')}:00`;
