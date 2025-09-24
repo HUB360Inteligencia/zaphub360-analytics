@@ -149,15 +149,15 @@ Deno.serve(async (req) => {
       // Try event_messages table if no messages in mensagens_enviadas
       const { data: messages2, error: messagesError2 } = await supabase
         .from('event_messages')
-        .select('status, created_at as data_envio, sentiment as sentimento, contact_profile as perfil_contato')
+        .select('status, sent_at as data_envio, read_at as data_leitura, responded_at as data_resposta, sentiment as sentimento, contact_profile as perfil_contato')
         .eq('event_id', event.id);
 
       if (messages2 && messages2.length > 0) {
         messagesData = messages2.map(msg => ({
           status: msg.status,
           data_envio: msg.data_envio,
-          data_leitura: null, // event_messages doesn't track read status separately
-          data_resposta: null, // event_messages doesn't track response separately
+          data_leitura: msg.data_leitura,
+          data_resposta: msg.data_resposta,
           sentimento: msg.sentimento,
           perfil_contato: msg.perfil_contato
         }));
