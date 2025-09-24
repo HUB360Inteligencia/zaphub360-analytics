@@ -56,7 +56,7 @@ function normalizeStatus(status: string): string {
 }
 
 function normalizeSentiment(sentiment: string): string {
-  if (!sentiment) return null;
+  if (!sentiment) return null as any;
   
   const normalized = sentiment.toLowerCase().trim();
   
@@ -133,24 +133,54 @@ Deno.serve(async (req) => {
 
     console.log('Event found:', event.name);
 
+    // -------------------------------------------------------------
+    // Filtro de data em BRT (America/Sao_Paulo) aplicado no banco
+    // -------------------------------------------------------------
+    let startOfDayISO: string | undefined;
+    let endOfDayISO: string | undefined;
+
+    if (selectedDate) {
+      // selectedDate deve representar a meia-noite local que você quer comparar (BRT)
+      const startOfDay = new Date(selectedDate);
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+      startOfDayISO = startOfDay.toISOString();
+      endOfDayISO = endOfDay.toISOString();
+    }
+
     // Fetch messages data for analytics - try multiple tables
-    let messagesData = [];
+    let messagesData: any[] = [];
     
     // First try mensagens_enviadas table
-    const { data: messages1, error: messagesError1 } = await supabase
+    let query1 = supabase
       .from('mensagens_enviadas')
       .select('status, data_envio, data_leitura, data_resposta, sentimento, perfil_contato')
       .eq('id_campanha', event.id);
+
+    if (startOfDayISO && endOfDayISO) {
+      query1 = query1
+        .gte('data_envio', startOfDayISO)
+        .lt('data_envio', endOfDayISO);
+    }
+
+    const { data: messages1, error: messagesError1 } = await query1;
 
     if (messages1 && messages1.length > 0) {
       messagesData = messages1;
       console.log('Found messages in mensagens_enviadas:', messages1.length);
     } else {
       // Try event_messages table if no messages in mensagens_enviadas
-      const { data: messages2, error: messagesError2 } = await supabase
+      let query2 = supabase
         .from('event_messages')
         .select('status, sent_at as data_envio, read_at as data_leitura, responded_at as data_resposta, sentiment as sentimento, contact_profile as perfil_contato')
         .eq('event_id', event.id);
+
+      if (startOfDayISO && endOfDayISO) {
+        query2 = query2
+          .gte('sent_at', startOfDayISO)
+          .lt('sent_at', endOfDayISO);
+      }
+
+      const { data: messages2, error: messagesError2 } = await query2;
 
       if (messages2 && messages2.length > 0) {
         messagesData = messages2.map(msg => ({
@@ -206,7 +236,17 @@ Deno.serve(async (req) => {
 
     try {
       // Prefer exact counts from mensagens_enviadas
-      const base = supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id);
+      let base = supabase
+        .from('mensagens_enviadas')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_campanha', event.id);
+
+      if (startOfDayISO && endOfDayISO) {
+        base = base
+          .gte('data_envio', startOfDayISO)
+          .lt('data_envio', endOfDayISO);
+      }
+
       const [
         totalRes,
         queuedRes,
@@ -216,11 +256,27 @@ Deno.serve(async (req) => {
         deliveredRes
       ] = await Promise.all([
         base,
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).in('status', ['fila','pendente','processando']),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).eq('status', 'lido'),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).not('data_resposta', 'is', null),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).eq('status', 'erro'),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true }).eq('id_campanha', event.id).eq('status', 'enviado'),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
+          .eq('id_campanha', event.id)
+          .in('status', ['fila','pendente','processando'])
+          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any) // hack p/ compor filtros condicionalmente
+          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
+          .eq('id_campanha', event.id).eq('status', 'lido')
+          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
+          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
+          .eq('id_campanha', event.id).not('data_resposta', 'is', null)
+          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
+          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
+          .eq('id_campanha', event.id).eq('status', 'erro')
+          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
+          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
+        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
+          .eq('id_campanha', event.id).eq('status', 'enviado')
+          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
+          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
       ]);
 
       if ((totalRes.count ?? 0) > 0) {
@@ -233,7 +289,17 @@ Deno.serve(async (req) => {
         sentMessages = deliveredMessages + errorMessages;
       } else {
         // Fallback to event_messages
-        const eb = supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id);
+        let eb = supabase
+          .from('event_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', event.id);
+
+        if (startOfDayISO && endOfDayISO) {
+          eb = eb
+            .gte('sent_at', startOfDayISO)
+            .lt('sent_at', endOfDayISO);
+        }
+
         const [
           total2,
           queued2,
@@ -243,12 +309,28 @@ Deno.serve(async (req) => {
           delivered2
         ] = await Promise.all([
           eb,
-          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).in('status', ['queued','pending','processing']),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).not('read_at', 'is', null),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).not('responded_at', 'is', null),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).eq('status', 'failed'),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true }).eq('event_id', event.id).in('status', ['sent','delivered']),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id).in('status', ['queued','pending','processing'])
+            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
+            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id).not('read_at', 'is', null)
+            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
+            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id).not('responded_at', 'is', null)
+            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
+            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id).eq('status', 'failed')
+            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
+            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
+          supabase.from('event_messages').select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id).in('status', ['sent','delivered'])
+            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
+            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
         ]);
+
         if ((total2.count ?? 0) > 0) {
           totalMessages = total2.count || 0;
           queuedMessages = queued2.count || 0;
@@ -281,31 +363,34 @@ Deno.serve(async (req) => {
 
     // Process hourly activity - format for new chart (enviados, respondidos)
     const hourlyData: Record<string, { enviados: number; respondidos: number }> = {};
-    
-    // Filter messages by selected date if provided
-    const filteredMessages = selectedDate 
-      ? normalizedMessages.filter(message => {
-          if (!message.data_envio) return false;
-          const messageDate = new Date(message.data_envio);
-          const filterDate = new Date(selectedDate);
-          return messageDate.toDateString() === filterDate.toDateString();
-        })
-      : normalizedMessages;
+
+    // Como o filtro por data já foi aplicado no banco, usamos todas as mensagens normalizadas
+    const filteredMessages = normalizedMessages;
     
     filteredMessages.forEach(message => {
-      if (message.data_envio) {
-        const hour = new Date(message.data_envio).getHours();
-        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
-        
-        if (!hourlyData[hourKey]) {
-          hourlyData[hourKey] = { enviados: 0, respondidos: 0 };
-        }
-        
+      if (!message.data_envio) return;
+
+      // Extrai a hora em America/Sao_Paulo (BRT), igual ao que você vê no banco
+      const hourStr = new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        hour12: false,
+        timeZone: 'America/Sao_Paulo',
+      }).format(new Date(message.data_envio));
+
+      const hour = Number(hourStr);
+      const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+      
+      if (!hourlyData[hourKey]) {
+        hourlyData[hourKey] = { enviados: 0, respondidos: 0 };
+      }
+      
+      // Enviados: toda mensagem com tentativa (status diferente de pendente/fila)
+      if (!['pendente', 'fila'].includes(message.status)) {
         hourlyData[hourKey].enviados++;
-        
-        if (message.data_resposta) {
-          hourlyData[hourKey].respondidos++;
-        }
+      }
+      
+      if (message.data_resposta) {
+        hourlyData[hourKey].respondidos++;
       }
     });
 
@@ -319,7 +404,7 @@ Deno.serve(async (req) => {
     });
 
     // Calculate status distribution with exact colors from private page
-    const statusCounts = new Map();
+    const statusCounts = new Map<string, number>();
     normalizedMessages.forEach(message => {
       const status = message.status || 'fila';
       statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
