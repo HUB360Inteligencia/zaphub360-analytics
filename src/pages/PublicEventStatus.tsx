@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,15 +21,16 @@ import { getStatusBadgeConfig } from '@/lib/eventStatus';
 
 const PublicEventStatus = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   
   // Use the public edge function for event data with real-time updates
   const { data: eventData, isLoading } = useQuery({
-    queryKey: ['public-event-status', eventId],
+    queryKey: ['public-event-status', eventId, selectedDate],
     queryFn: async () => {
       if (!eventId) return null;
       
       const { data, error } = await supabase.functions.invoke('public-event-status', {
-        body: { eventId }
+        body: { eventId, selectedDate: selectedDate?.toISOString() }
       });
       
       if (error) throw error;
@@ -216,55 +218,12 @@ const PublicEventStatus = () => {
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Hourly Activity */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-              <CardDescription>Distribuição de envios, leituras e respostas ao longo do dia</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {analytics?.hourlyActivity?.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.hourlyActivity}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="hour" 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${value}h`}
-                    />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))', 
-                        borderRadius: '8px',
-                        fontSize: '14px'
-                      }}
-                      formatter={(value, name) => [
-                        `${value} mensagens`,
-                        name === 'envio' ? 'Envios' : 
-                        name === 'leitura' ? 'Leituras' : 
-                        name === 'resposta' ? 'Respostas' : name
-                      ]}
-                      labelFormatter={(label) => `${label}:00h`}
-                    />
-                    <Bar dataKey="envio" stackId="a" fill="#3B82F6" name="Envios" />
-                    <Bar dataKey="leitura" stackId="a" fill="#10B981" name="Leituras" />
-                    <Bar dataKey="resposta" stackId="a" fill="#8B5CF6" name="Respostas" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-72 flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                    <p>Nenhuma atividade registrada ainda</p>
-                    <p className="text-xs mt-1">Os dados aparecerão conforme as mensagens forem processadas</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Atividade por Horário */}
+          <EventHourlyActivityCard
+            hourlyActivity={eventData?.analytics?.hourlyActivity || []}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
 
           {/* Status Distribution */}
           <Card className="bg-card border-border">

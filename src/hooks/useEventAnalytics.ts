@@ -18,13 +18,8 @@ export interface EventAnalytics {
   progressRate: number;
   hourlyActivity: Array<{
     hour: string;
-    messages: number;
-    delivered: number;
-    read: number;
-    responded: number;
-    envio: number;
-    leitura: number;
-    resposta: number;
+    enviados: number;
+    respondidos: number;
   }>;
   statusDistribution: Array<{
     status: string;
@@ -55,11 +50,11 @@ export interface EventAnalytics {
   };
 }
 
-export const useEventAnalytics = (eventId?: string) => {
+export const useEventAnalytics = (eventId?: string, selectedDate?: Date) => {
   const { organization } = useAuth();
 
   const eventAnalyticsQuery = useQuery({
-    queryKey: ['event-analytics', organization?.id, eventId],
+    queryKey: ['event-analytics', organization?.id, eventId, selectedDate],
     queryFn: async (): Promise<EventAnalytics> => {
       if (!organization?.id) {
         return {
@@ -190,11 +185,27 @@ export const useEventAnalytics = (eventId?: string) => {
       let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
       let sentMessages = deliveredMessages + errorMessages;
 
+      // Apply date filter if selectedDate is provided
+      const applyDateFilter = (query: any, dateField: string = 'data_envio') => {
+        let filteredQuery = query;
+        if (selectedDate) {
+          const startOfDay = new Date(selectedDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(selectedDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          
+          filteredQuery = filteredQuery
+            .gte(dateField, startOfDay.toISOString())
+            .lte(dateField, endOfDay.toISOString());
+        }
+        return filteredQuery;
+      };
+
       // Always use exact server-side counts to avoid 1000 limit
       try {
-        const commonFilters = (q: any) => q
+        const commonFilters = (q: any) => applyDateFilter(q
           .eq('organization_id', organization.id)
-          .eq('id_campanha', eventId || '');
+          .eq('id_campanha', eventId || ''));
 
         const [
           totalRes,
@@ -223,9 +234,9 @@ export const useEventAnalytics = (eventId?: string) => {
           sentMessages = deliveredMessages + errorMessages;
         } else {
           // Fallback to event_messages if mensagens_enviadas has no records
-          const emFilters = (q: any) => q
+          const emFilters = (q: any) => applyDateFilter(q
             .eq('organization_id', organization.id)
-            .eq('event_id', eventId || '');
+            .eq('event_id', eventId || ''), 'sent_at');
 
           const [
             total2,
@@ -372,16 +383,34 @@ export const useEventAnalytics = (eventId?: string) => {
         }
       });
 
-      const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
-        hour,
-        messages: data.envio,
-        delivered: data.envio,
-        read: data.leitura,
-        responded: data.resposta,
-        envio: data.envio,
-        leitura: data.leitura,
-        resposta: data.resposta
-      })).sort((a, b) => a.hour.localeCompare(b.hour));
+      // Process hourly activity - format for new chart (enviados, respondidos)
+      const hourlyDataNew: Record<string, { enviados: number; respondidos: number }> = {};
+      
+      messages?.forEach(message => {
+        if (message.data_envio) {
+          const hour = new Date(message.data_envio).getHours();
+          const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+          
+          if (!hourlyDataNew[hourKey]) {
+            hourlyDataNew[hourKey] = { enviados: 0, respondidos: 0 };
+          }
+          
+          hourlyDataNew[hourKey].enviados++;
+          
+          if (message.data_resposta) {
+            hourlyDataNew[hourKey].respondidos++;
+          }
+        }
+      });
+
+      const hourlyActivity = Array.from({ length: 24 }, (_, i) => {
+        const hour = `${i.toString().padStart(2, '0')}:00`;
+        return {
+          hour,
+          enviados: hourlyDataNew[hour]?.enviados || 0,
+          respondidos: hourlyDataNew[hour]?.respondidos || 0,
+        };
+      });
 
       // Distribuição por status
       const statusCounts = new Map();

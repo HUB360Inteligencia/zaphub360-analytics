@@ -83,12 +83,14 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     let eventId = url.searchParams.get('eventId');
+    let selectedDate = url.searchParams.get('selectedDate');
 
     // If not in query params, try to get from request body
-    if (!eventId && req.method === 'POST') {
+    if (req.method === 'POST') {
       try {
         const body = await req.json();
-        eventId = body.eventId;
+        eventId = body.eventId || eventId;
+        selectedDate = body.selectedDate || selectedDate;
       } catch (e) {
         // Ignore JSON parse errors
       }
@@ -277,49 +279,34 @@ Deno.serve(async (req) => {
       responseMessages, errorMessages, deliveryRate, readRate, responseRate, progressRate
     });
 
-    // Calculate hourly activity matching private page format
-    const hourlyData = new Map();
+    // Process hourly activity - format for new chart (enviados, respondidos)
+    const hourlyData: Record<string, { enviados: number; respondidos: number }> = {};
     
-    // Initialize all hours with 0
-    for (let i = 0; i < 24; i++) {
-      const hour = `${i.toString().padStart(2, '0')}:00`;
-      hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
-    }
-
-    // Process message data by actual timestamps
     normalizedMessages.forEach(message => {
       if (message.data_envio) {
         const hour = new Date(message.data_envio).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.envio++;
-      }
-      
-      if (message.data_leitura) {
-        const hour = new Date(message.data_leitura).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.leitura++;
-      }
-      
-      if (message.data_resposta) {
-        const hour = new Date(message.data_resposta).getHours();
-        const key = `${hour.toString().padStart(2, '0')}:00`;
-        const data = hourlyData.get(key);
-        if (data) data.resposta++;
+        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+        
+        if (!hourlyData[hourKey]) {
+          hourlyData[hourKey] = { enviados: 0, respondidos: 0 };
+        }
+        
+        hourlyData[hourKey].enviados++;
+        
+        if (message.data_resposta) {
+          hourlyData[hourKey].respondidos++;
+        }
       }
     });
 
-    const hourlyActivity = Array.from(hourlyData.entries()).map(([hour, data]) => ({
-      hour,
-      messages: data.envio,
-      delivered: data.envio,
-      read: data.leitura,
-      responded: data.resposta,
-      envio: data.envio,
-      leitura: data.leitura,
-      resposta: data.resposta
-    })).sort((a, b) => a.hour.localeCompare(b.hour));
+    const hourlyActivity = Array.from({ length: 24 }, (_, i) => {
+      const hour = `${i.toString().padStart(2, '0')}:00`;
+      return {
+        hour,
+        enviados: hourlyData[hour]?.enviados || 0,
+        respondidos: hourlyData[hour]?.respondidos || 0,
+      };
+    });
 
     // Calculate status distribution with exact colors from private page
     const statusCounts = new Map();

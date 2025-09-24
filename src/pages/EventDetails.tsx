@@ -19,6 +19,7 @@ import { useEvents, useEvent } from '@/hooks/useEvents';
 import { useEventAnalytics } from '@/hooks/useEventAnalytics';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import { useEventInstances } from '@/hooks/useEventInstances';
+import { EventHourlyActivityCard } from '@/components/events/EventHourlyActivityCard';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import EventContactsList from '@/components/events/EventContactsList';
@@ -31,8 +32,9 @@ import { toast } from 'sonner';
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const { data: event, isLoading: eventLoading, error } = useEvent(id || '');
-  const { analytics, isLoading: analyticsLoading } = useEventAnalytics(id);
+  const { analytics, isLoading: analyticsLoading } = useEventAnalytics(id, selectedDate);
   const { getContactStats } = useEventContacts(id);
   const { data: eventInstances, isLoading: instancesLoading } = useEventInstances(id || '');
   
@@ -389,55 +391,12 @@ const EventDetails = () => {
         <TabsContent value="analytics" className="space-y-6">
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Hourly Activity */}
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Atividade por Horário</CardTitle>
-                <CardDescription>Distribuição de envios, leituras e respostas ao longo do dia</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {analytics?.hourlyActivity?.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={analytics.hourlyActivity}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis 
-                        dataKey="hour" 
-                        stroke="hsl(var(--muted-foreground))"
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => `${value}h`}
-                      />
-                      <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))', 
-                          borderRadius: '8px',
-                          fontSize: '14px'
-                        }}
-                        formatter={(value, name) => [
-                          `${value} mensagens`,
-                          name === 'envio' ? 'Envios' : 
-                          name === 'leitura' ? 'Leituras' : 
-                          name === 'resposta' ? 'Respostas' : name
-                        ]}
-                        labelFormatter={(label) => `${label}:00h`}
-                      />
-                      <Bar dataKey="envio" stackId="a" fill="#3B82F6" name="Envios" />
-                      <Bar dataKey="leitura" stackId="a" fill="#10B981" name="Leituras" />
-                      <Bar dataKey="resposta" stackId="a" fill="#8B5CF6" name="Respostas" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-72 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <Activity className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                      <p>Nenhuma atividade registrada</p>
-                      <p className="text-xs mt-1">Os dados aparecerão conforme as mensagens forem processadas</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Atividade por Horário */}
+            <EventHourlyActivityCard
+              hourlyActivity={analytics?.hourlyActivity || []}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
 
             {/* Status Distribution */}
             <Card className="bg-card border-border">
