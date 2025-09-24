@@ -8,11 +8,11 @@ import {
   Send, CheckCircle, Eye, MessageSquare, AlertTriangle
 } from 'lucide-react';
 import { 
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  PieChart, Pie, Cell, BarChart, Bar
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip
 } from 'recharts';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
+import { EventHourlyActivityCard } from '@/components/events/EventHourlyActivityCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
