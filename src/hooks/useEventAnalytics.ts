@@ -85,106 +85,6 @@ export const useEventAnalytics = (eventId?: string, selectedDate?: Date) => {
         };
       }
 
-      // Try multiple data sources (unified fallback logic)
-      let messages: any[] = [];
-      
-      // First try mensagens_enviadas table
-      const { data: messages1, error: messagesError1 } = await supabase
-        .from('mensagens_enviadas')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .eq('id_campanha', eventId || '');
-
-      if (messages1 && messages1.length > 0) {
-        messages = messages1;
-        console.log('Analytics data source: mensagens_enviadas:', messages1.length);
-      } else {
-        // Try event_messages table if no messages in mensagens_enviadas
-        const { data: messages2, error: messagesError2 } = await supabase
-          .from('event_messages')
-          .select('*')
-          .eq('organization_id', organization.id)
-          .eq('event_id', eventId || '');
-
-        if (messages2 && messages2.length > 0) {
-          messages = messages2.map(msg => ({
-            ...msg,
-            status: msg.status,
-            sentimento: msg.sentiment,
-            data_envio: msg.sent_at,
-            data_leitura: msg.read_at,
-            data_resposta: msg.responded_at,
-            perfil_contato: null // event_messages doesn't have contact_profile field
-          }));
-          console.log('Analytics data source: event_messages:', messages2.length);
-        } else {
-          // Last resort: try new_contact_event table
-          const { data: contacts, error: contactsError } = await supabase
-            .from('new_contact_event')
-            .select('*')
-            .eq('organization_id', organization.id)
-            .eq('event_id', parseInt(eventId || '0'));
-
-          if (contacts && contacts.length > 0) {
-            messages = contacts.map(contact => ({
-              status: contact.status_envio || 'fila',
-              sentimento: contact.sentimento,
-              data_envio: null,
-              data_leitura: null,
-              data_resposta: null,
-              perfil_contato: null
-            }));
-            console.log('Analytics data source: new_contact_event:', contacts.length);
-          }
-        }
-      }
-
-      if (messages.length === 0) {
-        console.log('No messages found in any table for event:', eventId);
-      }
-
-      // Normalizar status
-      const normalizeStatus = (status: string): string => {
-        const statusMapping: Record<string, string> = {
-          'fila': 'fila',
-          'queued': 'fila',
-          'pendente': 'fila', // Normalize pendente to fila
-          'processando': 'fila', // Normalize processando to fila
-          'pending': 'fila', // Normalize pending to fila
-          'processing': 'fila', // Normalize processing to fila
-          'true': 'enviado',
-          'READ': 'lido',
-          'delivered': 'enviado',
-          'sent': 'enviado',
-          'read': 'lido',
-          'responded': 'respondido',
-          'failed': 'erro'
-        };
-        return statusMapping[status] || status.toLowerCase();
-      };
-
-      const normalizedMessages = (messages || []).map(msg => ({
-        ...msg,
-        status: normalizeStatus(msg.status),
-        sentiment: msg.sentimento,
-        sent_at: msg.data_envio,
-        read_at: msg.data_leitura,
-        responded_at: msg.data_resposta
-      }));
-
-      // Defaults from the loaded page (may be limited to 1000 by PostgREST)
-      let totalMessages = normalizedMessages.length;
-      let queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
-      let readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-      // Improved response counting: status 'respondido' OR data_resposta/responded_at exists
-      let responseMessages = normalizedMessages.filter(m => 
-        m.status === 'respondido' || m.responded_at != null || m.data_resposta != null
-      ).length;
-      let errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
-      // Enviados: "enviado" + "erro" statuses
-      let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
-      let sentMessages = deliveredMessages + errorMessages;
-
       // Apply date filter if selectedDate is provided
       const applyDateFilter = (query: any, dateField: string = 'data_envio') => {
         let filteredQuery = query;
@@ -201,12 +101,134 @@ export const useEventAnalytics = (eventId?: string, selectedDate?: Date) => {
         return filteredQuery;
       };
 
-      // Always use exact server-side counts to avoid 1000 limit
-      try {
-        const commonFilters = (q: any) => applyDateFilter(q
-          .eq('organization_id', organization.id)
-          .eq('id_campanha', eventId || ''));
+      // Valid statuses for consistent filtering
+      const validStatuses = ['fila', 'enviado', 'entregue', 'lido', 'respondido', 'erro', 'pendente'];
+      
+      // Common filters for all queries
+      const commonFilters = (q: any) => applyDateFilter(q
+        .eq('organization_id', organization.id)
+        .eq('id_campanha', eventId || ''));
 
+      // Fetch data for detailed analytics (paginated to handle large datasets)
+      // Apply the same date filter as used in server counts
+      const batchSize = 1000;
+      let allMessagesData: any[] = [];
+      let from = 0;
+      let hasMore = true;
+
+      // First try mensagens_enviadas table with date filter
+      while (hasMore) {
+        const { data: batch, error } = await applyDateFilter(
+          supabase
+            .from('mensagens_enviadas')
+            .select('celular, data_envio, data_leitura, data_resposta, sentimento, status, perfil_contato')
+            .eq('organization_id', organization.id)
+            .eq('id_campanha', eventId || '')
+        )
+          .range(from, from + batchSize - 1);
+
+        if (error) {
+          console.error('Error fetching messages batch:', error);
+          break;
+        }
+
+        if (batch && batch.length > 0) {
+          allMessagesData = [...allMessagesData, ...batch];
+          from += batchSize;
+          hasMore = batch.length === batchSize;
+        } else {
+          hasMore = false;  
+        }
+      }
+
+      // If no messages from mensagens_enviadas, try event_messages
+      if (allMessagesData.length === 0) {
+        let eventMessages: any[] = [];
+        from = 0;
+        hasMore = true;
+
+        while (hasMore) {
+          const { data: batch, error: eventError } = await applyDateFilter(
+            supabase
+              .from('event_messages')
+              .select('contact_phone, sent_at, read_at, responded_at, sentiment, status, contact_name')
+              .eq('event_id', eventId || '')
+              .eq('organization_id', organization.id)
+              .in('status', validStatuses), 'sent_at'
+          )
+            .range(from, from + batchSize - 1);
+
+          if (eventError) {
+            console.error('Error fetching event messages batch:', eventError);
+            break;
+          }
+
+          if (batch && batch.length > 0) {
+            eventMessages = [...eventMessages, ...batch];
+            from += batchSize;
+            hasMore = batch.length === batchSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        allMessagesData = eventMessages.map(msg => ({
+          celular: msg.contact_phone,
+          data_envio: msg.sent_at,
+          data_leitura: msg.read_at,
+          data_resposta: msg.responded_at,
+          sentimento: msg.sentiment,
+          status: msg.status,
+          perfil_contato: msg.contact_name || 'Desconhecido'
+        }));
+      }
+
+      console.log('Analytics data source with date filter:', allMessagesData.length);
+
+      // Normalizar status
+      const normalizeStatus = (status: string): string => {
+        const statusMapping: Record<string, string> = {
+          'fila': 'fila',
+          'queued': 'fila',
+          'pendente': 'fila',
+          'processando': 'fila',
+          'pending': 'fila',
+          'processing': 'fila',
+          'true': 'enviado',
+          'READ': 'lido',
+          'delivered': 'enviado',
+          'sent': 'enviado',
+          'read': 'lido',
+          'responded': 'respondido',
+          'failed': 'erro'
+        };
+        return statusMapping[status] || status.toLowerCase();
+      };
+
+      const normalizedMessages = (allMessagesData || []).map(msg => ({
+        ...msg,
+        status: normalizeStatus(msg.status),
+        sentiment: msg.sentimento,
+        sent_at: msg.data_envio,
+        read_at: msg.data_leitura,
+        responded_at: msg.data_resposta
+      }));
+
+      // Defaults from the loaded page (no pagination limit)
+      let totalMessages = normalizedMessages.length;
+      let queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
+      let readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
+      // Improved response counting: status 'respondido' OR data_resposta/responded_at exists
+      let responseMessages = normalizedMessages.filter(m => 
+        m.status === 'respondido' || m.responded_at != null || m.data_resposta != null
+      ).length;
+      let errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
+      // Enviados: "enviado" + "erro" statuses
+      let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
+      let sentMessages = deliveredMessages + errorMessages;
+
+      // Always use exact server-side counts to avoid pagination limits
+      try {
         const [
           totalRes,
           queuedRes,
@@ -284,6 +306,35 @@ export const useEventAnalytics = (eventId?: string, selectedDate?: Date) => {
         responseMessages, errorMessages, deliveryRate, readRate, responseRate, progressRate
       });
 
+      // Process hourly activity - format for new chart (enviados, respondidos)
+      const hourlyDataNew: Record<string, { enviados: number; respondidos: number }> = {};
+      
+      normalizedMessages?.forEach(message => {
+        if (message.data_envio) {
+          const hour = new Date(message.data_envio).getHours();
+          const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+          
+          if (!hourlyDataNew[hourKey]) {
+            hourlyDataNew[hourKey] = { enviados: 0, respondidos: 0 };
+          }
+          
+          hourlyDataNew[hourKey].enviados++;
+          
+          if (message.data_resposta) {
+            hourlyDataNew[hourKey].respondidos++;
+          }
+        }
+      });
+
+      const hourlyActivity = Array.from({ length: 24 }, (_, i) => {
+        const hour = `${i.toString().padStart(2, '0')}:00`;
+        return {
+          hour,
+          enviados: hourlyDataNew[hour]?.enviados || 0,
+          respondidos: hourlyDataNew[hour]?.respondidos || 0,
+        };
+      });
+
       // Análise de sentimento incluindo NULL
       const sentimentCounts = {
         [SENTIMENT_VALUES.SUPER_ENGAJADO]: normalizedMessages.filter(m => normalizeSentiment(m.sentiment) === SENTIMENT_VALUES.SUPER_ENGAJADO).length,
@@ -350,67 +401,6 @@ export const useEventAnalytics = (eventId?: string, selectedDate?: Date) => {
         percentage: profileTotal > 0 ? (count / profileTotal) * 100 : 0,
         color: profileColorMap[profile]
       }));
-
-      const hourlyData = new Map();
-      
-      // Inicializar todas as horas com 0
-      for (let i = 0; i < 24; i++) {
-        const hour = `${i.toString().padStart(2, '0')}:00`;
-        hourlyData.set(hour, { envio: 0, leitura: 0, resposta: 0 });
-      }
-
-      // Processar dados das mensagens por timestamp real
-      messages?.forEach(message => {
-        if (message.data_envio) {
-          const hour = new Date(message.data_envio).getHours();
-          const key = `${hour.toString().padStart(2, '0')}:00`;
-          const data = hourlyData.get(key);
-          if (data) data.envio++;
-        }
-        
-        if (message.data_leitura) {
-          const hour = new Date(message.data_leitura).getHours();
-          const key = `${hour.toString().padStart(2, '0')}:00`;
-          const data = hourlyData.get(key);
-          if (data) data.leitura++;
-        }
-        
-        if (message.data_resposta) {
-          const hour = new Date(message.data_resposta).getHours();
-          const key = `${hour.toString().padStart(2, '0')}:00`;
-          const data = hourlyData.get(key);
-          if (data) data.resposta++;
-        }
-      });
-
-      // Process hourly activity - format for new chart (enviados, respondidos)
-      const hourlyDataNew: Record<string, { enviados: number; respondidos: number }> = {};
-      
-      messages?.forEach(message => {
-        if (message.data_envio) {
-          const hour = new Date(message.data_envio).getHours();
-          const hourKey = `${hour.toString().padStart(2, '0')}:00`;
-          
-          if (!hourlyDataNew[hourKey]) {
-            hourlyDataNew[hourKey] = { enviados: 0, respondidos: 0 };
-          }
-          
-          hourlyDataNew[hourKey].enviados++;
-          
-          if (message.data_resposta) {
-            hourlyDataNew[hourKey].respondidos++;
-          }
-        }
-      });
-
-      const hourlyActivity = Array.from({ length: 24 }, (_, i) => {
-        const hour = `${i.toString().padStart(2, '0')}:00`;
-        return {
-          hour,
-          enviados: hourlyDataNew[hour]?.enviados || 0,
-          respondidos: hourlyDataNew[hour]?.respondidos || 0,
-        };
-      });
 
       // Distribuição por status
       const statusCounts = new Map();

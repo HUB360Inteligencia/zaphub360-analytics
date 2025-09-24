@@ -46,8 +46,8 @@ export const useCampaignAnalytics = (campaignId?: string, selectedDate?: Date) =
         };
       }
 
-      // Fetch all campaign messages with pagination to handle more than 1000 records
-      const pageSize = 1000;
+      // Fetch all campaign messages with pagination to handle large datasets
+      const pageSize = 2000; // Increased from 1000
       let from = 0;
       let to = pageSize - 1;
       let allMessages: any[] = [];

@@ -35,7 +35,7 @@ const CampaignDetails = () => {
   
   const campaign = campaigns?.find(c => c.id === id);
 
-// ---- CONTADORES (não sofrem o limite de 1000) ----
+// ---- CONTADORES (sem limite de paginação) ----
 const { data: counts, isLoading: countsLoading } = useQuery({
   queryKey: ['campaign-counts', id],
   enabled: !!id,
@@ -137,7 +137,7 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
       .select('*')
       .eq('id_campanha', id)
       .order('data_envio', { ascending: false })
-      .range(from, to); // evita o corte dos 1000
+      .range(from, to); // sem corte de paginação
     if (error) throw error;
     return data ?? [];
   },

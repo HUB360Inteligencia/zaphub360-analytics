@@ -134,7 +134,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
         responded_at: msg.data_resposta
       }));
 
-      // Defaults from loaded page (may be limited to 1000)
+      // Defaults from loaded page (no pagination limit)
       let totalMessages = normalizedMessages.length;
       let queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
       let readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
@@ -143,7 +143,7 @@ export const usePublicEventAnalytics = (eventId?: string) => {
       let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
       let sentMessages = deliveredMessages + errorMessages;
 
-      // Override with exact counts from server to avoid 1000 cap
+      // Override with exact counts from server to avoid pagination limits
       try {
         const commonFilters = (q: any) => q.eq('id_campanha', eventData.id);
 
