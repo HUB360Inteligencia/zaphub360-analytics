@@ -493,12 +493,12 @@ const Contacts = () => {
         onApplyFilters={handleAdvancedFiltersApply}
         availableData={{
           sentiments: filters.sentimentos || [],
-          states: advancedFiltersResult.filterOptions.states || [],
+          states: (useAdvancedFilters ? advancedFiltersResult.filterOptions.states : []) || [],
           cities: filters.cidades || [],
           neighborhoods: filters.bairros || [],
           tags: tagStats.map(tag => tag.name) || [],
-          citiesByState: advancedFiltersResult.filterOptions.citiesByState || {},
-          neighborhoodsByCity: advancedFiltersResult.filterOptions.neighborhoodsByCity || {},
+          citiesByState: (useAdvancedFilters ? advancedFiltersResult.filterOptions.citiesByState : {}) || {},
+          neighborhoodsByCity: (useAdvancedFilters ? advancedFiltersResult.filterOptions.neighborhoodsByCity : {}) || {},
         }}
       />
 
