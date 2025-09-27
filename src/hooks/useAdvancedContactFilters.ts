@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { normalizeSentiment } from '@/lib/brazilianStates';
+import { normalizeSentiment, BRAZILIAN_STATES } from '@/lib/brazilianStates';
 
 export interface AdvancedFilters {
   searchTerm: string;
@@ -35,24 +35,64 @@ export const useAdvancedContactFilters = (
         .select('*', { count: 'exact' })
         .eq('organization_id', organization.id);
 
+      // Build query conditions with proper AND logic between different filter types
+      const conditions: string[] = [];
+
       // Search term with AND/OR logic
       if (filters.searchTerm) {
-        query = query.or(`name.ilike.%${filters.searchTerm}%,celular.ilike.%${filters.searchTerm}%`);
+        if (filters.searchOperator === 'AND') {
+          const searchTerms = filters.searchTerm.split(' ').filter(term => term.trim());
+          searchTerms.forEach(term => {
+            conditions.push(`(name.ilike.%${term}%,celular.ilike.%${term}%)`);
+          });
+        } else {
+          conditions.push(`(name.ilike.%${filters.searchTerm}%,celular.ilike.%${filters.searchTerm}%)`);
+        }
       }
 
-      // Sentiment filters
+      // Sentiment filters - normalize before filtering
       if (filters.sentiments.length > 0) {
-        const sentimentConditions = filters.sentiments
-          .map(sentiment => `sentimento.ilike.%${sentiment}%`)
-          .join(',');
-        query = query.or(sentimentConditions);
+        const normalizedSentiments = filters.sentiments.map(s => {
+          switch (s.toLowerCase()) {
+            case 'negativo': return 'negativo';
+            case 'neutro': return 'neutro';
+            case 'positivo': return 'positivo';
+            case 'super engajado': return 'super_engajado';
+            default: return s;
+          }
+        });
+        
+        const sentimentConditions = normalizedSentiments.map(sentiment => {
+          if (sentiment === 'super_engajado') {
+            return `sentimento.ilike.%engajado%`;
+          }
+          return `sentimento.ilike.%${sentiment}%`;
+        }).join(',');
+        
+        if (sentimentConditions) {
+          query = query.or(sentimentConditions);
+        }
       }
 
-      // Geographic filters
+      // State filters (filter cities based on selected states)
+      if (filters.states.length > 0) {
+        // Get cities from selected states to cross-reference
+        const stateCities = filters.states.flatMap(state => {
+          const stateData = BRAZILIAN_STATES.find(s => s.code === state);
+          return stateData?.cities || [];
+        });
+        
+        if (stateCities.length > 0) {
+          query = query.in('cidade', stateCities);
+        }
+      }
+
+      // City filters (further filter if cities are specifically selected)
       if (filters.cities.length > 0) {
         query = query.in('cidade', filters.cities);
       }
 
+      // Neighborhood filters
       if (filters.neighborhoods.length > 0) {
         query = query.in('bairro', filters.neighborhoods);
       }
@@ -74,7 +114,9 @@ export const useAdvancedContactFilters = (
             return `status_envio.neq.enviado`;
           }
         }).join(',');
-        query = query.or(statusConditions);
+        if (statusConditions) {
+          query = query.or(statusConditions);
+        }
       }
 
       // Tag filters
@@ -82,7 +124,9 @@ export const useAdvancedContactFilters = (
         const tagConditions = filters.tags
           .map(tag => `tag.ilike.%${tag}%`)
           .join(',');
-        query = query.or(tagConditions);
+        if (tagConditions) {
+          query = query.or(tagConditions);
+        }
       }
 
       // Paginação
@@ -122,11 +166,19 @@ export const useAdvancedContactFilters = (
     enabled: !!organization?.id,
   });
 
-  // Get available filter options
+  // Get available filter options with counts
   const filterOptions = useQuery({
     queryKey: ['contact-filter-options', organization?.id],
     queryFn: async () => {
-      if (!organization?.id) return { sentiments: [], cities: [], neighborhoods: [], tags: [] };
+      if (!organization?.id) return { 
+        sentiments: [], 
+        states: [], 
+        cities: [], 
+        neighborhoods: [], 
+        tags: [],
+        citiesByState: {},
+        neighborhoodsByCity: {}
+      };
 
       const { data, error } = await supabase
         .from('new_contact_event')
@@ -135,16 +187,57 @@ export const useAdvancedContactFilters = (
 
       if (error) throw error;
 
-      const cidades = Array.from(new Set(data?.map(d => d.cidade).filter(Boolean))).sort();
-      const bairros = Array.from(new Set(data?.map(d => d.bairro).filter(Boolean))).sort();
+      // Process cities and create state mapping
+      const cidadesSet = new Set(data?.map(d => d.cidade).filter(Boolean));
+      const cidades = Array.from(cidadesSet).sort();
+      
+      // Map cities to states
+      const citiesByState: Record<string, string[]> = {};
+      const availableStates: string[] = [];
+      
+      BRAZILIAN_STATES.forEach(state => {
+        const stateCities = cidades.filter(city => 
+          state.cities?.includes(city)
+        );
+        if (stateCities.length > 0) {
+          citiesByState[state.code] = stateCities;
+          availableStates.push(state.code);
+        }
+      });
+
+      // Process neighborhoods and create city mapping
+      const bairrosSet = new Set(data?.map(d => d.bairro).filter(Boolean));
+      const bairros = Array.from(bairrosSet).sort();
+      
+      const neighborhoodsByCity: Record<string, string[]> = {};
+      cidades.forEach(city => {
+        const cityNeighborhoods = data
+          ?.filter(d => d.cidade === city && d.bairro)
+          .map(d => d.bairro)
+          .filter(Boolean);
+        
+        if (cityNeighborhoods && cityNeighborhoods.length > 0) {
+          neighborhoodsByCity[city] = Array.from(new Set(cityNeighborhoods)).sort();
+        }
+      });
+
+      // Process sentiments - normalize and get unique values
       const rawSentimentos = Array.from(new Set(data?.map(d => d.sentimento).filter(Boolean)));
       const sentimentos = Array.from(new Set(rawSentimentos.map(s => normalizeSentiment(s)).filter(Boolean))).sort();
       
-      // Extract unique tags
+      // Process tags
       const allTags = data?.map(d => d.tag).filter(Boolean).join(', ');
       const tags = Array.from(new Set(allTags?.split(', ').filter(Boolean))).sort();
 
-      return { sentimentos, cidades, bairros, tags };
+      return { 
+        sentimentos, 
+        states: availableStates,
+        cidades, 
+        bairros, 
+        tags,
+        citiesByState,
+        neighborhoodsByCity
+      };
     },
     enabled: !!organization?.id,
   });
@@ -154,7 +247,15 @@ export const useAdvancedContactFilters = (
     contactsCount: contacts.data?.count || 0,
     contactsLoading: contacts.isLoading,
     contactsError: contacts.error,
-    filterOptions: filterOptions.data || { sentiments: [], cities: [], neighborhoods: [], tags: [] },
+    filterOptions: filterOptions.data || { 
+      sentiments: [], 
+      states: [], 
+      cities: [], 
+      neighborhoods: [], 
+      tags: [],
+      citiesByState: {},
+      neighborhoodsByCity: {}
+    },
     filterOptionsLoading: filterOptions.isLoading,
     refetch: contacts.refetch,
   };
