@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,7 +87,6 @@ export const useContacts = (params: ContactsParams = {}) => {
       }
       
       if (filterSentimento !== 'all') {
-        // Use case-insensitive matching for sentiment values
         query = query.ilike('sentimento', filterSentimento);
       }
       
@@ -164,22 +162,34 @@ export const useContacts = (params: ContactsParams = {}) => {
     enabled: !!organization?.id,
   });
 
-  // Hook para obter valores únicos para filtros
+  // Hook para obter valores únicos para filtros (correção rápida aplicada)
   const filtersQuery = useQuery({
     queryKey: ['contacts-filters', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { cidades: [], bairros: [], sentimentos: [] };
-      
-      const { data } = await supabase
+
+      const { data, error } = await supabase
         .from('new_contact_event')
         .select('cidade, bairro, sentimento')
-        .eq('organization_id', organization.id);
+        .eq('organization_id', organization.id)
+        .range(0, 99999); // evita retorno truncado (~1000)
 
-      const cidades = Array.from(new Set(data?.map(d => d.cidade).filter(Boolean))).sort();
-      const bairros = Array.from(new Set(data?.map(d => d.bairro).filter(Boolean))).sort();
-      // Get unique sentiment values directly from database, normalized
-      const rawSentimentos = Array.from(new Set(data?.map(d => d.sentimento).filter(Boolean)));
-      const sentimentos = rawSentimentos.sort();
+      if (error) throw error;
+
+      // normaliza strings
+      const norm = (s?: string | null) => (s ?? '').trim();
+
+      const cidades = Array.from(
+        new Set((data ?? []).map(d => norm(d.cidade)).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      const bairros = Array.from(
+        new Set((data ?? []).map(d => norm(d.bairro)).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      const sentimentos = Array.from(
+        new Set((data ?? []).map(d => norm(d.sentimento)).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
       return { cidades, bairros, sentimentos };
     },
@@ -231,7 +241,6 @@ export const useContacts = (params: ContactsParams = {}) => {
           updated_at: new Date().toISOString()
         };
 
-        // Atualizar apenas campos que estão vazios ou menos completos
         if (contactData.name && (!existingContact.name || existingContact.name.length < contactData.name.length)) {
           updateData.name = contactData.name;
         }
@@ -245,7 +254,6 @@ export const useContacts = (params: ContactsParams = {}) => {
           updateData.bairro = contactData.bairro;
         }
         if (contactData.evento && contactData.evento !== 'Contato Manual') {
-          // Agrupar eventos se já existe um evento diferente
           const existingEvents = existingContact.evento ? existingContact.evento.split(', ') : [];
           if (!existingEvents.includes(contactData.evento)) {
             updateData.evento = [...existingEvents, contactData.evento].join(', ');
