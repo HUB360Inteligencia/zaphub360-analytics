@@ -173,10 +173,7 @@ export const useContacts = (params: ContactsParams = {}) => {
       const { data } = await supabase
         .from('new_contact_event')
         .select('cidade, bairro, sentimento')
-        .eq('organization_id', organization.id)
-        .not('cidade', 'is', null)
-        .not('bairro', 'is', null)
-        .not('sentimento', 'is', null);
+        .eq('organization_id', organization.id);
 
       const cidades = Array.from(new Set(data?.map(d => d.cidade).filter(Boolean))).sort();
       const bairros = Array.from(new Set(data?.map(d => d.bairro).filter(Boolean))).sort();

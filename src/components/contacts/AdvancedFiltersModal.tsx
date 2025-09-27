@@ -581,6 +581,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
           <Button variant="outline" onClick={clearAllFilters}>
             Limpar Todos
           </Button>
+          <Button variant="outline" onClick={handleExportExcel}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar Excel
+          </Button>
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>

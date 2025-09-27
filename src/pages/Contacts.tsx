@@ -17,6 +17,7 @@ import { getSentimentColor } from '@/lib/brazilianStates';
 import { AdvancedFiltersModal, AdvancedFilters } from '@/components/contacts/AdvancedFiltersModal';
 import { useAdvancedContactFilters } from '@/hooks/useAdvancedContactFilters';
 import { useDebounce } from '@/hooks/useDebounce';
+import * as XLSX from 'xlsx';
 
 const Contacts = () => {
   const { organization } = useAuth();
@@ -215,6 +216,38 @@ const Contacts = () => {
     setUseAdvancedFilters(false);
   };
 
+  const handleExportExcel = () => {
+    if (!contacts || contacts.length === 0) return;
+
+    const excelData = contacts.map((contact, index) => ({
+      'Linha': index + 1,
+      'Nome': contact.name || '',
+      'Telefone': contact.phone || '',
+      'Email': contact.email || '',
+      'Cidade': (contact as any).cidade || '',
+      'Bairro': (contact as any).bairro || '',
+      'Sentimento': (contact as any).sentimento || '',
+      'Evento': (contact as any).evento || '',
+      'Tags': Array.isArray(contact.tags) ? contact.tags.map((t: any) => t.name).join(', ') : '',
+      'Status': contact.status || '',
+      'Data de Cadastro': contact.created_at ? new Date(contact.created_at).toLocaleDateString('pt-BR') : '',
+      'Observações': contact.notes || ''
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    ws['!cols'] = [
+      { wch: 8 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 40 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Contatos Filtrados');
+
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const filename = `contatos-filtrados-${dateStr}-${timeStr}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  };
+
   if (tagsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -405,10 +438,14 @@ const Contacts = () => {
                     Limpar Filtros
                   </Button>
                 )}
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar
-                </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full sm:w-auto"
+                    onClick={handleExportExcel}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar
+                  </Button>
               </div>
             </div>
             
@@ -493,13 +530,13 @@ const Contacts = () => {
         onApplyFilters={handleAdvancedFiltersApply}
         contacts={useAdvancedFilters ? advancedFiltersResult.contacts : contacts}
         availableData={{
-          sentiments: useAdvancedFilters ? advancedFiltersResult.filterOptions.sentiments : (filters.sentimentos || []),
-          states: useAdvancedFilters ? advancedFiltersResult.filterOptions.states : [],
-          cities: useAdvancedFilters ? advancedFiltersResult.filterOptions.cidades : (filters.cidades || []),
-          neighborhoods: useAdvancedFilters ? advancedFiltersResult.filterOptions.bairros : (filters.bairros || []),
+          sentiments: advancedFiltersResult.filterOptions.sentimentos || [],
+          states: advancedFiltersResult.filterOptions.states || [],
+          cities: advancedFiltersResult.filterOptions.cidades || [],
+          neighborhoods: advancedFiltersResult.filterOptions.bairros || [],
           tags: tagStats.map(tag => tag.name) || [],
-          citiesByState: useAdvancedFilters ? advancedFiltersResult.filterOptions.citiesByState : {},
-          neighborhoodsByCity: useAdvancedFilters ? advancedFiltersResult.filterOptions.neighborhoodsByCity : {},
+          citiesByState: advancedFiltersResult.filterOptions.citiesByState || {},
+          neighborhoodsByCity: advancedFiltersResult.filterOptions.neighborhoodsByCity || {},
         }}
       />
 
