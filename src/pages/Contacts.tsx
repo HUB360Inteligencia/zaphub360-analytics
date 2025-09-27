@@ -13,7 +13,9 @@ import { useTags } from '@/hooks/useTags';
 import { useAuth } from '@/contexts/AuthContext';
 import ContactProfileModal from '@/components/contacts/ContactProfileModal';
 import ContactsTable from '@/components/contacts/ContactsTable';
-import { SENTIMENT_OPTIONS, getSentimentOption } from '@/lib/sentiment';
+import { getSentimentColor } from '@/lib/brazilianStates';
+import { AdvancedFiltersModal, AdvancedFilters } from '@/components/contacts/AdvancedFiltersModal';
+import { useAdvancedContactFilters } from '@/hooks/useAdvancedContactFilters';
 import { useDebounce } from '@/hooks/useDebounce';
 
 const Contacts = () => {
@@ -37,42 +39,99 @@ const Contacts = () => {
   const [pageSize, setPageSize] = useState(50);
   
   // Modal de perfil
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalMode, setProfileModalMode] = useState<'view' | 'edit'>('view');
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  
+  // Advanced filters state
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [useAdvancedFilters, setUseAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    searchTerm: '',
+    sentiments: [],
+    states: [],
+    cities: [],
+    neighborhoods: [],
+    dateRange: { from: '', to: '' },
+    tags: [],
+    status: [],
+    searchOperator: 'AND'
+  });
 
   // Debounce da busca para evitar muitas consultas
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Hook de contatos com parâmetros atualizados
-  const { 
-    contacts, 
-    contactsCount, 
-    stats, 
-    filters,
-    isLoading: contactsLoading, 
-    createContact, 
-    updateContact, 
-    deleteContact 
-  } = useContacts({
-    page: currentPage,
-    pageSize,
+  // Regular filters
+  const regularFilters = useContacts({
     searchTerm: debouncedSearchTerm,
     filterCidade,
     filterBairro,
     filterSentimento,
-    selectedTag
+    selectedTag,
+    page: currentPage,
+    pageSize: pageSize
   });
 
-  // Calcular estatísticas para as tags
+  // Advanced filters
+  const advancedFiltersResult = useAdvancedContactFilters(
+    advancedFilters,
+    currentPage,
+    pageSize
+  );
+
+  // Use appropriate data source based on filter mode
+  const {
+    contacts,
+    contactsCount,
+    contactsLoading,
+    createContact,
+    updateContact,
+    deleteContact,
+    refetch
+  } = useAdvancedFilters ? {
+    contacts: advancedFiltersResult.contacts,
+    contactsCount: advancedFiltersResult.contactsCount,
+    contactsLoading: advancedFiltersResult.contactsLoading,
+    createContact: regularFilters.createContact,
+    updateContact: regularFilters.updateContact,
+    deleteContact: regularFilters.deleteContact,
+    refetch: advancedFiltersResult.refetch
+  } : {
+    contacts: regularFilters.contacts,
+    contactsCount: regularFilters.contactsCount,
+    contactsLoading: regularFilters.isLoading,
+    createContact: regularFilters.createContact,
+    updateContact: regularFilters.updateContact,
+    deleteContact: regularFilters.deleteContact,
+    refetch: regularFilters.refetch
+  };
+
+  const filters = useAdvancedFilters ? advancedFiltersResult.filterOptions : regularFilters.filters;
+  const filtersLoading = useAdvancedFilters ? advancedFiltersResult.filterOptionsLoading : regularFilters.isFiltersLoading;
+
+  // Estatísticas calculadas com base nos contatos
+  const stats = useMemo(() => {
+    if (!contacts) return { total: 0, active: 0, withEmail: 0, searchResults: 0 };
+    
+    return {
+      total: contactsCount || 0,
+      active: contacts.filter(c => c.status === 'active').length,
+      withEmail: contacts.filter(c => c.email).length,
+      searchResults: contacts.length
+    };
+  }, [contacts, contactsCount]);
+
+  // Estatísticas das tags
   const tagStats = useMemo(() => {
+    if (!contacts || !tags) return [];
+    
     return tags.map(tag => ({
       ...tag,
       count: contacts.filter(contact => 
-        contact.tags?.some(t => t.name === tag.name)
+        contact.tags?.some(contactTag => contactTag.name === tag.name)
       ).length
     }));
-  }, [tags, contacts]);
+  }, [contacts, tags]);
 
   const handleSelectContact = (contactId: string) => {
     setSelectedContacts(prev => 
@@ -90,50 +149,22 @@ const Contacts = () => {
     }
   };
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    setSelectedContacts([]); // Limpar seleção ao mudar página
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1); // Voltar para primeira página
-    setSelectedContacts([]); // Limpar seleção
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
   };
 
-  const [messageType, setMessageType] = useState<number>(1);
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-
-  const handleCreateContact = async (formData: FormData) => {
-    const name = formData.get('name') as string;
-    const phone = formData.get('phone') as string;
-    const sobrenome = formData.get('sobrenome') as string;
-    const cidade = formData.get('cidade') as string;
-    const bairro = formData.get('bairro') as string;
-    const evento = formData.get('evento') as string;
-
-    if (!name || !phone || !organization?.id) return;
-    if (messageType === 2 && !mediaFile) {
-      alert('Por favor, selecione um arquivo para o tipo "Arquivo + Texto"');
-      return;
+  const handleCreateContact = async (contactData: any) => {
+    try {
+      await createContact.mutateAsync(contactData);
+      setIsCreateDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao criar contato:', error);
     }
-
-    await createContact.mutateAsync({
-      name,
-      phone,
-      sobrenome,
-      cidade,
-      bairro,
-      evento: evento || 'Contato Manual',
-      status: 'active',
-      organization_id: organization.id,
-      id_tipo_mensagem: messageType,
-      mediaFile: mediaFile || undefined,
-    });
-
-    setIsCreateDialogOpen(false);
-    setMessageType(1);
-    setMediaFile(null);
   };
 
   const handleViewProfile = (contact: Contact) => {
@@ -148,253 +179,197 @@ const Contacts = () => {
     setProfileModalOpen(true);
   };
 
-  const handleUpdateContact = async (updatedContact: Contact) => {
-    await updateContact.mutateAsync(updatedContact);
-    setProfileModalOpen(false);
+  const handleUpdateContact = async (contactData: Partial<Contact>) => {
+    if (!selectedContact) return;
+    
+    try {
+      await updateContact.mutateAsync({ 
+        id: selectedContact.id, 
+        ...contactData 
+      });
+      setProfileModalOpen(false);
+      setSelectedContact(null);
+    } catch (error) {
+      console.error('Erro ao atualizar contato:', error);
+    }
   };
 
-  const getSentimentColor = (sentiment?: string) => {
-    // Return colors for actual database values
-    if (!sentiment) return 'bg-gray-100 text-gray-600';
-    
-    const normalizedSentiment = sentiment.toLowerCase().trim();
-    
-    if (normalizedSentiment.includes('super engajado')) {
-      return 'bg-orange-100 text-orange-800';
-    }
-    if (normalizedSentiment.includes('positivo')) {
-      return 'bg-green-100 text-green-800';
-    }
-    if (normalizedSentiment.includes('neutro')) {
-      return 'bg-gray-100 text-gray-800';
-    }
-    if (normalizedSentiment.includes('negativo')) {
-      return 'bg-red-100 text-red-800';
-    }
-    
-    // Default for unknown sentiments
-    return 'bg-blue-100 text-blue-800';
+  const handleAdvancedFiltersApply = (newFilters: AdvancedFilters) => {
+    setAdvancedFilters(newFilters);
+    setUseAdvancedFilters(true);
+    setCurrentPage(1); // Reset to first page when applying filters
+  };
+
+  const handleClearAdvancedFilters = () => {
+    setAdvancedFilters({
+      searchTerm: '',
+      sentiments: [],
+      states: [],
+      cities: [],
+      neighborhoods: [],
+      dateRange: { from: '', to: '' },
+      tags: [],
+      status: [],
+      searchOperator: 'AND'
+    });
+    setUseAdvancedFilters(false);
   };
 
   if (tagsLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <p className="text-slate-600">Carregando dados...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+    <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Gestão de Contatos</h1>
-          <p className="text-slate-600">Organize e gerencie sua base de contatos</p>
+          <h1 className="text-3xl font-bold tracking-tight">Contatos</h1>
+          <p className="text-slate-600">
+            Gerencie seus contatos e acompanhe o engajamento
+          </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="bg-white">
+              <Button variant="outline">
                 <Upload className="w-4 h-4 mr-2" />
-                Importar CSV
+                Importar
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Importar Contatos</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="csv-file">Arquivo CSV</Label>
-                  <Input id="csv-file" type="file" accept=".csv" className="mt-1" />
-                  <p className="text-xs text-slate-600 mt-1">
-                    Formato: Nome, Telefone, Email, Empresa, Tags
-                  </p>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button>Importar</Button>
-                </div>
+                <p className="text-sm text-slate-600">
+                  Faça upload de um arquivo CSV com os dados dos contatos
+                </p>
+                <Input type="file" accept=".csv" />
+                <Button className="w-full">Importar Arquivo</Button>
               </div>
             </DialogContent>
           </Dialog>
-
+          
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Contato
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent>
               <DialogHeader>
-                <DialogTitle>Criar Novo Contato</DialogTitle>
+                <DialogTitle>Novo Contato</DialogTitle>
               </DialogHeader>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                handleCreateContact(formData);
-              }}>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Nome *</Label>
-                      <Input id="name" name="name" placeholder="Nome" className="mt-1" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="sobrenome">Sobrenome</Label>
-                      <Input id="sobrenome" name="sobrenome" placeholder="Sobrenome" className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Telefone *</Label>
-                      <Input id="phone" name="phone" placeholder="(11) 99999-9999" className="mt-1" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="evento">Evento</Label>
-                      <Input id="evento" name="evento" placeholder="Nome do evento" className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="cidade">Cidade</Label>
-                      <Input id="cidade" name="cidade" placeholder="Cidade" className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="bairro">Bairro</Label>
-                      <Input id="bairro" name="bairro" placeholder="Bairro" className="mt-1" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Tipo de Mensagem *</Label>
-                    <Select value={messageType.toString()} onValueChange={(value) => setMessageType(parseInt(value))}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Selecione o tipo de mensagem" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Texto</SelectItem>
-                        <SelectItem value="2">Arquivo + Texto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {messageType === 2 && (
-                    <div>
-                      <Label htmlFor="media">Arquivo *</Label>
-                      <Input 
-                        id="media" 
-                        type="file" 
-                        accept="image/*,video/*,.pdf,.doc,.docx"
-                        className="mt-1" 
-                        onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                      />
-                      <p className="text-xs text-slate-600 mt-1">
-                        Aceita imagens, vídeos e documentos (PDF, DOC, DOCX)
-                      </p>
-                    </div>
-                  )}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Nome</Label>
+                  <Input id="name" placeholder="Nome do contato" />
                 </div>
-                <div className="flex justify-end gap-2 mt-6">
-                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={createContact.isPending}>
-                    {createContact.isPending ? 'Salvando...' : 'Salvar Contato'}
-                  </Button>
+                <div>
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input id="phone" placeholder="(11) 99999-9999" />
                 </div>
-              </form>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" placeholder="email@exemplo.com" />
+                </div>
+                <Button className="w-full" onClick={() => setIsCreateDialogOpen(false)}>
+                  Criar Contato
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white border-0 shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Total de Contatos</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.total.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
               </div>
               <Users className="w-8 h-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-0 shadow-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Contatos Ativos</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.active.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">{stats.active.toLocaleString()}</p>
               </div>
               <Phone className="w-8 h-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-0 shadow-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Com Email</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.withEmail.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.withEmail.toLocaleString()}</p>
               </div>
               <Mail className="w-8 h-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-0 shadow-sm">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Resultados</p>
-                <p className="text-2xl font-bold text-slate-900">{contactsCount.toLocaleString()}</p>
+                <p className="text-sm font-medium text-slate-600">Resultados da Busca</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.searchResults.toLocaleString()}</p>
               </div>
-              <Filter className="w-8 h-8 text-orange-600" />
+              <Search className="w-8 h-8 text-orange-600" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Tags Filter */}
-      <Card className="bg-white border-0 shadow-sm">
+      <Card>
         <CardContent className="p-6">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={selectedTag === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedTag('all')}
-              className={selectedTag === 'all' ? 'bg-slate-900' : ''}
-            >
-              Todos ({stats.total.toLocaleString()})
-            </Button>
-            {tagStats.map(tag => {
-              return (
-                <Button
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Filtrar por Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={selectedTag === 'all' ? 'default' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => setSelectedTag('all')}
+              >
+                Todas ({stats.total})
+              </Badge>
+              {tagStats.map(tag => (
+                <Badge
                   key={tag.id}
-                  variant={selectedTag === tag.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedTag(tag.id)}
-                  className={selectedTag === tag.id ? '' : 'hover:bg-slate-50'}
-                  style={selectedTag === tag.id ? { backgroundColor: tag.color } : {}}
+                  variant={selectedTag === tag.name ? 'default' : 'outline'}
+                  className="cursor-pointer"
+                  style={{ backgroundColor: selectedTag === tag.name ? tag.color : undefined }}
+                  onClick={() => setSelectedTag(tag.name)}
                 >
                   {tag.name} ({tag.count})
-                </Button>
-              );
-            })}
+                </Badge>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Search and Filters */}
-      <Card className="bg-white border-0 shadow-sm">
+      <Card>
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row gap-4">
@@ -408,10 +383,28 @@ const Contacts = () => {
                 />
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button variant="outline" className="w-full sm:w-auto">
+                <Button 
+                  variant={useAdvancedFilters ? "default" : "outline"} 
+                  className="w-full sm:w-auto"
+                  onClick={() => setAdvancedFiltersOpen(true)}
+                >
                   <Filter className="w-4 h-4 mr-2" />
-                  Filtros
+                  Filtros Avançados
+                  {useAdvancedFilters && (
+                    <Badge variant="secondary" className="ml-2">
+                      Ativo
+                    </Badge>
+                  )}
                 </Button>
+                {useAdvancedFilters && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleClearAdvancedFilters}
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Download className="w-4 h-4 mr-2" />
                   Exportar
@@ -419,7 +412,8 @@ const Contacts = () => {
               </div>
             </div>
             
-            {/* Filtros */}
+            {/* Filtros Simples (apenas quando não está usando filtros avançados) */}
+            {!useAdvancedFilters && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Select value={filterCidade} onValueChange={setFilterCidade}>
                 <SelectTrigger>
@@ -427,7 +421,7 @@ const Contacts = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as cidades</SelectItem>
-                  {filters.cidades.map(cidade => (
+                  {filters.cidades?.map(cidade => (
                     <SelectItem key={cidade} value={cidade}>{cidade}</SelectItem>
                   ))}
                 </SelectContent>
@@ -439,7 +433,7 @@ const Contacts = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os bairros</SelectItem>
-                  {filters.bairros.map(bairro => (
+                  {filters.bairros?.map(bairro => (
                     <SelectItem key={bairro} value={bairro}>{bairro}</SelectItem>
                   ))}
                 </SelectContent>
@@ -451,7 +445,7 @@ const Contacts = () => {
                 </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os sentimentos</SelectItem>
-                    {filters.sentimentos.map(sentimento => (
+                    {filters.sentimentos?.map(sentimento => (
                       <SelectItem key={sentimento} value={sentimento}>{sentimento}</SelectItem>
                     ))}
                   </SelectContent>
@@ -468,6 +462,7 @@ const Contacts = () => {
                 </SelectContent>
               </Select>
             </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -488,6 +483,20 @@ const Contacts = () => {
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         isLoading={contactsLoading}
+      />
+
+      {/* Advanced Filters Modal */}
+      <AdvancedFiltersModal
+        isOpen={advancedFiltersOpen}
+        onClose={() => setAdvancedFiltersOpen(false)}
+        filters={advancedFilters}
+        onApplyFilters={handleAdvancedFiltersApply}
+        availableData={{
+          sentiments: filters.sentimentos || [],
+          cities: filters.cidades || [],
+          neighborhoods: filters.bairros || [],
+          tags: tagStats.map(tag => tag.name) || [],
+        }}
       />
 
       {/* Contact Profile Modal */}
