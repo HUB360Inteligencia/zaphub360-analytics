@@ -103,4 +103,3 @@ function AdvancedFiltersModal({
 }
 
 export default AdvancedFiltersModal;
-export { AdvancedFiltersModal };
