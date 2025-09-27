@@ -491,14 +491,15 @@ const Contacts = () => {
         onClose={() => setAdvancedFiltersOpen(false)}
         filters={advancedFilters}
         onApplyFilters={handleAdvancedFiltersApply}
+        contacts={useAdvancedFilters ? advancedFiltersResult.contacts : contacts}
         availableData={{
-          sentiments: filters.sentimentos || [],
-          states: (useAdvancedFilters ? advancedFiltersResult.filterOptions.states : []) || [],
-          cities: filters.cidades || [],
-          neighborhoods: filters.bairros || [],
+          sentiments: useAdvancedFilters ? advancedFiltersResult.filterOptions.sentiments : (filters.sentimentos || []),
+          states: useAdvancedFilters ? advancedFiltersResult.filterOptions.states : [],
+          cities: useAdvancedFilters ? advancedFiltersResult.filterOptions.cidades : (filters.cidades || []),
+          neighborhoods: useAdvancedFilters ? advancedFiltersResult.filterOptions.bairros : (filters.bairros || []),
           tags: tagStats.map(tag => tag.name) || [],
-          citiesByState: (useAdvancedFilters ? advancedFiltersResult.filterOptions.citiesByState : {}) || {},
-          neighborhoodsByCity: (useAdvancedFilters ? advancedFiltersResult.filterOptions.neighborhoodsByCity : {}) || {},
+          citiesByState: useAdvancedFilters ? advancedFiltersResult.filterOptions.citiesByState : {},
+          neighborhoodsByCity: useAdvancedFilters ? advancedFiltersResult.filterOptions.neighborhoodsByCity : {},
         }}
       />
 

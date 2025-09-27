@@ -35,38 +35,26 @@ export const useAdvancedContactFilters = (
         .select('*', { count: 'exact' })
         .eq('organization_id', organization.id);
 
-      // Build query conditions with proper AND logic between different filter types
-      const conditions: string[] = [];
-
-      // Search term with AND/OR logic
+      // Apply search term filter
       if (filters.searchTerm) {
         if (filters.searchOperator === 'AND') {
           const searchTerms = filters.searchTerm.split(' ').filter(term => term.trim());
           searchTerms.forEach(term => {
-            conditions.push(`(name.ilike.%${term}%,celular.ilike.%${term}%)`);
+            query = query.or(`name.ilike.%${term}%,celular.ilike.%${term}%`);
           });
         } else {
-          conditions.push(`(name.ilike.%${filters.searchTerm}%,celular.ilike.%${filters.searchTerm}%)`);
+          query = query.or(`name.ilike.%${filters.searchTerm}%,celular.ilike.%${filters.searchTerm}%`);
         }
       }
 
-      // Sentiment filters - normalize before filtering
+      // Apply sentiment filters with proper normalization and AND logic
       if (filters.sentiments.length > 0) {
-        const normalizedSentiments = filters.sentiments.map(s => {
-          switch (s.toLowerCase()) {
-            case 'negativo': return 'negativo';
-            case 'neutro': return 'neutro';
-            case 'positivo': return 'positivo';
-            case 'super engajado': return 'super_engajado';
-            default: return s;
-          }
-        });
-        
-        const sentimentConditions = normalizedSentiments.map(sentiment => {
-          if (sentiment === 'super_engajado') {
+        const sentimentConditions = filters.sentiments.map(sentiment => {
+          const normalizedSentiment = sentiment.toLowerCase();
+          if (normalizedSentiment === 'super engajado') {
             return `sentimento.ilike.%engajado%`;
           }
-          return `sentimento.ilike.%${sentiment}%`;
+          return `sentimento.ilike.%${normalizedSentiment}%`;
         }).join(',');
         
         if (sentimentConditions) {
@@ -74,9 +62,8 @@ export const useAdvancedContactFilters = (
         }
       }
 
-      // State filters (filter cities based on selected states)
+      // Apply state filters (convert to cities for filtering)
       if (filters.states.length > 0) {
-        // Get cities from selected states to cross-reference
         const stateCities = filters.states.flatMap(state => {
           const stateData = BRAZILIAN_STATES.find(s => s.code === state);
           return stateData?.cities || [];
@@ -87,17 +74,17 @@ export const useAdvancedContactFilters = (
         }
       }
 
-      // City filters (further filter if cities are specifically selected)
+      // Apply city filters (further restrict if specific cities selected)
       if (filters.cities.length > 0) {
         query = query.in('cidade', filters.cities);
       }
 
-      // Neighborhood filters
+      // Apply neighborhood filters
       if (filters.neighborhoods.length > 0) {
         query = query.in('bairro', filters.neighborhoods);
       }
 
-      // Date range filters
+      // Apply date range filters
       if (filters.dateRange.from) {
         query = query.gte('created_at', filters.dateRange.from);
       }
@@ -105,7 +92,7 @@ export const useAdvancedContactFilters = (
         query = query.lte('created_at', filters.dateRange.to + 'T23:59:59.999Z');
       }
 
-      // Status filters
+      // Apply status filters
       if (filters.status.length > 0) {
         const statusConditions = filters.status.map(status => {
           if (status === 'active') {
@@ -119,7 +106,7 @@ export const useAdvancedContactFilters = (
         }
       }
 
-      // Tag filters
+      // Apply tag filters
       if (filters.tags.length > 0) {
         const tagConditions = filters.tags
           .map(tag => `tag.ilike.%${tag}%`)
@@ -195,15 +182,27 @@ export const useAdvancedContactFilters = (
       const citiesByState: Record<string, string[]> = {};
       const availableStates: string[] = [];
       
+      // First, get all available cities and map them to states
       BRAZILIAN_STATES.forEach(state => {
         const stateCities = cidades.filter(city => 
-          state.cities?.includes(city)
+          state.cities && state.cities.includes(city)
         );
         if (stateCities.length > 0) {
           citiesByState[state.code] = stateCities;
           availableStates.push(state.code);
         }
       });
+
+      // Also include any cities not found in our predefined states
+      const unmappedCities = cidades.filter(city => 
+        !BRAZILIAN_STATES.some(state => state.cities && state.cities.includes(city))
+      );
+      
+      if (unmappedCities.length > 0) {
+        // Add a generic "Outros" state for unmapped cities
+        citiesByState['OUTROS'] = unmappedCities;
+        availableStates.push('OUTROS');
+      }
 
       // Process neighborhoods and create city mapping
       const bairrosSet = new Set(data?.map(d => d.bairro).filter(Boolean));

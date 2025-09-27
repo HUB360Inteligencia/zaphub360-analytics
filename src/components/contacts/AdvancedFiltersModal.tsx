@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Search } from 'lucide-react';
+import { X, Plus, Search, Download } from 'lucide-react';
 import { BRAZILIAN_STATES, NORMALIZED_SENTIMENTS } from '@/lib/brazilianStates';
+import * as XLSX from 'xlsx';
 
 export interface AdvancedFilters {
   searchTerm: string;
@@ -44,15 +45,17 @@ interface AdvancedFiltersModalProps {
     citiesByState: Record<string, string[]>;
     neighborhoodsByCity: Record<string, string[]>;
   };
+  contacts?: any[];
 }
 
-export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
-  isOpen,
-  onClose,
-  filters,
-  onApplyFilters,
-  availableData,
-}) => {
+export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props) => {
+  const {
+    isOpen,
+    onClose,
+    filters,
+    onApplyFilters,
+    availableData,
+  } = props;
   const [localFilters, setLocalFilters] = useState<AdvancedFilters>(filters);
   const [filteredCities, setFilteredCities] = useState<string[]>(availableData.cities);
   const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<string[]>(availableData.neighborhoods);
@@ -139,6 +142,63 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   const handleApply = () => {
     onApplyFilters(localFilters);
     onClose();
+  };
+
+  const handleExportExcel = () => {
+    const { contacts: exportContacts } = props;
+    if (!exportContacts || exportContacts.length === 0) {
+      alert('Nenhum contato encontrado para exportar');
+      return;
+    }
+
+    // Prepare data for Excel export
+    const excelData = exportContacts.map((contact, index) => ({
+      'Linha': index + 1,
+      'Nome': contact.name || '',
+      'Telefone': contact.phone || '',
+      'Email': contact.email || '',
+      'Cidade': contact.cidade || '',
+      'Bairro': contact.bairro || '',
+      'Sentimento': contact.sentimento || '',
+      'Evento': contact.evento || '',
+      'Tags': Array.isArray(contact.tags) ? contact.tags.map((tag: any) => tag.name).join(', ') : '',
+      'Status': contact.status || '',
+      'Data de Cadastro': contact.created_at ? new Date(contact.created_at).toLocaleDateString('pt-BR') : '',
+      'Observações': contact.notes || ''
+    }));
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths
+    const colWidths = [
+      { wch: 8 },   // Linha
+      { wch: 25 },  // Nome
+      { wch: 15 },  // Telefone
+      { wch: 30 },  // Email
+      { wch: 20 },  // Cidade
+      { wch: 20 },  // Bairro
+      { wch: 15 },  // Sentimento
+      { wch: 25 },  // Evento
+      { wch: 30 },  // Tags
+      { wch: 12 },  // Status
+      { wch: 12 },  // Data
+      { wch: 40 }   // Observações
+    ];
+    ws['!cols'] = colWidths;
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Contatos Filtrados');
+
+    // Generate filename with current date
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const filename = `contatos-filtrados-${dateStr}-${timeStr}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(wb, filename);
   };
 
   const activeFiltersCount = Object.values(localFilters).flat().filter(Boolean).length;
@@ -249,29 +309,53 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 />
               </div>
               <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-2">
-                {BRAZILIAN_STATES
-                  .filter(state => 
-                    availableData.states.includes(state.code) &&
-                    state.name.toLowerCase().includes(searchInputs.states.toLowerCase())
-                  )
-                  .map((state) => (
-                  <div key={state.code} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`state-${state.code}`}
-                      checked={localFilters.states.includes(state.code)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          handleMultiSelect('states', state.code);
-                        } else {
-                          removeFilter('states', state.code);
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`state-${state.code}`} className="text-sm">
-                      {state.name}
-                    </Label>
-                  </div>
-                ))}
+                {availableData.states.length > 0 ? (
+                  <>
+                    {BRAZILIAN_STATES
+                      .filter(state => 
+                        availableData.states.includes(state.code) &&
+                        state.name.toLowerCase().includes(searchInputs.states.toLowerCase())
+                      )
+                      .map((state) => (
+                      <div key={state.code} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`state-${state.code}`}
+                          checked={localFilters.states.includes(state.code)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              handleMultiSelect('states', state.code);
+                            } else {
+                              removeFilter('states', state.code);
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`state-${state.code}`} className="text-sm">
+                          {state.name}
+                        </Label>
+                      </div>
+                    ))}
+                    {availableData.states.includes('OUTROS') && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="state-OUTROS"
+                          checked={localFilters.states.includes('OUTROS')}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              handleMultiSelect('states', 'OUTROS');
+                            } else {
+                              removeFilter('states', 'OUTROS');
+                            }
+                          }}
+                        />
+                        <Label htmlFor="state-OUTROS" className="text-sm">
+                          Outros
+                        </Label>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum estado disponível</p>
+                )}
               </div>
               {localFilters.states.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
