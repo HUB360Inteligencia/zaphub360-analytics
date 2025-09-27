@@ -46,10 +46,10 @@ export const useEventContacts = (eventId?: string) => {
     queryFn: async (): Promise<EventContact[]> => {
       if (!eventId || !organization?.id) return [];
 
-      // Use limit to fetch all records (no 1000 cap)
+      // Use limit to fetch all records (increased cap)
       const allMessages: any[] = [];
       let page = 0;
-      const pageSize = 1000;
+      const pageSize = 2000;
       
       while (true) {
         const { data: messages, error } = await supabase

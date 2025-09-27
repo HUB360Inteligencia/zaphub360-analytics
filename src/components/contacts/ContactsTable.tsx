@@ -102,6 +102,7 @@ const ContactsTable = ({
                 <SelectItem value="100">100</SelectItem>
                 <SelectItem value="500">500</SelectItem>
                 <SelectItem value="1000">1000</SelectItem>
+                <SelectItem value="2000">2000</SelectItem>
               </SelectContent>
             </Select>
             <span className="text-sm text-slate-600">por página</span>

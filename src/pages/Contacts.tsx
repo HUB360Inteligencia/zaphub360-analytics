@@ -154,8 +154,26 @@ const Contacts = () => {
   };
 
   const getSentimentColor = (sentiment?: string) => {
-    const sentimentOption = getSentimentOption(sentiment);
-    return sentimentOption?.color || 'bg-gray-200 text-gray-700';
+    // Return colors for actual database values
+    if (!sentiment) return 'bg-gray-100 text-gray-600';
+    
+    const normalizedSentiment = sentiment.toLowerCase().trim();
+    
+    if (normalizedSentiment.includes('super engajado')) {
+      return 'bg-orange-100 text-orange-800';
+    }
+    if (normalizedSentiment.includes('positivo')) {
+      return 'bg-green-100 text-green-800';
+    }
+    if (normalizedSentiment.includes('neutro')) {
+      return 'bg-gray-100 text-gray-800';
+    }
+    if (normalizedSentiment.includes('negativo')) {
+      return 'bg-red-100 text-red-800';
+    }
+    
+    // Default for unknown sentiments
+    return 'bg-blue-100 text-blue-800';
   };
 
   if (tagsLoading) {
@@ -431,12 +449,12 @@ const Contacts = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Sentimento" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os sentimentos</SelectItem>
-                  {SENTIMENT_OPTIONS.slice(1).map(option => (
-                    <SelectItem key={option.value} value={option.label}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os sentimentos</SelectItem>
+                    {filters.sentimentos.map(sentimento => (
+                      <SelectItem key={sentimento} value={sentimento}>{sentimento}</SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
               
               <Select value="all" onValueChange={() => {}}>

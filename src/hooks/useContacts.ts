@@ -88,7 +88,8 @@ export const useContacts = (params: ContactsParams = {}) => {
       }
       
       if (filterSentimento !== 'all') {
-        query = query.eq('sentimento', filterSentimento);
+        // Use case-insensitive matching for sentiment values
+        query = query.ilike('sentimento', filterSentimento);
       }
       
       if (selectedTag !== 'all') {
@@ -179,7 +180,9 @@ export const useContacts = (params: ContactsParams = {}) => {
 
       const cidades = Array.from(new Set(data?.map(d => d.cidade).filter(Boolean))).sort();
       const bairros = Array.from(new Set(data?.map(d => d.bairro).filter(Boolean))).sort();
-      const sentimentos = Array.from(new Set(data?.map(d => d.sentimento).filter(Boolean))).sort();
+      // Get unique sentiment values directly from database, normalized
+      const rawSentimentos = Array.from(new Set(data?.map(d => d.sentimento).filter(Boolean)));
+      const sentimentos = rawSentimentos.sort();
 
       return { cidades, bairros, sentimentos };
     },
