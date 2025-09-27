@@ -14,10 +14,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import ContactProfileModal from '@/components/contacts/ContactProfileModal';
 import ContactsTable from '@/components/contacts/ContactsTable';
 import { getSentimentColor } from '@/lib/brazilianStates';
-import AdvancedFiltersModal, { type AdvancedFilters } from '@/components/contacts/AdvancedFiltersModal';
+// ⬇️ Import como DEFAULT (corrige o erro) – e tipo declarado localmente
+import AdvancedFiltersModal from '@/components/contacts/AdvancedFiltersModal';
 import { useAdvancedContactFilters } from '@/hooks/useAdvancedContactFilters';
 import { useDebounce } from '@/hooks/useDebounce';
 import * as XLSX from 'xlsx';
+
+// Tipo local (para não depender do export do componente)
+type AdvancedFilters = {
+  searchTerm: string;
+  sentiments: string[];
+  states: string[];
+  cities: string[];
+  neighborhoods: string[];
+  dateRange: { from: string; to: string };
+  tags: string[];
+  status: string[];
+  searchOperator: 'AND' | 'OR';
+};
 
 const Contacts = () => {
   const { organization } = useAuth();
@@ -110,6 +124,26 @@ const Contacts = () => {
   const filters = useAdvancedFilters ? advancedFiltersResult.filterOptions : regularFilters.filters;
   const filtersLoading = useAdvancedFilters ? advancedFiltersResult.filterOptionsLoading : regularFilters.isFiltersLoading;
 
+  // ------- União das listas (garante todas as opções no modal) -------
+  const uniqSorted = (arr: (string | undefined)[] = []) =>
+    Array.from(new Set(arr.filter(Boolean).map(s => s!.trim()))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  const allCities = uniqSorted([
+    ...(regularFilters.filters?.cidades ?? []),
+    ...(advancedFiltersResult?.filterOptions?.cidades ?? []),
+  ]);
+
+  const allNeighborhoods = uniqSorted([
+    ...(regularFilters.filters?.bairros ?? []),
+    ...(advancedFiltersResult?.filterOptions?.bairros ?? []),
+  ]);
+
+  const allSentiments = uniqSorted([
+    ...(regularFilters.filters?.sentimentos ?? []),
+    ...(advancedFiltersResult?.filterOptions?.sentimentos ?? []),
+  ]);
+  // -------------------------------------------------------------------
+
   // Estatísticas calculadas com base nos contatos
   const stats = useMemo(() => {
     if (!contacts) return { total: 0, active: 0, withEmail: 0, searchResults: 0 };
@@ -143,11 +177,10 @@ const Contacts = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedContacts.length === contacts.length) {
-      setSelectedContacts([]);
-    } else {
-      setSelectedContacts(contacts.map(c => c.id));
-    }
+    if (!contacts?.length) return;
+    setSelectedContacts(prev => 
+      prev.length === contacts.length ? [] : contacts.map(c => c.id)
+    );
   };
 
   const handlePageChange = (page: number) => {
@@ -530,10 +563,10 @@ const Contacts = () => {
         onApplyFilters={handleAdvancedFiltersApply}
         contacts={useAdvancedFilters ? advancedFiltersResult.contacts : contacts}
         availableData={{
-          sentiments: advancedFiltersResult.filterOptions.sentimentos || [],
+          sentiments: allSentiments, // união
           states: advancedFiltersResult.filterOptions.states || [],
-          cities: advancedFiltersResult.filterOptions.cidades || [],
-          neighborhoods: advancedFiltersResult.filterOptions.bairros || [],
+          cities: allCities, // união
+          neighborhoods: allNeighborhoods, // união
           tags: tagStats.map(tag => tag.name) || [],
           citiesByState: advancedFiltersResult.filterOptions.citiesByState || {},
           neighborhoodsByCity: advancedFiltersResult.filterOptions.neighborhoodsByCity || {},
