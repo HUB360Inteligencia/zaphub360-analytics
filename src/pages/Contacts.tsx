@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ContactProfileModal from '@/components/contacts/ContactProfileModal';
 import ContactsTable from '@/components/contacts/ContactsTable';
 import { getSentimentColor } from '@/lib/brazilianStates';
-import { AdvancedFiltersModal, AdvancedFilters } from '@/components/contacts/AdvancedFiltersModal';
+import AdvancedFiltersModal, { type AdvancedFilters } from '@/components/contacts/AdvancedFiltersModal';
 import { useAdvancedContactFilters } from '@/hooks/useAdvancedContactFilters';
 import { useDebounce } from '@/hooks/useDebounce';
 import * as XLSX from 'xlsx';
