@@ -1,132 +1,224 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Search, Download } from 'lucide-react';
-import { BRAZILIAN_STATES, NORMALIZED_SENTIMENTS } from '@/lib/brazilianStates';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Search, Plus, Filter, Download, Upload, Users, Phone, Mail, Loader2 } from 'lucide-react';
+import { useContacts, Contact } from '@/hooks/useContacts';
+import { useTags } from '@/hooks/useTags';
+import { useAuth } from '@/contexts/AuthContext';
+import ContactProfileModal from '@/components/contacts/ContactProfileModal';
+import ContactsTable from '@/components/contacts/ContactsTable';
+import { getSentimentColor } from '@/lib/brazilianStates';
+import { AdvancedFiltersModal, AdvancedFilters } from '@/components/contacts/AdvancedFiltersModal';
+import { useAdvancedContactFilters } from '@/hooks/useAdvancedContactFilters';
+import { useDebounce } from '@/hooks/useDebounce';
 import * as XLSX from 'xlsx';
 
-export interface AdvancedFilters {
-  searchTerm: string;
-  sentiments: string[];
-  states: string[];
-  cities: string[];
-  neighborhoods: string[];
-  dateRange: {
-    from: string;
-    to: string;
-  };
-  tags: string[];
-  status: string[];
-  searchOperator: 'AND' | 'OR';
-}
-
-interface AdvancedFiltersModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  filters: AdvancedFilters;
-  onApplyFilters: (filters: AdvancedFilters) => void;
-  availableData: {
-    sentiments: string[];
-    states: string[];
-    cities: string[];
-    neighborhoods: string[];
-    tags: string[];
-    citiesByState: Record<string, string[]>;
-    neighborhoodsByCity: Record<string, string[]>;
-  };
-  contacts?: any[];
-}
-
-export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props) => {
-  const {
-    isOpen,
-    onClose,
-    filters,
-    onApplyFilters,
-    availableData,
-  } = props;
-  const [localFilters, setLocalFilters] = useState<AdvancedFilters>(filters);
-  const [filteredCities, setFilteredCities] = useState<string[]>(availableData.cities);
-  const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<string[]>(availableData.neighborhoods);
-  const [searchInputs, setSearchInputs] = useState({
-    sentiments: '',
-    states: '',
-    cities: '',
-    neighborhoods: '',
-    tags: ''
+const Contacts = () => {
+  const { organization } = useAuth();
+  const { tags, isLoading: tagsLoading } = useTags();
+  
+  // Estados para controles de interface
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTag, setSelectedTag] = useState('all');
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  
+  // Estados para filtros
+  const [filterCidade, setFilterCidade] = useState('all');
+  const [filterBairro, setFilterBairro] = useState('all');
+  const [filterSentimento, setFilterSentimento] = useState('all');
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  
+  // Modal de perfil
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileModalMode, setProfileModalMode] = useState<'view' | 'edit'>('view');
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  
+  // Filtros avançados
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [useAdvancedFilters, setUseAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    searchTerm: '',
+    sentiments: [],
+    states: [],
+    cities: [],
+    neighborhoods: [],
+    dateRange: { from: '', to: '' },
+    tags: [],
+    status: [],
+    searchOperator: 'AND'
   });
 
-  useEffect(() => {
-    setLocalFilters(filters);
-  }, [filters]);
+  // Debounce da busca
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Filter cities based on selected states
-  useEffect(() => {
-    if (localFilters.states.length > 0) {
-      const stateCities = localFilters.states.flatMap(state => 
-        availableData.citiesByState[state] || []
-      );
-      setFilteredCities(stateCities);
-      
-      // Clear city selections that are not in the filtered states
-      setLocalFilters(prev => ({
-        ...prev,
-        cities: prev.cities.filter(city => stateCities.includes(city))
-      }));
-    } else {
-      setFilteredCities(availableData.cities);
-    }
-  }, [localFilters.states, availableData.citiesByState, availableData.cities]);
+  // Filtros “regulares”
+  const regularFilters = useContacts({
+    searchTerm: debouncedSearchTerm,
+    filterCidade,
+    filterBairro,
+    filterSentimento,
+    selectedTag,
+    page: currentPage,
+    pageSize: pageSize
+  });
 
-  // Filter neighborhoods based on selected cities
-  useEffect(() => {
-    if (localFilters.cities.length > 0) {
-      const cityNeighborhoods = localFilters.cities.flatMap(city => 
-        availableData.neighborhoodsByCity[city] || []
-      );
-      setFilteredNeighborhoods(cityNeighborhoods);
-      
-      // Clear neighborhood selections that are not in the filtered cities
-      setLocalFilters(prev => ({
-        ...prev,
-        neighborhoods: prev.neighborhoods.filter(neighborhood => cityNeighborhoods.includes(neighborhood))
-      }));
-    } else {
-      setFilteredNeighborhoods(availableData.neighborhoods);
-    }
-  }, [localFilters.cities, availableData.neighborhoodsByCity, availableData.neighborhoods]);
+  // Filtros avançados (lista + paginação)
+  const advancedFiltersResult = useAdvancedContactFilters(
+    advancedFilters,
+    currentPage,
+    pageSize
+  );
 
-  const handleMultiSelect = (field: keyof AdvancedFilters, value: string) => {
-    setLocalFilters(prev => {
-      const currentArray = prev[field] as string[];
-      const newArray = currentArray.includes(value)
-        ? currentArray.filter(item => item !== value)
-        : [...currentArray, value];
-      
-      return { ...prev, [field]: newArray };
-    });
+  // Seleciona a fonte de dados conforme o modo
+  const {
+    contacts,
+    contactsCount,
+    contactsLoading,
+    createContact,
+    updateContact,
+    deleteContact,
+    refetch
+  } = useAdvancedFilters ? {
+    contacts: advancedFiltersResult.contacts,
+    contactsCount: advancedFiltersResult.contactsCount,
+    contactsLoading: advancedFiltersResult.contactsLoading,
+    createContact: regularFilters.createContact,
+    updateContact: regularFilters.updateContact,
+    deleteContact: regularFilters.deleteContact,
+    refetch: advancedFiltersResult.refetch
+  } : {
+    contacts: regularFilters.contacts,
+    contactsCount: regularFilters.contactsCount,
+    contactsLoading: regularFilters.isLoading,
+    createContact: regularFilters.createContact,
+    updateContact: regularFilters.updateContact,
+    deleteContact: regularFilters.deleteContact,
+    refetch: regularFilters.refetch
   };
 
-  const removeFilter = (field: keyof AdvancedFilters, value: string) => {
-    setLocalFilters(prev => ({
-      ...prev,
-      [field]: (prev[field] as string[]).filter(item => item !== value)
+  const filters = useAdvancedFilters ? advancedFiltersResult.filterOptions : regularFilters.filters;
+  const filtersLoading = useAdvancedFilters ? advancedFiltersResult.filterOptionsLoading : regularFilters.isFiltersLoading;
+
+  // ---------- UNIÃO DE LISTAS (garante “todas” as opções no modal) ----------
+  const uniqSorted = (arr: (string | undefined)[] = []) =>
+    Array.from(new Set(arr.filter(Boolean).map(s => s!.trim()))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  const allCities = uniqSorted([
+    ...(regularFilters.filters?.cidades ?? []),
+    ...(advancedFiltersResult?.filterOptions?.cidades ?? []),
+  ]);
+
+  const allNeighborhoods = uniqSorted([
+    ...(regularFilters.filters?.bairros ?? []),
+    ...(advancedFiltersResult?.filterOptions?.bairros ?? []),
+  ]);
+
+  const allSentiments = uniqSorted([
+    ...(regularFilters.filters?.sentimentos ?? []),
+    ...(advancedFiltersResult?.filterOptions?.sentimentos ?? []),
+  ]);
+  // -------------------------------------------------------------------------
+
+  // Estatísticas
+  const stats = useMemo(() => {
+    if (!contacts) return { total: 0, active: 0, withEmail: 0, searchResults: 0 };
+    return {
+      total: contactsCount || 0,
+      active: contacts.filter(c => c.status === 'active').length,
+      withEmail: contacts.filter(c => c.email).length,
+      searchResults: contacts.length
+    };
+  }, [contacts, contactsCount]);
+
+  // Estatísticas das tags
+  const tagStats = useMemo(() => {
+    if (!contacts || !tags) return [];
+    return tags.map(tag => ({
+      ...tag,
+      count: contacts.filter(contact =>
+        contact.tags?.some(contactTag => contactTag.name === tag.name)
+      ).length
     }));
+  }, [contacts, tags]);
+
+  const handleSelectContact = (contactId: string) => {
+    setSelectedContacts(prev =>
+      prev.includes(contactId)
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
   };
 
-  const clearAllFilters = () => {
-    setLocalFilters({
+  const handleSelectAll = () => {
+    if (!contacts?.length) return;
+    setSelectedContacts(prev =>
+      prev.length === contacts.length ? [] : contacts.map(c => c.id)
+    );
+  };
+
+  const handlePageChange = (page: number) => setCurrentPage(page);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const handleCreateContact = async (contactData: any) => {
+    try {
+      await createContact.mutateAsync(contactData);
+      setIsCreateDialogOpen(false);
+      refetch?.();
+    } catch (error) {
+      console.error('Erro ao criar contato:', error);
+    }
+  };
+
+  const handleViewProfile = (contact: Contact) => {
+    setSelectedContact(contact);
+    setProfileModalMode('view');
+    setProfileModalOpen(true);
+  };
+
+  const handleEditProfile = (contact: Contact) => {
+    setSelectedContact(contact);
+    setProfileModalMode('edit');
+    setProfileModalOpen(true);
+  };
+
+  const handleUpdateContact = async (contactData: Partial<Contact>) => {
+    if (!selectedContact) return;
+    try {
+      await updateContact.mutateAsync({
+        id: selectedContact.id,
+        ...contactData
+      });
+      setProfileModalOpen(false);
+      setSelectedContact(null);
+      refetch?.();
+    } catch (error) {
+      console.error('Erro ao atualizar contato:', error);
+    }
+  };
+
+  const handleAdvancedFiltersApply = (newFilters: AdvancedFilters) => {
+    setAdvancedFilters(newFilters);
+    setUseAdvancedFilters(true);
+    setCurrentPage(1);
+  };
+
+  const handleClearAdvancedFilters = () => {
+    setAdvancedFilters({
       searchTerm: '',
       sentiments: [],
       states: [],
@@ -137,462 +229,346 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
       status: [],
       searchOperator: 'AND'
     });
-  };
-
-  const handleApply = () => {
-    onApplyFilters(localFilters);
-    onClose();
+    setUseAdvancedFilters(false);
   };
 
   const handleExportExcel = () => {
-    const { contacts: exportContacts } = props;
-    if (!exportContacts || exportContacts.length === 0) {
-      alert('Nenhum contato encontrado para exportar');
-      return;
-    }
+    if (!contacts || contacts.length === 0) return;
 
-    // Prepare data for Excel export
-    const excelData = exportContacts.map((contact, index) => ({
+    const excelData = contacts.map((contact, index) => ({
       'Linha': index + 1,
       'Nome': contact.name || '',
       'Telefone': contact.phone || '',
       'Email': contact.email || '',
-      'Cidade': contact.cidade || '',
-      'Bairro': contact.bairro || '',
-      'Sentimento': contact.sentimento || '',
-      'Evento': contact.evento || '',
-      'Tags': Array.isArray(contact.tags) ? contact.tags.map((tag: any) => tag.name).join(', ') : '',
+      'Cidade': (contact as any).cidade || '',
+      'Bairro': (contact as any).bairro || '',
+      'Sentimento': (contact as any).sentimento || '',
+      'Evento': (contact as any).evento || '',
+      'Tags': Array.isArray(contact.tags) ? contact.tags.map((t: any) => t.name).join(', ') : '',
       'Status': contact.status || '',
       'Data de Cadastro': contact.created_at ? new Date(contact.created_at).toLocaleDateString('pt-BR') : '',
       'Observações': contact.notes || ''
     }));
 
-    // Create workbook
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
-
-    // Set column widths
-    const colWidths = [
-      { wch: 8 },   // Linha
-      { wch: 25 },  // Nome
-      { wch: 15 },  // Telefone
-      { wch: 30 },  // Email
-      { wch: 20 },  // Cidade
-      { wch: 20 },  // Bairro
-      { wch: 15 },  // Sentimento
-      { wch: 25 },  // Evento
-      { wch: 30 },  // Tags
-      { wch: 12 },  // Status
-      { wch: 12 },  // Data
-      { wch: 40 }   // Observações
+    ws['!cols'] = [
+      { wch: 8 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 40 }
     ];
-    ws['!cols'] = colWidths;
-
-    // Add worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Contatos Filtrados');
 
-    // Generate filename with current date
+    const pad = (n: number) => String(n).padStart(2, '0');
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
     const filename = `contatos-filtrados-${dateStr}-${timeStr}.xlsx`;
-
-    // Save file
     XLSX.writeFile(wb, filename);
   };
 
-  const activeFiltersCount = Object.values(localFilters).flat().filter(Boolean).length;
+  if (tagsLoading || filtersLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Search className="w-5 h-5" />
-            Filtros Avançados
-            {activeFiltersCount > 0 && (
-              <Badge variant="secondary">{activeFiltersCount} filtros ativos</Badge>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Search */}
-          <div className="space-y-2">
-            <Label htmlFor="searchTerm">Busca Geral</Label>
-            <div className="flex gap-2">
-              <Input
-                id="searchTerm"
-                placeholder="Buscar por nome, telefone, email..."
-                value={localFilters.searchTerm}
-                onChange={(e) => setLocalFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="flex-1"
-              />
-              <Select
-                value={localFilters.searchOperator}
-                onValueChange={(value) => setLocalFilters(prev => ({ ...prev, searchOperator: value as 'AND' | 'OR' }))}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AND">E</SelectItem>
-                  <SelectItem value="OR">OU</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Sentiments */}
-          <div className="space-y-2">
-            <Label>Sentimentos</Label>
-            <div className="relative mb-2">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar sentimentos..."
-                value={searchInputs.sentiments}
-                onChange={(e) => setSearchInputs(prev => ({ ...prev, sentiments: e.target.value }))}
-                className="pl-8"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-              {['Negativo', 'Neutro', 'Positivo', 'Super Engajado']
-                .filter(sentiment => 
-                  sentiment.toLowerCase().includes(searchInputs.sentiments.toLowerCase())
-                )
-                .map((sentiment) => (
-                <div key={sentiment} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`sentiment-${sentiment}`}
-                    checked={localFilters.sentiments.includes(sentiment)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleMultiSelect('sentiments', sentiment);
-                      } else {
-                        removeFilter('sentiments', sentiment);
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`sentiment-${sentiment}`} className="text-sm">
-                    {sentiment}
-                  </Label>
-                </div>
-              ))}
-            </div>
-            {localFilters.sentiments.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {localFilters.sentiments.map((sentiment) => (
-                  <Badge key={sentiment} variant="secondary" className="text-xs">
-                    {sentiment}
-                    <X 
-                      className="ml-1 h-3 w-3 cursor-pointer" 
-                      onClick={() => removeFilter('sentiments', sentiment)}
-                    />
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Geographic Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* States */}
-            <div className="space-y-2">
-              <Label>Estados</Label>
-              <div className="relative mb-2">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar estados..."
-                  value={searchInputs.states}
-                  onChange={(e) => setSearchInputs(prev => ({ ...prev, states: e.target.value }))}
-                  className="pl-8"
-                />
-              </div>
-              <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-2">
-                {availableData.states.length > 0 ? (
-                  <>
-                    {BRAZILIAN_STATES
-                      .filter(state => 
-                        availableData.states.includes(state.code) &&
-                        state.name.toLowerCase().includes(searchInputs.states.toLowerCase())
-                      )
-                      .map((state) => (
-                      <div key={state.code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`state-${state.code}`}
-                          checked={localFilters.states.includes(state.code)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              handleMultiSelect('states', state.code);
-                            } else {
-                              removeFilter('states', state.code);
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`state-${state.code}`} className="text-sm">
-                          {state.name}
-                        </Label>
-                      </div>
-                    ))}
-                    {availableData.states.includes('OUTROS') && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="state-OUTROS"
-                          checked={localFilters.states.includes('OUTROS')}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              handleMultiSelect('states', 'OUTROS');
-                            } else {
-                              removeFilter('states', 'OUTROS');
-                            }
-                          }}
-                        />
-                        <Label htmlFor="state-OUTROS" className="text-sm">
-                          Outros
-                        </Label>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum estado disponível</p>
-                )}
-              </div>
-              {localFilters.states.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.states.map((stateCode) => {
-                    const state = BRAZILIAN_STATES.find(s => s.code === stateCode);
-                    return (
-                      <Badge key={stateCode} variant="secondary" className="text-xs">
-                        {state?.name}
-                        <X 
-                          className="ml-1 h-3 w-3 cursor-pointer" 
-                          onClick={() => removeFilter('states', stateCode)}
-                        />
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Cities */}
-            <div className="space-y-2">
-              <Label>Cidades</Label>
-              <div className="relative mb-2">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar cidades..."
-                  value={searchInputs.cities}
-                  onChange={(e) => setSearchInputs(prev => ({ ...prev, cities: e.target.value }))}
-                  className="pl-8"
-                />
-              </div>
-              <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-2">
-                {filteredCities
-                  .filter(city => 
-                    city.toLowerCase().includes(searchInputs.cities.toLowerCase())
-                  )
-                  .map((city) => (
-                  <div key={city} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`city-${city}`}
-                      checked={localFilters.cities.includes(city)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          handleMultiSelect('cities', city);
-                        } else {
-                          removeFilter('cities', city);
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`city-${city}`} className="text-sm">
-                      {city}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              {localFilters.cities.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.cities.map((city) => (
-                    <Badge key={city} variant="secondary" className="text-xs">
-                      {city}
-                      <X 
-                        className="ml-1 h-3 w-3 cursor-pointer" 
-                        onClick={() => removeFilter('cities', city)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Neighborhoods */}
-            <div className="space-y-2">
-              <Label>Bairros</Label>
-              <div className="relative mb-2">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar bairros..."
-                  value={searchInputs.neighborhoods}
-                  onChange={(e) => setSearchInputs(prev => ({ ...prev, neighborhoods: e.target.value }))}
-                  className="pl-8"
-                />
-              </div>
-              <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-2">
-                {filteredNeighborhoods
-                  .filter(neighborhood => 
-                    neighborhood.toLowerCase().includes(searchInputs.neighborhoods.toLowerCase())
-                  )
-                  .map((neighborhood) => (
-                  <div key={neighborhood} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`neighborhood-${neighborhood}`}
-                      checked={localFilters.neighborhoods.includes(neighborhood)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          handleMultiSelect('neighborhoods', neighborhood);
-                        } else {
-                          removeFilter('neighborhoods', neighborhood);
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`neighborhood-${neighborhood}`} className="text-sm">
-                      {neighborhood}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              {localFilters.neighborhoods.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.neighborhoods.map((neighborhood) => (
-                    <Badge key={neighborhood} variant="secondary" className="text-xs">
-                      {neighborhood}
-                      <X 
-                        className="ml-1 h-3 w-3 cursor-pointer" 
-                        onClick={() => removeFilter('neighborhoods', neighborhood)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="relative mb-2">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar tags..."
-                value={searchInputs.tags}
-                onChange={(e) => setSearchInputs(prev => ({ ...prev, tags: e.target.value }))}
-                className="pl-8"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-              {availableData.tags
-                .filter(tag => 
-                  tag.toLowerCase().includes(searchInputs.tags.toLowerCase())
-                )
-                .map((tag) => (
-                <div key={tag} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`tag-${tag}`}
-                    checked={localFilters.tags.includes(tag)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleMultiSelect('tags', tag);
-                      } else {
-                        removeFilter('tags', tag);
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`tag-${tag}`} className="text-sm">
-                    {tag}
-                  </Label>
-                </div>
-              ))}
-            </div>
-            {localFilters.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {localFilters.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                    <X 
-                      className="ml-1 h-3 w-3 cursor-pointer" 
-                      onClick={() => removeFilter('tags', tag)}
-                    />
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="dateFrom">Data de cadastro - De</Label>
-              <Input
-                id="dateFrom"
-                type="date"
-                value={localFilters.dateRange.from}
-                onChange={(e) => setLocalFilters(prev => ({
-                  ...prev,
-                  dateRange: { ...prev.dateRange, from: e.target.value }
-                }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dateTo">Data de cadastro - Até</Label>
-              <Input
-                id="dateTo"
-                type="date"
-                value={localFilters.dateRange.to}
-                onChange={(e) => setLocalFilters(prev => ({
-                  ...prev,
-                  dateRange: { ...prev.dateRange, to: e.target.value }
-                }))}
-              />
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <div className="flex gap-4">
-              {['active', 'inactive'].map(status => (
-                <div key={status} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={status}
-                    checked={localFilters.status.includes(status)}
-                    onCheckedChange={() => handleMultiSelect('status', status)}
-                  />
-                  <Label htmlFor={status} className="text-sm">
-                    {status === 'active' ? 'Ativo' : 'Inativo'}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Contatos</h1>
+          <p className="text-slate-600">
+            Gerencie seus contatos e acompanhe o engajamento
+          </p>
         </div>
+        <div className="flex gap-2">
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Importar
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Importar Contatos</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  Faça upload de um arquivo CSV com os dados dos contatos
+                </p>
+                <Input type="file" accept=".csv" />
+                <Button className="w-full">Importar Arquivo</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Contato
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Novo Contato</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Nome</Label>
+                  <Input id="name" placeholder="Nome do contato" />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input id="phone" placeholder="(11) 99999-9999" />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" placeholder="email@exemplo.com" />
+                </div>
+                <Button className="w-full" onClick={() => setIsCreateDialogOpen(false)}>
+                  Criar Contato
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={clearAllFilters}>
-            Limpar Todos
-          </Button>
-          <Button variant="outline" onClick={handleExportExcel}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar Excel
-          </Button>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleApply}>
-            Aplicar Filtros ({activeFiltersCount})
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Total de Contatos</p>
+                <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
+              </div>
+              <Users className="w-8 h-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Contatos Ativos</p>
+                <p className="text-2xl font-bold text-green-600">{stats.active.toLocaleString()}</p>
+              </div>
+              <Phone className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Com Email</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.withEmail.toLocaleString()}</p>
+              </div>
+              <Mail className="w-8 h-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Resultados da Busca</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.searchResults.toLocaleString()}</p>
+              </div>
+              <Search className="w-8 h-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tags Filter */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Filtrar por Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={selectedTag === 'all' ? 'default' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => setSelectedTag('all')}
+              >
+                Todas ({stats.total})
+              </Badge>
+              {tagStats.map(tag => (
+                <Badge
+                  key={tag.id}
+                  variant={selectedTag === tag.name ? 'default' : 'outline'}
+                  className="cursor-pointer"
+                  style={{ backgroundColor: selectedTag === tag.name ? tag.color : undefined }}
+                  onClick={() => setSelectedTag(tag.name)}
+                >
+                  {tag.name} ({tag.count})
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  placeholder="Buscar por nome, telefone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  variant={useAdvancedFilters ? "default" : "outline"} 
+                  className="w-full sm:w-auto"
+                  onClick={() => setAdvancedFiltersOpen(true)}
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtros Avançados
+                  {useAdvancedFilters && (
+                    <Badge variant="secondary" className="ml-2">
+                      Ativo
+                    </Badge>
+                  )}
+                </Button>
+                {useAdvancedFilters && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleClearAdvancedFilters}
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  className="w-full sm:w-auto"
+                  onClick={handleExportExcel}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar
+                </Button>
+              </div>
+            </div>
+            
+            {/* Filtros Simples (apenas quando não está usando filtros avançados) */}
+            {!useAdvancedFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Select value={filterCidade} onValueChange={setFilterCidade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as cidades</SelectItem>
+                    {filters.cidades?.map(cidade => (
+                      <SelectItem key={cidade} value={cidade}>{cidade}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={filterBairro} onValueChange={setFilterBairro}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Bairro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os bairros</SelectItem>
+                    {filters.bairros?.map(bairro => (
+                      <SelectItem key={bairro} value={bairro}>{bairro}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={filterSentimento} onValueChange={setFilterSentimento}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sentimento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os sentimentos</SelectItem>
+                    {filters.sentimentos?.map(sentimento => (
+                      <SelectItem key={sentimento} value={sentimento}>{sentimento}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value="all" onValueChange={() => {}}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="inactive">Inativos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contacts Table */}
+      <ContactsTable
+        contacts={contacts}
+        selectedContacts={selectedContacts}
+        onSelectContact={handleSelectContact}
+        onSelectAll={handleSelectAll}
+        onViewProfile={handleViewProfile}
+        onEditProfile={handleEditProfile}
+        onDeleteContact={(id) => deleteContact.mutate(id)}
+        getSentimentColor={getSentimentColor}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalContacts={contactsCount}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+        isLoading={contactsLoading}
+      />
+
+      {/* Advanced Filters Modal */}
+      <AdvancedFiltersModal
+        isOpen={advancedFiltersOpen}
+        onClose={() => setAdvancedFiltersOpen(false)}
+        filters={advancedFilters}
+        onApplyFilters={handleAdvancedFiltersApply}
+        contacts={useAdvancedFilters ? advancedFiltersResult.contacts : contacts}
+        availableData={{
+          sentiments: allSentiments,                 // união
+          states: advancedFiltersResult.filterOptions.states || [],
+          cities: allCities,                         // união
+          neighborhoods: allNeighborhoods,           // união
+          tags: tagStats.map(tag => tag.name) || [],
+          citiesByState: advancedFiltersResult.filterOptions.citiesByState || {},
+          neighborhoodsByCity: advancedFiltersResult.filterOptions.neighborhoodsByCity || {},
+        }}
+      />
+
+      {/* Contact Profile Modal */}
+      {selectedContact && (
+        <ContactProfileModal
+          contact={selectedContact}
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          mode={profileModalMode}
+          onUpdate={handleUpdateContact}
+        />
+      )}
+    </div>
   );
 };
+
+export default Contacts;
