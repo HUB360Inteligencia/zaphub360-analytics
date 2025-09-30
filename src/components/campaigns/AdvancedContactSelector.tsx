@@ -13,6 +13,8 @@ interface AdvancedContactSelectorProps {
   onContactsChange: (contacts: { id: string; name: string; phone: string; ultima_instancia?: string }[]) => void;
 }
 
+const CONTACTS_PER_PAGE = 100; // Paginação de 100 contatos por página
+
 // Inicializar filtros fora do componente para evitar recriação
 const initialFilters: FilterOptions = {
   sentiments: [],
@@ -32,6 +34,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     filteredContacts,
@@ -70,6 +73,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     }
   };
 
+  // Selecionar TODOS os contatos filtrados (não apenas a página atual)
   const handleSelectAll = () => {
     if (selectedContacts.length === searchFilteredContacts.length) {
       onContactsChange([]);
@@ -85,7 +89,22 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
 
   const clearSelection = () => {
     onContactsChange([]);
+    setCurrentPage(1);
   };
+  
+  // Contatos paginados para exibição (mas seleção funciona com todos)
+  const paginatedContacts = useMemo(() => {
+    const startIndex = (currentPage - 1) * CONTACTS_PER_PAGE;
+    const endIndex = startIndex + CONTACTS_PER_PAGE;
+    return searchFilteredContacts.slice(startIndex, endIndex);
+  }, [searchFilteredContacts, currentPage]);
+  
+  const totalPages = Math.ceil(searchFilteredContacts.length / CONTACTS_PER_PAGE);
+  
+  // Reset para página 1 quando filtros mudarem
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, searchQuery]);
 
   const getSentimentColor = (sentiment?: string) => {
     const normalized = sentiment?.toLowerCase();
@@ -171,7 +190,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              {selectedContacts.length} contatos selecionados de {searchFilteredContacts.length} encontrados
+              {selectedContacts.length} contatos selecionados de {searchFilteredContacts.length} encontrados ({totalContacts} total)
             </div>
           </CardHeader>
           <CardContent>
@@ -182,7 +201,8 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                   <p>Nenhum contato encontrado com os filtros aplicados</p>
                 </div>
               ) : (
-                searchFilteredContacts.map((contact) => {
+                <>
+                  {paginatedContacts.map((contact) => {
                   const isSelected = selectedContacts.some(c => c.id === contact.id);
                   return (
                     <div
@@ -234,8 +254,36 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                         )}
                       </div>
                     </div>
-                  );
-                })
+                    );
+                  })}
+                  
+                  {/* Paginação */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="text-sm text-muted-foreground px-2">
+                        Página {currentPage} de {totalPages}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Próxima →
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </CardContent>

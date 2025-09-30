@@ -29,7 +29,7 @@ export interface ContactWithDetails {
   cidade?: string;
   bairro?: string;
   ultima_instancia?: string;
-  eventParticipations?: string[];
+  evento?: string; // Campo evento da tabela
   campaignParticipations?: string[];
   tags?: Array<{ id: string; name: string; color: string }>;
 }
@@ -40,7 +40,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
   const { campaigns } = useCampaigns();
   const { tags } = useTags();
 
-  // Buscar TODOS os contatos diretamente de new_contact_event (sem paginação)
+  // Buscar TODOS os contatos diretamente de new_contact_event (SEM LIMITE - todos os 6175+)
   const { data: allContacts, isLoading: contactsLoading } = useQuery({
     queryKey: ['all-contacts-new-contact-event', organization?.id],
     queryFn: async () => {
@@ -54,7 +54,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
 
       if (error) throw error;
       
-      // Mapear para o formato esperado
+      // Mapear para o formato esperado, incluindo a coluna evento
       return (data || []).map(contact => ({
         id: contact.id_contact_event?.toString() || contact.celular || '',
         name: contact.name || 'Sem nome',
@@ -65,26 +65,46 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         cidade: contact.cidade,
         bairro: contact.bairro,
         ultima_instancia: contact.ultima_instancia,
+        evento: contact.evento, // Adicionar campo evento
         tags: []
       }));
     },
     enabled: !!organization?.id,
   });
 
-  // Buscar participações em eventos
-  const { data: eventParticipations } = useQuery({
-    queryKey: ['event-participations', organization?.id],
+  // Buscar eventos únicos diretamente da coluna 'evento' em new_contact_event
+  const { data: uniqueEvents } = useQuery({
+    queryKey: ['unique-events-from-evento', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
       
       const { data, error } = await supabase
-        .from('event_messages')
-        .select('contact_phone, event_id')
+        .from('new_contact_event')
+        .select('evento')
         .eq('organization_id', organization.id)
-        .not('status', 'eq', 'failed');
+        .not('evento', 'is', null);
 
       if (error) throw error;
-      return data || [];
+      
+      // Extrair eventos únicos (muitos contatos têm múltiplos eventos separados por vírgulas/pontos)
+      const eventSet = new Set<string>();
+      (data || []).forEach(item => {
+        if (item.evento) {
+          // Split por vírgulas, pontos seguidos de espaço, ou " . "
+          const eventNames = item.evento
+            .split(/[,.]/)
+            .map(e => e.trim())
+            .filter(e => e.length > 0);
+          eventNames.forEach(name => eventSet.add(name));
+        }
+      });
+      
+      return Array.from(eventSet)
+        .sort()
+        .map((name, index) => ({ 
+          id: name, // Usar o nome como ID para facilitar filtro
+          name 
+        }));
     },
     enabled: !!organization?.id,
   });
@@ -148,14 +168,6 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
   const filteredContacts = useMemo(() => {
     if (!allContacts) return [];
 
-    // Criar mapa de participações em eventos
-    const eventParticipationMap = new Map();
-    eventParticipations?.forEach(participation => {
-      const existing = eventParticipationMap.get(participation.contact_phone) || [];
-      existing.push(participation.event_id);
-      eventParticipationMap.set(participation.contact_phone, existing);
-    });
-
     // Criar mapa de participações em campanhas
     const campaignParticipationMap = new Map();
     campaignParticipations?.forEach(participation => {
@@ -165,7 +177,6 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     });
 
     return allContacts.filter(contact => {
-      const eventIds = eventParticipationMap.get(contact.phone) || [];
       const campaignIds = campaignParticipationMap.get(contact.phone) || [];
       const contactTagIds = contact.tags?.map(tag => tag.id) || [];
 
@@ -190,10 +201,13 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         }
       }
 
-      // Filtro por eventos - incluir
+      // Filtro por eventos - CORRIGIDO para usar coluna 'evento'
       if (filters.includeEvents.length > 0) {
-        const hasIncludedEvent = filters.includeEvents.some(eventId => 
-          eventIds.includes(eventId)
+        if (!contact.evento) return false;
+        
+        // Verificar se o campo evento contém algum dos eventos selecionados
+        const hasIncludedEvent = filters.includeEvents.some(eventName => 
+          contact.evento.includes(eventName)
         );
         if (!hasIncludedEvent) {
           return false;
@@ -202,8 +216,11 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
 
       // Filtro por eventos - excluir (tem prioridade)
       if (filters.excludeEvents.length > 0) {
-        const hasExcludedEvent = filters.excludeEvents.some(eventId => 
-          eventIds.includes(eventId)
+        if (!contact.evento) return true; // Se não tem evento, não precisa excluir
+        
+        // Verificar se o campo evento contém algum evento a ser excluído
+        const hasExcludedEvent = filters.excludeEvents.some(eventName => 
+          contact.evento.includes(eventName)
         );
         if (hasExcludedEvent) {
           return false;
@@ -253,16 +270,14 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       return true;
     }).map(contact => ({
       ...contact,
-      eventParticipations: eventParticipationMap.get(contact.phone) || [],
       campaignParticipations: campaignParticipationMap.get(contact.phone) || [],
     }));
-  }, [allContacts, eventParticipations, campaignParticipations, 
-      JSON.stringify(filters)]); // Usar JSON.stringify para comparação deep
+  }, [allContacts, campaignParticipations, JSON.stringify(filters)]);
 
   return {
     filteredContacts,
     filterData,
-    events,
+    events: uniqueEvents || [], // Usar eventos da coluna 'evento'
     campaigns,
     tags,
     totalContacts: allContacts?.length || 0,
