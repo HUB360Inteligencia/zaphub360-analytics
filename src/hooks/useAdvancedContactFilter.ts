@@ -76,33 +76,22 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         aggregated = aggregated.concat(pageData || []);
       }
 
-      // Deduplicate por celular (pegar apenas o registro mais recente por telefone)
-      const uniqueContactsMap = new Map();
-      aggregated.forEach(contact => {
-        const phone = contact.celular;
-        if (!phone) return;
-        
-        // Se já existe, comparar data para pegar o mais recente
-        const existing = uniqueContactsMap.get(phone);
-        if (!existing || new Date(contact.created_at) > new Date(existing.created_at)) {
-          uniqueContactsMap.set(phone, contact);
-        }
-      });
-
-      // Mapear para o formato esperado, incluindo a coluna evento
-      return Array.from(uniqueContactsMap.values()).map(contact => ({
-        id: contact.id_contact_event?.toString() || contact.celular || '',
-        name: contact.name || 'Sem nome',
-        phone: contact.celular || '',
-        email: '',
-        status: contact.status_envio || 'active',
-        sentiment: normalizeSentiment(contact.sentimento),
-        cidade: contact.cidade?.trim() || null, // Normalizar cidade com trim
-        bairro: contact.bairro?.trim() || null, // Normalizar bairro com trim
-        ultima_instancia: contact.ultima_instancia,
-        evento: contact.evento, // Adicionar campo evento
-        tags: []
-      }));
+      // Mapear todos os contatos diretamente (sem deduplicação)
+      return aggregated
+        .filter(contact => contact.celular) // Apenas garantir que tem telefone
+        .map(contact => ({
+          id: contact.id_contact_event?.toString() || contact.celular || '',
+          name: contact.name || 'Sem nome',
+          phone: contact.celular || '',
+          email: '',
+          status: contact.status_envio || 'active',
+          sentiment: normalizeSentiment(contact.sentimento),
+          cidade: contact.cidade?.trim() || null, // Normalizar cidade com trim
+          bairro: contact.bairro?.trim() || null, // Normalizar bairro com trim
+          ultima_instancia: contact.ultima_instancia,
+          evento: contact.evento, // Adicionar campo evento
+          tags: []
+        }));
     },
     enabled: !!organization?.id,
   });
