@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useEvents } from './useEvents';
 import { useCampaigns } from './useCampaigns';
 import { useTags } from './useTags';
 import { useQuery } from '@tanstack/react-query';
@@ -36,7 +35,6 @@ export interface ContactWithDetails {
 
 export const useAdvancedContactFilter = (filters: FilterOptions) => {
   const { organization } = useAuth();
-  const { events } = useEvents();
   const { campaigns } = useCampaigns();
   const { tags } = useTags();
 
@@ -45,17 +43,41 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     queryKey: ['all-contacts-new-contact-event', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
-      
-      const { data, error } = await supabase
+
+      const pageSize = 1000; // Limite do PostgREST por requisição
+      let from = 0;
+      let to = pageSize - 1;
+      let aggregated: any[] = [];
+
+      // Primeira página com count
+      const { data: firstPage, count, error } = await supabase
         .from('new_contact_event')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
-      
+      aggregated = [...(firstPage || [])];
+
+      const total = count ?? aggregated.length;
+
+      // Demais páginas
+      while (aggregated.length < total) {
+        from += pageSize;
+        to += pageSize;
+        const { data: pageData, error: pageError } = await supabase
+          .from('new_contact_event')
+          .select('*')
+          .eq('organization_id', organization.id)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        if (pageError) throw pageError;
+        aggregated = aggregated.concat(pageData || []);
+      }
+
       // Mapear para o formato esperado, incluindo a coluna evento
-      return (data || []).map(contact => ({
+      return aggregated.map(contact => ({
         id: contact.id_contact_event?.toString() || contact.celular || '',
         name: contact.name || 'Sem nome',
         phone: contact.celular || '',
@@ -72,25 +94,45 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     enabled: !!organization?.id,
   });
 
-  // Buscar eventos únicos diretamente da coluna 'evento' em new_contact_event
+  // Buscar eventos únicos diretamente da coluna 'evento' em new_contact_event (sem limite)
   const { data: uniqueEvents } = useQuery({
     queryKey: ['unique-events-from-evento', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
-      
-      const { data, error } = await supabase
+
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
+      let aggregated: any[] = [];
+
+      const { data: firstPage, count, error } = await supabase
         .from('new_contact_event')
-        .select('evento')
+        .select('evento', { count: 'exact' })
         .eq('organization_id', organization.id)
-        .not('evento', 'is', null);
+        .not('evento', 'is', null)
+        .range(from, to);
 
       if (error) throw error;
-      
+      aggregated = [...(firstPage || [])];
+      const total = count ?? aggregated.length;
+
+      while (aggregated.length < total) {
+        from += pageSize;
+        to += pageSize;
+        const { data: pageData, error: pageError } = await supabase
+          .from('new_contact_event')
+          .select('evento')
+          .eq('organization_id', organization.id)
+          .not('evento', 'is', null)
+          .range(from, to);
+        if (pageError) throw pageError;
+        aggregated = aggregated.concat(pageData || []);
+      }
+
       // Extrair eventos únicos (muitos contatos têm múltiplos eventos separados por vírgulas/pontos)
       const eventSet = new Set<string>();
-      (data || []).forEach(item => {
+      (aggregated || []).forEach(item => {
         if (item.evento) {
-          // Split por vírgulas, pontos seguidos de espaço, ou " . "
           const eventNames = item.evento
             .split(/[,.]/)
             .map(e => e.trim())
@@ -98,13 +140,10 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
           eventNames.forEach(name => eventSet.add(name));
         }
       });
-      
+
       return Array.from(eventSet)
         .sort()
-        .map((name, index) => ({ 
-          id: name, // Usar o nome como ID para facilitar filtro
-          name 
-        }));
+        .map(name => ({ id: name, name }));
     },
     enabled: !!organization?.id,
   });
