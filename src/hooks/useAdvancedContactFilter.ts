@@ -76,16 +76,29 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         aggregated = aggregated.concat(pageData || []);
       }
 
+      // Deduplicate por celular (pegar apenas o registro mais recente por telefone)
+      const uniqueContactsMap = new Map();
+      aggregated.forEach(contact => {
+        const phone = contact.celular;
+        if (!phone) return;
+        
+        // Se já existe, comparar data para pegar o mais recente
+        const existing = uniqueContactsMap.get(phone);
+        if (!existing || new Date(contact.created_at) > new Date(existing.created_at)) {
+          uniqueContactsMap.set(phone, contact);
+        }
+      });
+
       // Mapear para o formato esperado, incluindo a coluna evento
-      return aggregated.map(contact => ({
+      return Array.from(uniqueContactsMap.values()).map(contact => ({
         id: contact.id_contact_event?.toString() || contact.celular || '',
         name: contact.name || 'Sem nome',
         phone: contact.celular || '',
         email: '',
         status: contact.status_envio || 'active',
         sentiment: normalizeSentiment(contact.sentimento),
-        cidade: contact.cidade,
-        bairro: contact.bairro,
+        cidade: contact.cidade?.trim() || null, // Normalizar cidade com trim
+        bairro: contact.bairro?.trim() || null, // Normalizar bairro com trim
         ultima_instancia: contact.ultima_instancia,
         evento: contact.evento, // Adicionar campo evento
         tags: []
@@ -182,20 +195,22 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     const sentimentOrder = ['Negativo', 'Neutro', 'Positivo', 'Super engajado'];
     const sentiments = sentimentOrder.filter(s => sentimentsSet.has(s));
     
-    // Cidades únicas e ordenadas
+    // Cidades únicas e ordenadas (normalizar para evitar duplicatas)
     const cidadesSet = new Set<string>();
     allContacts.forEach(contact => {
       if (contact.cidade) {
-        cidadesSet.add(contact.cidade);
+        const normalized = contact.cidade.trim();
+        if (normalized) cidadesSet.add(normalized);
       }
     });
     const cidades = Array.from(cidadesSet).sort();
     
-    // Bairros únicos e ordenados
+    // Bairros únicos e ordenados (normalizar para evitar duplicatas)
     const bairrosSet = new Set<string>();
     allContacts.forEach(contact => {
       if (contact.bairro) {
-        bairrosSet.add(contact.bairro);
+        const normalized = contact.bairro.trim();
+        if (normalized) bairrosSet.add(normalized);
       }
     });
     const bairros = Array.from(bairrosSet).sort();

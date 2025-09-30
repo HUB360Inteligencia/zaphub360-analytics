@@ -75,15 +75,23 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
 
   // Selecionar TODOS os contatos filtrados (não apenas a página atual)
   const handleSelectAll = () => {
-    if (selectedContacts.length === searchFilteredContacts.length) {
-      onContactsChange([]);
+    const filteredIds = new Set(searchFilteredContacts.map(c => c.id));
+    const currentlySelected = selectedContacts.filter(c => filteredIds.has(c.id));
+    
+    if (currentlySelected.length === searchFilteredContacts.length && searchFilteredContacts.length > 0) {
+      // Desmarcar todos os filtrados, mas manter outros selecionados (fora do filtro)
+      onContactsChange(selectedContacts.filter(c => !filteredIds.has(c.id)));
     } else {
-      onContactsChange(searchFilteredContacts.map(contact => ({
+      // Marcar todos os filtrados, mantendo seleções fora do filtro
+      const newSelections = searchFilteredContacts.map(contact => ({
         id: contact.id,
         name: contact.name,
         phone: contact.phone,
         ultima_instancia: contact.ultima_instancia
-      })));
+      }));
+      // Remover duplicatas e manter contatos fora do filtro
+      const outsideFilter = selectedContacts.filter(c => !filteredIds.has(c.id));
+      onContactsChange([...outsideFilter, ...newSelections]);
     }
   };
 
@@ -101,10 +109,18 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
   
   const totalPages = Math.ceil(searchFilteredContacts.length / CONTACTS_PER_PAGE);
   
-  // Reset para página 1 quando filtros mudarem
+  // Reset para página 1 e limpar seleções órfãs quando filtros mudarem
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filters, searchQuery]);
+    
+    // Limpar contatos selecionados que não estão mais nos resultados filtrados
+    const filteredIds = new Set(searchFilteredContacts.map(c => c.id));
+    const validSelections = selectedContacts.filter(c => filteredIds.has(c.id));
+    
+    if (validSelections.length !== selectedContacts.length) {
+      onContactsChange(validSelections);
+    }
+  }, [filters, searchQuery, searchFilteredContacts]);
 
   const getSentimentColor = (sentiment?: string) => {
     const normalized = sentiment?.toLowerCase();
@@ -123,9 +139,9 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Painel de Filtros */}
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-2">
         <FilterPanel
           filters={filters}
           onFiltersChange={setFilters}
@@ -138,8 +154,8 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
         />
       </div>
 
-      {/* Lista de Contatos */}
-      <div className="lg:col-span-2">
+      {/* Lista de Contatos - Expandida */}
+      <div className="lg:col-span-3">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -155,7 +171,11 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
                   onClick={handleSelectAll}
                   disabled={searchFilteredContacts.length === 0}
                 >
-                  {selectedContacts.length === searchFilteredContacts.length ? (
+                  {(() => {
+                    const filteredIds = new Set(searchFilteredContacts.map(c => c.id));
+                    const selectedInFilter = selectedContacts.filter(c => filteredIds.has(c.id)).length;
+                    return selectedInFilter === searchFilteredContacts.length && searchFilteredContacts.length > 0;
+                  })() ? (
                     <>
                       <X className="h-4 w-4 mr-1" />
                       Desmarcar Todos
@@ -194,7 +214,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto">
               {searchFilteredContacts.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
