@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { useContacts, Contact } from './useContacts';
 import { useEvents } from './useEvents';
 import { useCampaigns } from './useCampaigns';
 import { useTags } from './useTags';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeSentiment } from '@/lib/sentiment';
 
 export interface FilterOptions {
   sentiments: string[];
@@ -19,32 +19,54 @@ export interface FilterOptions {
   excludeTags: string[];
 }
 
-export interface ContactWithDetails extends Contact {
+export interface ContactWithDetails {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  status?: string;
   sentiment?: string;
+  cidade?: string;
+  bairro?: string;
+  ultima_instancia?: string;
   eventParticipations?: string[];
   campaignParticipations?: string[];
+  tags?: Array<{ id: string; name: string; color: string }>;
 }
 
 export const useAdvancedContactFilter = (filters: FilterOptions) => {
   const { organization } = useAuth();
-  const { contacts } = useContacts();
   const { events } = useEvents();
   const { campaigns } = useCampaigns();
   const { tags } = useTags();
 
-  // Buscar dados de sentimento e localização dos contatos
-  const { data: contactDetails } = useQuery({
-    queryKey: ['contact-details', organization?.id],
+  // Buscar TODOS os contatos diretamente de new_contact_event (sem paginação)
+  const { data: allContacts, isLoading: contactsLoading } = useQuery({
+    queryKey: ['all-contacts-new-contact-event', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
       
       const { data, error } = await supabase
         .from('new_contact_event')
-        .select('celular, sentimento, name')
-        .eq('organization_id', organization.id);
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      
+      // Mapear para o formato esperado
+      return (data || []).map(contact => ({
+        id: contact.id_contact_event?.toString() || contact.celular || '',
+        name: contact.name || 'Sem nome',
+        phone: contact.celular || '',
+        email: '',
+        status: contact.status_envio || 'active',
+        sentiment: normalizeSentiment(contact.sentimento),
+        cidade: contact.cidade,
+        bairro: contact.bairro,
+        ultima_instancia: contact.ultima_instancia,
+        tags: []
+      }));
     },
     enabled: !!organization?.id,
   });
@@ -87,27 +109,44 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
 
   // Dados únicos para os filtros
   const filterData = useMemo(() => {
-    const sentiments = Array.from(new Set(
-      contactDetails?.map(c => c.sentimento).filter(Boolean) || []
-    ));
+    if (!allContacts) return { sentiments: [], cidades: [], bairros: [] };
     
-    const cidades: string[] = [];
-    const bairros: string[] = [];
+    // Normalizar e ordenar sentimentos
+    const sentimentsSet = new Set<string>();
+    allContacts.forEach(contact => {
+      if (contact.sentiment) {
+        sentimentsSet.add(contact.sentiment);
+      }
+    });
+    
+    // Ordem específica dos sentimentos
+    const sentimentOrder = ['Negativo', 'Neutro', 'Positivo', 'Super engajado'];
+    const sentiments = sentimentOrder.filter(s => sentimentsSet.has(s));
+    
+    // Cidades únicas e ordenadas
+    const cidadesSet = new Set<string>();
+    allContacts.forEach(contact => {
+      if (contact.cidade) {
+        cidadesSet.add(contact.cidade);
+      }
+    });
+    const cidades = Array.from(cidadesSet).sort();
+    
+    // Bairros únicos e ordenados
+    const bairrosSet = new Set<string>();
+    allContacts.forEach(contact => {
+      if (contact.bairro) {
+        bairrosSet.add(contact.bairro);
+      }
+    });
+    const bairros = Array.from(bairrosSet).sort();
 
     return { sentiments, cidades, bairros };
-  }, [contactDetails]);
+  }, [allContacts]);
 
   // Contatos filtrados
   const filteredContacts = useMemo(() => {
-    if (!contacts || !contactDetails) return [];
-
-    // Criar mapa de detalhes dos contatos
-    const detailsMap = new Map();
-    contactDetails.forEach(detail => {
-      if (detail.celular) {
-        detailsMap.set(detail.celular, detail);
-      }
-    });
+    if (!allContacts) return [];
 
     // Criar mapa de participações em eventos
     const eventParticipationMap = new Map();
@@ -125,16 +164,28 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       campaignParticipationMap.set(participation.celular, existing);
     });
 
-    return contacts.filter(contact => {
-      const details = detailsMap.get(contact.phone);
+    return allContacts.filter(contact => {
       const eventIds = eventParticipationMap.get(contact.phone) || [];
       const campaignIds = campaignParticipationMap.get(contact.phone) || [];
       const contactTagIds = contact.tags?.map(tag => tag.id) || [];
 
       // Filtro por sentimento
       if (filters.sentiments.length > 0) {
-        const sentiment = details?.sentimento;
-        if (!sentiment || !filters.sentiments.includes(sentiment)) {
+        if (!contact.sentiment || !filters.sentiments.includes(contact.sentiment)) {
+          return false;
+        }
+      }
+
+      // Filtro por cidade
+      if (filters.cidades.length > 0) {
+        if (!contact.cidade || !filters.cidades.includes(contact.cidade)) {
+          return false;
+        }
+      }
+
+      // Filtro por bairro
+      if (filters.bairros.length > 0) {
+        if (!contact.bairro || !filters.bairros.includes(contact.bairro)) {
           return false;
         }
       }
@@ -200,16 +251,12 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       }
 
       return true;
-    }).map(contact => {
-      const details = detailsMap.get(contact.phone);
-      return {
-        ...contact,
-        sentiment: details?.sentimento,
-        eventParticipations: eventParticipationMap.get(contact.phone) || [],
-        campaignParticipations: campaignParticipationMap.get(contact.phone) || [],
-      };
-    });
-  }, [contacts, contactDetails, eventParticipations, campaignParticipations, 
+    }).map(contact => ({
+      ...contact,
+      eventParticipations: eventParticipationMap.get(contact.phone) || [],
+      campaignParticipations: campaignParticipationMap.get(contact.phone) || [],
+    }));
+  }, [allContacts, eventParticipations, campaignParticipations, 
       JSON.stringify(filters)]); // Usar JSON.stringify para comparação deep
 
   return {
@@ -218,7 +265,8 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     events,
     campaigns,
     tags,
-    totalContacts: contacts?.length || 0,
+    totalContacts: allContacts?.length || 0,
     filteredCount: filteredContacts.length,
+    isLoading: contactsLoading,
   };
 };

@@ -88,14 +88,15 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
   };
 
   const getSentimentColor = (sentiment?: string) => {
-    switch (sentiment) {
-      case 'Super Engajado':
+    const normalized = sentiment?.toLowerCase();
+    switch (normalized) {
+      case 'super engajado':
         return 'bg-orange-500 text-white';
-      case 'Positivo':
+      case 'positivo':
         return 'bg-green-500 text-white';
-      case 'Neutro':
+      case 'neutro':
         return 'bg-gray-500 text-white';
-      case 'Negativo':
+      case 'negativo':
         return 'bg-red-500 text-white';
       default:
         return 'bg-gray-200 text-gray-700';
