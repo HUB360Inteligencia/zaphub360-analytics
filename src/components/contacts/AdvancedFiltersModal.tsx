@@ -19,7 +19,6 @@ import * as XLSX from 'xlsx';
 export interface AdvancedFilters {
   searchTerm: string;
   sentiments: string[];
-  states: string[];
   cities: string[];
   neighborhoods: string[];
   dateRange: {
@@ -38,11 +37,9 @@ interface AdvancedFiltersModalProps {
   onApplyFilters: (filters: AdvancedFilters) => void;
   availableData: {
     sentiments: string[];
-    states: string[];
     cities: string[];
     neighborhoods: string[];
     tags: string[];
-    citiesByState: Record<string, string[]>;
     neighborhoodsByCity: Record<string, string[]>;
   };
   contacts?: any[];
@@ -61,7 +58,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
   const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<string[]>(availableData.neighborhoods);
   const [searchInputs, setSearchInputs] = useState({
     sentiments: '',
-    states: '',
     cities: '',
     neighborhoods: '',
     tags: ''
@@ -71,23 +67,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
     setLocalFilters(filters);
   }, [filters]);
 
-  // Filter cities based on selected states
+  // Set all cities as available (no state filtering)
   useEffect(() => {
-    if (localFilters.states.length > 0) {
-      const stateCities = localFilters.states.flatMap(state => 
-        availableData.citiesByState[state] || []
-      );
-      setFilteredCities(stateCities);
-      
-      // Clear city selections that are not in the filtered states
-      setLocalFilters(prev => ({
-        ...prev,
-        cities: prev.cities.filter(city => stateCities.includes(city))
-      }));
-    } else {
-      setFilteredCities(availableData.cities);
-    }
-  }, [localFilters.states, availableData.citiesByState, availableData.cities]);
+    setFilteredCities(availableData.cities);
+  }, [availableData.cities]);
 
   // Filter neighborhoods based on selected cities
   useEffect(() => {
@@ -129,7 +112,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
     setLocalFilters({
       searchTerm: '',
       sentiments: [],
-      states: [],
       cities: [],
       neighborhoods: [],
       dateRange: { from: '', to: '' },
@@ -295,86 +277,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
           </div>
 
           {/* Geographic Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* States */}
-            <div className="space-y-2">
-              <Label>Estados</Label>
-              <div className="relative mb-2">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar estados..."
-                  value={searchInputs.states}
-                  onChange={(e) => setSearchInputs(prev => ({ ...prev, states: e.target.value }))}
-                  className="pl-8"
-                />
-              </div>
-              <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-2">
-                {availableData.states.length > 0 ? (
-                  <>
-                    {BRAZILIAN_STATES
-                      .filter(state => 
-                        availableData.states.includes(state.code) &&
-                        state.name.toLowerCase().includes(searchInputs.states.toLowerCase())
-                      )
-                      .map((state) => (
-                      <div key={state.code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`state-${state.code}`}
-                          checked={localFilters.states.includes(state.code)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              handleMultiSelect('states', state.code);
-                            } else {
-                              removeFilter('states', state.code);
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`state-${state.code}`} className="text-sm">
-                          {state.name}
-                        </Label>
-                      </div>
-                    ))}
-                    {availableData.states.includes('OUTROS') && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="state-OUTROS"
-                          checked={localFilters.states.includes('OUTROS')}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              handleMultiSelect('states', 'OUTROS');
-                            } else {
-                              removeFilter('states', 'OUTROS');
-                            }
-                          }}
-                        />
-                        <Label htmlFor="state-OUTROS" className="text-sm">
-                          Outros
-                        </Label>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum estado disponível</p>
-                )}
-              </div>
-              {localFilters.states.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.states.map((stateCode) => {
-                    const state = BRAZILIAN_STATES.find(s => s.code === stateCode);
-                    return (
-                      <Badge key={stateCode} variant="secondary" className="text-xs">
-                        {state?.name}
-                        <X 
-                          className="ml-1 h-3 w-3 cursor-pointer" 
-                          onClick={() => removeFilter('states', stateCode)}
-                        />
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Cities */}
             <div className="space-y-2">
               <Label>Cidades</Label>

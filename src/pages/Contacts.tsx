@@ -16,11 +16,10 @@ import ContactsTable from '@/components/contacts/ContactsTable';
 import { getSentimentColor } from '@/lib/brazilianStates';
 import AdvancedFiltersModal from '@/components/contacts/AdvancedFiltersModal';
 
-// Tipo local para o Contacts.tsx (seu modal não precisa exportar esse tipo)
+// Tipo local para o Contacts.tsx
 type AdvancedFilters = {
   searchTerm: string;
   sentiments: string[];
-  states: string[];
   cities: string[];
   neighborhoods: string[];
   dateRange: { from: string; to: string };
@@ -63,7 +62,6 @@ const Contacts = () => {
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     searchTerm: '',
     sentiments: [],
-    states: [],
     cities: [],
     neighborhoods: [],
     dateRange: { from: '', to: '' },
@@ -218,7 +216,6 @@ const Contacts = () => {
     setAdvancedFilters({
       searchTerm: '',
       sentiments: [],
-      states: [],
       cities: [],
       neighborhoods: [],
       dateRange: { from: '', to: '' },
@@ -544,11 +541,9 @@ const Contacts = () => {
         contacts={useAdvancedFilters ? advancedFiltersResult.contacts : contacts}
         availableData={{
           sentiments: advancedFiltersResult.filterOptions.sentimentos || [],
-          states: advancedFiltersResult.filterOptions.states || [],
           cities: advancedFiltersResult.filterOptions.cidades || [],
           neighborhoods: advancedFiltersResult.filterOptions.bairros || [],
           tags: tagStats.map(tag => tag.name) || [],
-          citiesByState: advancedFiltersResult.filterOptions.citiesByState || {},
           neighborhoodsByCity: advancedFiltersResult.filterOptions.neighborhoodsByCity || {},
         }}
       />
