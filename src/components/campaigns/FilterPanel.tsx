@@ -22,6 +22,8 @@ interface FilterPanelProps {
   tags: Tag[];
   filteredCount: number;
   totalContacts: number;
+  selectedInFilter: number;
+  totalSelected: number;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -33,6 +35,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   tags,
   filteredCount,
   totalContacts,
+  selectedInFilter,
+  totalSelected,
 }) => {
   const updateFilter = (key: keyof FilterOptions, values: string[]) => {
     onFiltersChange({ ...filters, [key]: values });
@@ -74,8 +78,15 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             </Button>
           )}
         </div>
-        <div className="text-sm text-muted-foreground">
-          {filteredCount} de {totalContacts} contatos selecionados
+        <div className="text-sm text-muted-foreground space-y-1">
+          <div>
+            {filteredCount} de {totalContacts} contatos encontrados
+          </div>
+          {totalSelected > 0 && (
+            <div className="text-xs">
+              {selectedInFilter} selecionados neste filtro • {totalSelected} selecionados no total
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

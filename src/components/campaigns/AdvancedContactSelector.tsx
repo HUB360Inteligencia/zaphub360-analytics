@@ -59,6 +59,12 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     )
   ), [filteredContacts, searchQuery]);
 
+  // Calcular quantos selecionados estão no filtro atual
+  const selectedInFilter = useMemo(() => {
+    const filteredIds = new Set(searchFilteredContacts.map(c => c.id));
+    return selectedContacts.filter(c => filteredIds.has(c.id)).length;
+  }, [searchFilteredContacts, selectedContacts]);
+
   const handleSelectContact = (contact: ContactWithDetails) => {
     const isSelected = selectedContacts.some(c => c.id === contact.id);
     if (isSelected) {
@@ -151,6 +157,8 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
           tags={tags}
           filteredCount={filteredCount}
           totalContacts={totalContacts}
+          selectedInFilter={selectedInFilter}
+          totalSelected={selectedContacts.length}
         />
       </div>
 
@@ -210,7 +218,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              {selectedContacts.length} contatos selecionados de {searchFilteredContacts.length} encontrados ({totalContacts} total)
+              {selectedInFilter} selecionados de {searchFilteredContacts.length} encontrados • {selectedContacts.length} selecionados no total ({totalContacts} contatos)
             </div>
           </CardHeader>
           <CardContent>
