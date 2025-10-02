@@ -183,7 +183,15 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = (props)
     XLSX.writeFile(wb, filename);
   };
 
-  const activeFiltersCount = Object.values(localFilters).flat().filter(Boolean).length;
+  // Contar filtros ativos corretamente
+  const activeFiltersCount = 
+    (localFilters.searchTerm ? 1 : 0) +
+    localFilters.sentiments.length +
+    localFilters.cities.length +
+    localFilters.neighborhoods.length +
+    (localFilters.dateRange.from || localFilters.dateRange.to ? 1 : 0) +
+    localFilters.tags.length +
+    localFilters.status.length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

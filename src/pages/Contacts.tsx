@@ -51,6 +51,10 @@ const Contacts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   
+  // Estados para ordenação
+  const [sortBy, setSortBy] = useState<'name' | 'cidade' | 'bairro' | 'sentimento' | 'evento'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
   // Modal de perfil
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalMode, setProfileModalMode] = useState<'view' | 'edit'>('view');
@@ -81,7 +85,9 @@ const Contacts = () => {
     filterSentimento,
     selectedTag,
     page: currentPage,
-    pageSize: pageSize
+    pageSize: pageSize,
+    sortBy,
+    sortDirection
   });
 
   // Advanced filters
@@ -426,6 +432,27 @@ const Contacts = () => {
                 />
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Ordenar por" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Nome</SelectItem>
+                    <SelectItem value="cidade">Cidade</SelectItem>
+                    <SelectItem value="bairro">Bairro</SelectItem>
+                    <SelectItem value="sentimento">Sentimento</SelectItem>
+                    <SelectItem value="evento">Eventos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortDirection} onValueChange={(value: any) => setSortDirection(value)}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">Crescente</SelectItem>
+                    <SelectItem value="desc">Decrescente</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button 
                   variant={useAdvancedFilters ? "default" : "outline"} 
                   className="w-full sm:w-auto"

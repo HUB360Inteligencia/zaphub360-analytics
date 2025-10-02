@@ -77,6 +77,7 @@ export const useAdvancedContactFilters = (
           bairro: contact.bairro?.trim() || null,
           sentimento: normalizeSentiment(contact.sentimento),
           evento: contact.evento,
+          sobrenome: contact.sobrenome,
         }));
     },
     enabled: !!organization?.id,
@@ -90,19 +91,21 @@ export const useAdvancedContactFilters = (
       
       let filtered = allContacts;
 
-      // Apply search term filter
+      // Apply search term filter (incluindo sobrenome)
       if (filters.searchTerm) {
         if (filters.searchOperator === 'AND') {
           const searchTerms = filters.searchTerm.split(' ').filter(term => term.trim());
           filtered = filtered.filter(contact => 
             searchTerms.every(term => 
               contact.name.toLowerCase().includes(term.toLowerCase()) ||
+              (contact as any).sobrenome?.toLowerCase().includes(term.toLowerCase()) ||
               contact.phone.toLowerCase().includes(term.toLowerCase())
             )
           );
         } else {
           filtered = filtered.filter(contact =>
             contact.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+            (contact as any).sobrenome?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
             contact.phone.toLowerCase().includes(filters.searchTerm.toLowerCase())
           );
         }

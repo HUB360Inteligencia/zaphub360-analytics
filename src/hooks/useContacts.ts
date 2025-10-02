@@ -46,6 +46,8 @@ interface ContactsParams {
   filterBairro?: string;
   filterSentimento?: string;
   selectedTag?: string;
+  sortBy?: 'name' | 'cidade' | 'bairro' | 'sentimento' | 'evento';
+  sortDirection?: 'asc' | 'desc';
 }
 
 // Hook para buscar contatos paginados
@@ -60,11 +62,13 @@ export const useContacts = (params: ContactsParams = {}) => {
     filterCidade = 'all',
     filterBairro = 'all', 
     filterSentimento = 'all',
-    selectedTag = 'all'
+    selectedTag = 'all',
+    sortBy = 'name',
+    sortDirection = 'asc'
   } = params;
 
   const contactsQuery = useQuery({
-    queryKey: ['contacts', organization?.id, page, pageSize, searchTerm, filterCidade, filterBairro, filterSentimento, selectedTag],
+    queryKey: ['contacts', organization?.id, page, pageSize, searchTerm, filterCidade, filterBairro, filterSentimento, selectedTag, sortBy, sortDirection],
     queryFn: async () => {
       if (!organization?.id) return { data: [], count: 0 };
       
@@ -94,13 +98,15 @@ export const useContacts = (params: ContactsParams = {}) => {
         query = query.like('tag', `%${selectedTag}%`);
       }
 
+      // Ordenação
+      const sortColumn = sortBy === 'evento' ? 'evento' : sortBy;
+      query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
+
       // Paginação
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       
-      const { data, error, count } = await query
-        .order('created_at', { ascending: false })
-        .range(from, to);
+      const { data, error, count } = await query.range(from, to);
 
       if (error) throw error;
 
@@ -162,33 +168,49 @@ export const useContacts = (params: ContactsParams = {}) => {
     enabled: !!organization?.id,
   });
 
-  // Hook para obter valores únicos para filtros (correção rápida aplicada)
+  // Hook para obter valores únicos para filtros - busca TODOS os dados
   const filtersQuery = useQuery({
     queryKey: ['contacts-filters', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { cidades: [], bairros: [], sentimentos: [] };
 
-      const { data, error } = await supabase
-        .from('new_contact_event')
-        .select('cidade, bairro, sentimento')
-        .eq('organization_id', organization.id)
-        .range(0, 99999); // evita retorno truncado (~1000)
+      let allData: any[] = [];
+      let pageIndex = 0;
+      const batchSize = 1000;
 
-      if (error) throw error;
+      // Buscar TODOS os dados em lotes
+      while (true) {
+        const from = pageIndex * batchSize;
+        const to = from + batchSize - 1;
+
+        const { data: pageData, error } = await supabase
+          .from('new_contact_event')
+          .select('cidade, bairro, sentimento')
+          .eq('organization_id', organization.id)
+          .range(from, to);
+
+        if (error) throw error;
+        if (!pageData || pageData.length === 0) break;
+
+        allData = allData.concat(pageData);
+        
+        if (pageData.length < batchSize) break;
+        pageIndex++;
+      }
 
       // normaliza strings
       const norm = (s?: string | null) => (s ?? '').trim();
 
       const cidades = Array.from(
-        new Set((data ?? []).map(d => norm(d.cidade)).filter(Boolean))
+        new Set(allData.map(d => norm(d.cidade)).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
       const bairros = Array.from(
-        new Set((data ?? []).map(d => norm(d.bairro)).filter(Boolean))
+        new Set(allData.map(d => norm(d.bairro)).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
       const sentimentos = Array.from(
-        new Set((data ?? []).map(d => norm(d.sentimento)).filter(Boolean))
+        new Set(allData.map(d => norm(d.sentimento)).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
       return { cidades, bairros, sentimentos };
