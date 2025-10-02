@@ -39,6 +39,7 @@ interface ContactsTableProps {
   onViewProfile: (contact: Contact) => void;
   onEditProfile: (contact: Contact) => void;
   onDeleteContact: (contactId: string) => void;
+  onRestoreContact: (contactData: Contact) => void;
   getSentimentColor: (sentiment?: string) => string;
   currentPage: number;
   pageSize: number;
@@ -56,6 +57,7 @@ const ContactsTable = ({
   onViewProfile,
   onEditProfile,
   onDeleteContact,
+  onRestoreContact,
   getSentimentColor,
   currentPage,
   pageSize,
@@ -82,21 +84,24 @@ const ContactsTable = ({
     if (contactToDelete) {
       const contactData = contacts.find(c => c.id === contactToDelete);
       onDeleteContact(contactToDelete);
-      setLastDeletedContact(contactData ? { id: contactToDelete, data: contactData } : null);
+      
+      if (contactData) {
+        setLastDeletedContact({ id: contactToDelete, data: contactData });
+        
+        // Toast com opção de desfazer
+        toast.success('Contato excluído com sucesso', {
+          action: {
+            label: 'Desfazer',
+            onClick: () => {
+              onRestoreContact(contactData);
+            },
+          },
+          duration: 5000,
+        });
+      }
+      
       setDeleteConfirmOpen(false);
       setContactToDelete(null);
-
-      // Toast com opção de desfazer
-      toast.success('Contato excluído com sucesso', {
-        action: {
-          label: 'Desfazer',
-          onClick: () => {
-            // Aqui você precisaria implementar a lógica de desfazer
-            toast.info('Funcionalidade de desfazer em desenvolvimento');
-          },
-        },
-        duration: 5000,
-      });
     }
   };
 

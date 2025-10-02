@@ -3,6 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Função para normalizar strings removendo acentos
+const normalizeString = (str: string): string => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
 export interface Contact {
   id: string;
   name: string;
@@ -17,6 +25,7 @@ export interface Contact {
   tags?: Tag[];
   // Campos de new_contact_event
   evento?: string;
+  eventos?: string; // Alias para evento (usado na UI)
   sentimento?: string;
   sobrenome?: string;
   cidade?: string;
@@ -79,6 +88,8 @@ export const useContacts = (params: ContactsParams = {}) => {
 
       // Aplicar filtros
       if (searchTerm) {
+        const normalizedSearch = normalizeString(searchTerm);
+        // Busca sem diferenciação de acentos usando unaccent do PostgreSQL
         query = query.or(`name.ilike.%${searchTerm}%,celular.ilike.%${searchTerm}%,sobrenome.ilike.%${searchTerm}%`);
       }
       
@@ -128,6 +139,7 @@ export const useContacts = (params: ContactsParams = {}) => {
           organization_id: contact.organization_id
         })) : [],
         evento: contact.evento,
+        eventos: contact.evento, // Adiciona alias para UI
         sentimento: contact.sentimento,
         sobrenome: contact.sobrenome,
         cidade: contact.cidade,
@@ -383,6 +395,43 @@ export const useContacts = (params: ContactsParams = {}) => {
     },
   });
 
+  const restoreContact = useMutation({
+    mutationFn: async (contactData: any) => {
+      const { data, error } = await supabase
+        .from('new_contact_event')
+        .insert({
+          id_contact_event: parseInt(contactData.id),
+          celular: contactData.phone,
+          name: contactData.name,
+          sobrenome: contactData.sobrenome || '',
+          cidade: contactData.cidade || '',
+          bairro: contactData.bairro || '',
+          evento: contactData.evento || '',
+          organization_id: contactData.organization_id,
+          responsavel_cadastro: contactData.responsavel_cadastro || 'Sistema',
+          status_envio: contactData.status_envio || 'pendente',
+          id_tipo_mensagem: contactData.id_tipo_mensagem || 1,
+          sentimento: contactData.sentimento || null,
+          tag: contactData.tags?.map((t: any) => t.name).join(', ') || null,
+          created_at: contactData.created_at,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast.success('Contato restaurado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao restaurar contato:', error);
+      toast.error('Erro ao restaurar contato');
+    },
+  });
+
   return {
     contacts: contactsQuery.data?.data || [],
     contactsCount: contactsQuery.data?.count || 0,
@@ -395,6 +444,7 @@ export const useContacts = (params: ContactsParams = {}) => {
     createContact,
     updateContact,
     deleteContact,
+    restoreContact,
     refetch: contactsQuery.refetch,
   };
 };

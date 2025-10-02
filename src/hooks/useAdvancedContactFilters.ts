@@ -1,7 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeSentiment } from '@/lib/brazilianStates';
+
+// Função para normalizar strings removendo acentos
+const normalizeString = (str: string): string => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
 
 export interface AdvancedFilters {
   searchTerm: string;
@@ -91,23 +100,24 @@ export const useAdvancedContactFilters = (
       
       let filtered = allContacts;
 
-      // Apply search term filter (incluindo sobrenome)
+      // Apply search term filter (incluindo sobrenome e sem diferenciação de acentos)
       if (filters.searchTerm) {
         if (filters.searchOperator === 'AND') {
           const searchTerms = filters.searchTerm.split(' ').filter(term => term.trim());
-          filtered = filtered.filter(contact => 
-            searchTerms.every(term => 
-              contact.name.toLowerCase().includes(term.toLowerCase()) ||
-              (contact as any).sobrenome?.toLowerCase().includes(term.toLowerCase()) ||
-              contact.phone.toLowerCase().includes(term.toLowerCase())
-            )
-          );
+          const normalizedSearchTerms = searchTerms.map(normalizeString);
+          
+          filtered = filtered.filter(contact => {
+            const searchableText = `${contact.name} ${(contact as any).sobrenome || ''} ${contact.phone}`;
+            const normalizedText = normalizeString(searchableText);
+            return normalizedSearchTerms.every(term => normalizedText.includes(term));
+          });
         } else {
-          filtered = filtered.filter(contact =>
-            contact.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-            (contact as any).sobrenome?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-            contact.phone.toLowerCase().includes(filters.searchTerm.toLowerCase())
-          );
+          const normalizedSearch = normalizeString(filters.searchTerm);
+          filtered = filtered.filter(contact => {
+            const searchableText = `${contact.name} ${(contact as any).sobrenome || ''} ${contact.phone}`;
+            const normalizedText = normalizeString(searchableText);
+            return normalizedText.includes(normalizedSearch);
+          });
         }
       }
 

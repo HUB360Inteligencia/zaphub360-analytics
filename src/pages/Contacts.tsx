@@ -105,6 +105,7 @@ const Contacts = () => {
     createContact,
     updateContact,
     deleteContact,
+    restoreContact,
     refetch
   } = useAdvancedFilters ? {
     contacts: advancedFiltersResult.contacts,
@@ -113,6 +114,7 @@ const Contacts = () => {
     createContact: regularFilters.createContact,
     updateContact: regularFilters.updateContact,
     deleteContact: regularFilters.deleteContact,
+    restoreContact: regularFilters.restoreContact,
     refetch: advancedFiltersResult.refetch
   } : {
     contacts: regularFilters.contacts,
@@ -121,6 +123,7 @@ const Contacts = () => {
     createContact: regularFilters.createContact,
     updateContact: regularFilters.updateContact,
     deleteContact: regularFilters.deleteContact,
+    restoreContact: regularFilters.restoreContact,
     refetch: regularFilters.refetch
   };
 
@@ -550,6 +553,7 @@ const Contacts = () => {
         onViewProfile={handleViewProfile}
         onEditProfile={handleEditProfile}
         onDeleteContact={(id) => deleteContact.mutate(id)}
+        onRestoreContact={(contactData) => restoreContact.mutate(contactData)}
         getSentimentColor={getSentimentColor}
         currentPage={currentPage}
         pageSize={pageSize}
