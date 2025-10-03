@@ -179,6 +179,24 @@ const Contacts = () => {
     setCurrentPage(1);
   };
 
+  const handleSortChange = (column: string) => {
+    const validColumn = column as 'name' | 'cidade' | 'bairro' | 'sentimento' | 'evento';
+    if (sortBy === validColumn) {
+      // Toggle through: asc -> desc -> default (name asc)
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        // Reset to default
+        setSortBy('name');
+        setSortDirection('asc');
+      }
+    } else {
+      // New column, start with asc
+      setSortBy(validColumn);
+      setSortDirection('asc');
+    }
+  };
+
   const handleCreateContact = async (contactData: any) => {
     try {
       await createContact.mutateAsync(contactData);
@@ -434,29 +452,8 @@ const Contacts = () => {
                   className="pl-10"
                 />
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">Nome</SelectItem>
-                    <SelectItem value="cidade">Cidade</SelectItem>
-                    <SelectItem value="bairro">Bairro</SelectItem>
-                    <SelectItem value="sentimento">Sentimento</SelectItem>
-                    <SelectItem value="evento">Eventos</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={sortDirection} onValueChange={(value: any) => setSortDirection(value)}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="asc">Crescente</SelectItem>
-                    <SelectItem value="desc">Decrescente</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button 
+              <div className="flex gap-2">
+                <Button
                   variant={useAdvancedFilters ? "default" : "outline"} 
                   className="w-full sm:w-auto"
                   onClick={() => setAdvancedFiltersOpen(true)}
@@ -561,6 +558,9 @@ const Contacts = () => {
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         isLoading={contactsLoading}
+        sortBy={sortBy}
+        sortDirection={sortDirection}
+        onSortChange={handleSortChange}
       />
 
       {/* Advanced Filters Modal */}

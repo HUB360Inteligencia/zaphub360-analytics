@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Phone, Edit, Trash2, Eye, MapPin, Heart, Loader2 } from 'lucide-react';
+import { Phone, Edit, Trash2, Eye, MapPin, Heart, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Contact {
@@ -47,6 +47,9 @@ interface ContactsTableProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   isLoading: boolean;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  onSortChange?: (column: string) => void;
 }
 
 const ContactsTable = ({
@@ -64,7 +67,10 @@ const ContactsTable = ({
   totalContacts,
   onPageChange,
   onPageSizeChange,
-  isLoading
+  isLoading,
+  sortBy,
+  sortDirection,
+  onSortChange
 }: ContactsTableProps) => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
@@ -74,6 +80,15 @@ const ContactsTable = ({
   const totalPages = Math.ceil(totalContacts / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalContacts);
+
+  const renderSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="ml-2 h-4 w-4 inline-block" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="ml-2 h-4 w-4 inline-block" />
+      : <ArrowDown className="ml-2 h-4 w-4 inline-block" />;
+  };
 
   const handleDeleteClick = (contactId: string) => {
     setContactToDelete(contactId);
@@ -189,13 +204,53 @@ const ContactsTable = ({
                     onCheckedChange={onSelectAll}
                   />
                 </TableHead>
-                <TableHead>Nome</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => onSortChange?.('name')}
+                >
+                  <div className="flex items-center">
+                    Nome
+                    {renderSortIcon('name')}
+                  </div>
+                </TableHead>
                 <TableHead>Telefone</TableHead>
-                <TableHead>Cidade</TableHead>
-                <TableHead>Bairro</TableHead>
-                <TableHead>Sentimento</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => onSortChange?.('cidade')}
+                >
+                  <div className="flex items-center">
+                    Cidade
+                    {renderSortIcon('cidade')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => onSortChange?.('bairro')}
+                >
+                  <div className="flex items-center">
+                    Bairro
+                    {renderSortIcon('bairro')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => onSortChange?.('sentimento')}
+                >
+                  <div className="flex items-center">
+                    Sentimento
+                    {renderSortIcon('sentimento')}
+                  </div>
+                </TableHead>
                 <TableHead>Tags</TableHead>
-                <TableHead>Eventos</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => onSortChange?.('evento')}
+                >
+                  <div className="flex items-center">
+                    Eventos
+                    {renderSortIcon('evento')}
+                  </div>
+                </TableHead>
                 <TableHead className="w-32">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -271,14 +326,22 @@ const ContactsTable = ({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {contact.eventos && (
-                        <Badge variant="outline" className="text-xs">
-                          <Heart className="w-3 h-3 mr-1" />
-                          {contact.eventos.split(', ').length} eventos
-                        </Badge>
-                      )}
-                    </div>
+                    {contact.eventos ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="truncate overflow-hidden max-w-xs cursor-help">
+                              {contact.eventos}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">{contact.eventos}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
                   <TableCell>
                     <TooltipProvider>
