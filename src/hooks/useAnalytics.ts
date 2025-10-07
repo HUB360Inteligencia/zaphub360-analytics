@@ -118,14 +118,28 @@ export const useAnalytics = () => {
         return date.toISOString().split('T')[0];
       }).reverse();
 
-      const dailyActivity = last7Days.map(date => ({
-        date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        messages: (eventMessages?.filter(m => m.sent_at?.startsWith(date)).length || 0) + 
-                 (sentMessages?.filter(m => m.data_envio?.startsWith(date)).length || 0) || 
-                 Math.floor(Math.random() * 200),
-        responses: Math.floor(Math.random() * 30),
-        contacts: totalContacts + Math.floor(Math.random() * 50),
-      }));
+      const dailyActivity = last7Days.map(date => {
+        // Mensagens enviadas (combinando eventos e campanhas)
+        const eventMessagesSent = eventMessages?.filter(m => m.sent_at?.startsWith(date)).length || 0;
+        const campaignMessagesSent = sentMessages?.filter(m => m.data_envio?.startsWith(date)).length || 0;
+        const totalMessagesSent = eventMessagesSent + campaignMessagesSent;
+        
+        // Respostas recebidas (assumindo que status 'responded' indica uma resposta)
+        const eventMessagesResponded = eventMessages?.filter(m => 
+          m.sent_at?.startsWith(date) && m.status === 'responded'
+        ).length || 0;
+        const campaignMessagesResponded = sentMessages?.filter(m => 
+          m.data_envio?.startsWith(date) && m.status === 'responded'
+        ).length || 0;
+        const totalResponses = eventMessagesResponded + campaignMessagesResponded;
+        
+        return {
+          date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          messages: totalMessagesSent > 0 ? totalMessagesSent : 0,
+          responses: totalResponses > 0 ? totalResponses : 0,
+          contacts: totalContacts,
+        };
+      });
 
       const contactsByTag = tagsData?.map(tag => ({
         name: tag.name,
