@@ -82,11 +82,40 @@ export const useAnalytics = () => {
         .select('status, sent_at, delivered_at, read_at')
         .eq('organization_id', organization.id);
 
-      // Buscar mensagens enviadas
+      // Helpers de data (normalização local)
+      const toDateKey = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const normalizeKeyFromString = (s: string) => {
+        const d = new Date(s);
+        return toDateKey(d);
+      };
+
+      // Range dinâmico: últimos 7 dias incluindo hoje
+      const today = new Date();
+      const startDate = new Date();
+      startDate.setDate(today.getDate() - 6);
+      const startKey = toDateKey(startDate);
+      const endKey = toDateKey(today);
+
+      // Buscar mensagens enviadas no período
       const { data: sentMessages } = await supabase
         .from('mensagens_enviadas')
-        .select('status, data_envio, data_leitura')
-        .eq('organization_id', organization.id);
+        .select('status, data_envio, data_leitura, data_resposta')
+        .eq('organization_id', organization.id)
+        .gte('data_envio', startKey)
+        .lte('data_envio', endKey);
+
+      // Buscar respostas no período
+      const { data: responseMessages } = await supabase
+        .from('mensagens_enviadas')
+        .select('status, data_envio, data_leitura, data_resposta')
+        .eq('organization_id', organization.id)
+        .gte('data_resposta', startKey)
+        .lte('data_resposta', endKey);
 
       // Buscar tags com contagem
       const { data: tagsData } = await supabase
@@ -111,32 +140,28 @@ export const useAnalytics = () => {
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const openRate = totalMessages > 0 ? (readMessages / totalMessages) * 100 : 0;
 
-      // Dados dos últimos 7 dias para gráfico
+      // Dias do período: últimos 7 dias (incluindo hoje), normalizados para data local
       const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        return date.toISOString().split('T')[0];
-      }).reverse();
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        return toDateKey(d);
+      });
 
       const dailyActivity = last7Days.map(date => {
-        // Mensagens enviadas (combinando eventos e campanhas)
-        const eventMessagesSent = eventMessages?.filter(m => m.sent_at?.startsWith(date)).length || 0;
-        const campaignMessagesSent = sentMessages?.filter(m => m.data_envio?.startsWith(date)).length || 0;
-        const totalMessagesSent = eventMessagesSent + campaignMessagesSent;
-        
-        // Respostas recebidas (assumindo que status 'responded' indica uma resposta)
-        const eventMessagesResponded = eventMessages?.filter(m => 
-          m.sent_at?.startsWith(date) && m.status === 'responded'
-        ).length || 0;
-        const campaignMessagesResponded = sentMessages?.filter(m => 
-          m.data_envio?.startsWith(date) && m.status === 'responded'
-        ).length || 0;
-        const totalResponses = eventMessagesResponded + campaignMessagesResponded;
-        
+        // Mensagens enviadas da tabela mensagens_enviadas (por dia)
+        const messagesOnDate = (sentMessages || []).filter(m => {
+          return m.data_envio && normalizeKeyFromString(m.data_envio) === date;
+        });
+
+        // Respostas recebidas (por dia)
+        const responsesOnDate = (responseMessages || []).filter(m => {
+          return m.data_resposta && normalizeKeyFromString(m.data_resposta) === date;
+        });
+
         return {
-          date: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          messages: totalMessagesSent > 0 ? totalMessagesSent : 0,
-          responses: totalResponses > 0 ? totalResponses : 0,
+          date: new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          messages: messagesOnDate.length,
+          responses: responsesOnDate.length,
           contacts: totalContacts,
         };
       });

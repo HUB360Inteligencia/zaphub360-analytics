@@ -134,7 +134,7 @@ const Dashboard = () => {
         <Card className="bg-white border-0 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Engajamento dos Últimos 7 Dias</CardTitle>
-            <CardDescription>Mensagens enviadas vs Respostas recebidas</CardDescription>
+            <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
