@@ -120,8 +120,20 @@ serve(async (req) => {
     } else {
       const resend = new Resend(RESEND_API_KEY);
 
-      const siteUrl = req.headers.get("origin") || "";
-      const acceptUrl = `${siteUrl}/auth?invite_token=${encodeURIComponent(token)}`;
+      // Use configured URL with fallbacks
+      const configuredUrl = Deno.env.get("INVITES_SITE_URL") || Deno.env.get("SITE_URL") || "";
+      let baseUrl = configuredUrl;
+      
+      if (!baseUrl) {
+        // Try to reconstruct from request headers as last resort
+        const proto = req.headers.get("x-forwarded-proto") || "https";
+        const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+        if (host) baseUrl = `${proto}://${host}`;
+      }
+      
+      // Remove trailing slash if present
+      const normalized = (baseUrl || "").replace(/\/+$/, "");
+      const acceptUrl = `${normalized}/auth?invite_token=${encodeURIComponent(token)}`;
 
       const html = `
         <h2>Você foi convidado para a organização</h2>
