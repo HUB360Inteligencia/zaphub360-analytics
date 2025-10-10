@@ -48,25 +48,20 @@ export const normalizeSentiment = (sentiment: string | null): string | null => {
   
   const normalized = sentiment.toLowerCase().trim();
   
-  // Capitalizar primeira letra
-  const capitalize = (str: string) => {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  };
-  
   switch (normalized) {
     case 'super engajado':
     case 'super_engajado':
     case 'superengajado':
-      return 'Super engajado';
+      return SENTIMENT_VALUES.SUPER_ENGAJADO; // 'super engajado'
     case 'positivo':
-      return 'Positivo';
+      return SENTIMENT_VALUES.POSITIVO; // 'positivo'
     case 'neutro':
-      return 'Neutro';
+      return SENTIMENT_VALUES.NEUTRO; // 'neutro'
     case 'negativo':
-      return 'Negativo';
+      return SENTIMENT_VALUES.NEGATIVO; // 'negativo'
     default:
-      // Se não reconhecer, capitalizar primeira letra
-      return capitalize(normalized);
+      // Se não reconhecer, retornar null para ser tratado como "sem classificação"
+      return null;
   }
 };
 
