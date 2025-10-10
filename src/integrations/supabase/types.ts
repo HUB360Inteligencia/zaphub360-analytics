@@ -160,6 +160,60 @@ export type Database = {
           },
         ]
       }
+      contact_messages: {
+        Row: {
+          caption_media: string | null
+          celular: string
+          created_at: string
+          data_mensagem: string
+          data_mensagem_brt: string | null
+          direction: string
+          id: string
+          instancia_id: string
+          intent: string | null
+          media_type: string | null
+          mensagem: string | null
+          name_media: string | null
+          organization_id: string
+          sentiment: string | null
+          url_media: string | null
+        }
+        Insert: {
+          caption_media?: string | null
+          celular: string
+          created_at?: string
+          data_mensagem: string
+          data_mensagem_brt?: string | null
+          direction: string
+          id?: string
+          instancia_id: string
+          intent?: string | null
+          media_type?: string | null
+          mensagem?: string | null
+          name_media?: string | null
+          organization_id: string
+          sentiment?: string | null
+          url_media?: string | null
+        }
+        Update: {
+          caption_media?: string | null
+          celular?: string
+          created_at?: string
+          data_mensagem?: string
+          data_mensagem_brt?: string | null
+          direction?: string
+          id?: string
+          instancia_id?: string
+          intent?: string | null
+          media_type?: string | null
+          mensagem?: string | null
+          name_media?: string | null
+          organization_id?: string
+          sentiment?: string | null
+          url_media?: string | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           created_at: string | null
@@ -606,8 +660,10 @@ export type Database = {
           name: string | null
           organization_id: string | null
           perfil: string | null
+          perfil_contato: string | null
           responsavel_cadastro: string | null
           sentimento: string | null
+          sentimento_rp: string | null
           sobrenome: string | null
           status_envio: string | null
           tag: string | null
@@ -630,8 +686,10 @@ export type Database = {
           name?: string | null
           organization_id?: string | null
           perfil?: string | null
+          perfil_contato?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
+          sentimento_rp?: string | null
           sobrenome?: string | null
           status_envio?: string | null
           tag?: string | null
@@ -654,8 +712,10 @@ export type Database = {
           name?: string | null
           organization_id?: string | null
           perfil?: string | null
+          perfil_contato?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
+          sentimento_rp?: string | null
           sobrenome?: string | null
           status_envio?: string | null
           tag?: string | null
@@ -852,6 +912,37 @@ export type Database = {
         }
         Relationships: []
       }
+      new_contact_event_logs: {
+        Row: {
+          bairro: string | null
+          celular: string | null
+          cidade: string | null
+          created_at: string | null
+          event_id: number | null
+          evento: string | null
+          id_contact_event: number | null
+          id_tipo_mensagem: number | null
+          media_name: string | null
+          media_type: string | null
+          media_url: string | null
+          mensagem_enviada: string | null
+          mensagem_recebida: string | null
+          mime_type: string | null
+          name: string | null
+          organization_id: string | null
+          perfil: string | null
+          perfil_contato: string | null
+          responsavel_cadastro: string | null
+          sentimento: string | null
+          sentimento_rp: string | null
+          sobrenome: string | null
+          status_envio: string | null
+          tag: string | null
+          ultima_instancia: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       public_event_analytics: {
         Row: {
           created_at: string | null
@@ -892,6 +983,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invitation: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: Json
+      }
       choose_best_value: {
         Args: { val1: string; val2: string }
         Returns: string
@@ -945,6 +1040,17 @@ export type Database = {
       update_contact_ultima_instancia: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      upsert_new_contact_event_min: {
+        Args: {
+          _celular: string
+          _evento: string
+          _name: string
+          _organization_id: string
+          _perfil_contato: string
+          _sobrenome: string
+        }
+        Returns: number
       }
     }
     Enums: {
