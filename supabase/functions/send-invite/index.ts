@@ -37,14 +37,27 @@ serve(async (req) => {
       }
     );
 
-    const { data: userResult } = await anonClient.auth.getUser();
-    const requester = userResult?.user;
-    if (!requester) {
+    console.log("Tentando autenticar usuário...");
+    const { data: userResult, error: userError } = await anonClient.auth.getUser();
+    
+    if (userError) {
+      console.error("Erro ao obter usuário:", userError);
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Unauthorized: " + userError.message }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+    
+    const requester = userResult?.user;
+    if (!requester) {
+      console.error("Usuário não encontrado no token");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: No user found in token" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    console.log("Usuário autenticado:", requester.email);
 
     // Service role client for privileged DB writes
     const serviceClient = createClient(

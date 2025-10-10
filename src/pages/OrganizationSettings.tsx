@@ -147,14 +147,28 @@ const OrganizationSettings = () => {
     setInviteLoading(true);
 
     const result = await handleAsyncError(async () => {
+      // Obter sessão atual para garantir que temos o token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Você precisa estar autenticado para enviar convites');
+      }
+
       const { data, error } = await supabase.functions.invoke('send-invite', {
         body: {
           email: inviteEmail.trim().toLowerCase(),
           role: inviteRole,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      if (error) throw error as any;
+      if (error) {
+        console.error('Erro ao enviar convite:', error);
+        throw error as any;
+      }
+      
       return data;
     }, 'Convite de membro', 'Convite enviado com sucesso!');
 
