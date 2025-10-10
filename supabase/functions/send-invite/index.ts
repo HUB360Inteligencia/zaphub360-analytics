@@ -30,9 +30,9 @@ serve(async (req) => {
 
     // Extract JWT token from Authorization header
     const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+    const jwtToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
     
-    if (!token) {
+    if (!jwtToken) {
       console.error("Token de autenticação não fornecido");
       return new Response(
         JSON.stringify({ error: "Unauthorized: Missing authentication token" }),
@@ -47,7 +47,7 @@ serve(async (req) => {
     );
 
     console.log("Tentando autenticar usuário...");
-    const { data: userResult, error: userError } = await anonClient.auth.getUser(token);
+    const { data: userResult, error: userError } = await anonClient.auth.getUser(jwtToken);
     
     if (userError) {
       console.error("Erro ao obter usuário:", userError);
