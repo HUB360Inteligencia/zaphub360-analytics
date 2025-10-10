@@ -42,15 +42,16 @@ const Auth = () => {
   const navigate = useNavigate();
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    shouldUnregister: false,
+    shouldUnregister: true,
     defaultValues: {
       email: '',
       password: ''
     }
   });
+
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    shouldUnregister: false,
+    shouldUnregister: true,
     defaultValues: {
       email: '',
       password: '',
@@ -209,7 +210,7 @@ const Auth = () => {
             </Alert>
           )}
           
-          {isLogin ? <Form {...loginForm}>
+          {isLogin ? <Form key="login" {...loginForm}>
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                 <FormField control={loginForm.control} name="email" render={({
               field
@@ -227,7 +228,13 @@ const Auth = () => {
                       <FormLabel>Senha</FormLabel>
                       <div className="relative">
                         <FormControl>
-                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pr-10" {...field} />
+                          <Input 
+                            type={showPassword ? 'text' : 'password'} 
+                            placeholder="••••••••" 
+                            autoComplete="current-password"
+                            className="pr-10" 
+                            {...field} 
+                          />
                         </FormControl>
                         <Button
                           type="button"
@@ -251,7 +258,7 @@ const Auth = () => {
                   Entrar
                 </Button>
               </form>
-            </Form> : <Form {...registerForm}>
+            </Form> : <Form key="register" {...registerForm}>
               <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
                 <FormField control={registerForm.control} name="fullName" render={({
               field
@@ -296,7 +303,13 @@ const Auth = () => {
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
+                          <Input 
+                            type={showPassword ? 'text' : 'password'} 
+                            placeholder="••••••••" 
+                            autoComplete="new-password"
+                            className="pr-10"
+                            {...field} 
+                          />
                           <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowPassword(!showPassword)}>
                             {showPassword ? <EyeOff className="h-4 w-4 text-slate-400" /> : <Eye className="h-4 w-4 text-slate-400" />}
                           </Button>
@@ -310,7 +323,12 @@ const Auth = () => {
             }) => <FormItem>
                       <FormLabel>Confirmar Senha</FormLabel>
                       <FormControl>
-                        <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} />
+                        <Input 
+                          type={showPassword ? 'text' : 'password'} 
+                          placeholder="••••••••" 
+                          autoComplete="new-password"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>} />
@@ -323,7 +341,23 @@ const Auth = () => {
             </Form>}
 
           <div className="text-center">
-            <Button variant="link" onClick={() => setIsLogin(!isLogin)} className="text-sm">
+            <Button variant="link" onClick={() => {
+              setIsLogin(!isLogin);
+              setShowPassword(false);
+              // Clear all form fields manually when switching between login and register
+              if (!isLogin) {
+                // Switching to login - clear login form
+                loginForm.setValue('email', '');
+                loginForm.setValue('password', '');
+              } else {
+                // Switching to register - clear register form
+                registerForm.setValue('email', '');
+                registerForm.setValue('password', '');
+                registerForm.setValue('confirmPassword', '');
+                registerForm.setValue('fullName', '');
+                registerForm.setValue('organizationName', '');
+              }
+            }} className="text-sm">
               {isLogin ? <>Não tem uma conta? <span className="font-semibold">Cadastre-se</span></> : <>Já tem uma conta? <span className="font-semibold">Faça login</span></>}
             </Button>
           </div>
