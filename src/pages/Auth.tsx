@@ -32,6 +32,7 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [searchParams] = useSearchParams();
+  const [inviteTokenParam, setInviteTokenParam] = useState<string | null>(null);
   const [inviteData, setInviteData] = useState<{
     email: string;
     organizationName: string;
@@ -65,6 +66,34 @@ const Auth = () => {
     
     const inviteToken = searchParams.get('invite_token');
     if (inviteToken) {
+      // Forçar modo registro quando há convite
+      setIsLogin(false);
+      setInviteTokenParam(inviteToken);
+
+      // Se usuário já estiver logado, aceitar convite imediatamente usando o token do link
+      (async () => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.user) {
+          try {
+            const { data: acceptResult, error: acceptError } = await supabase.rpc('accept_invitation', {
+              p_token: inviteToken,
+              p_user_id: sessionData.session.user.id
+            });
+            if (acceptError) {
+              console.error('Erro ao aceitar convite automaticamente (useEffect):', acceptError);
+              toast.error('Não foi possível aceitar o convite automaticamente.');
+            } else if (acceptResult?.success) {
+              toast.success('Convite aceito! Você foi adicionado à organização.');
+              navigate('/');
+              return;
+            } else {
+              toast.error(acceptResult?.error || 'Falha ao aceitar convite');
+            }
+          } catch (e) {
+            console.error('Exceção ao aceitar convite automaticamente (useEffect):', e);
+          }
+        }
+      })();
       loadInviteData(inviteToken);
     }
     
@@ -73,32 +102,46 @@ const Auth = () => {
 
   const loadInviteData = async (token: string) => {
     try {
-      const { data, error } = await supabase
-        .from('invitations')
-        .select(`
-          email,
-          role,
-          token,
-          organization:organizations(name)
-        `)
-        .eq('token', token)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+      // Usar RPC seguro para obter dados do convite por token
+      const { data, error } = await supabase.rpc('get_invitation_by_token', { p_token: token });
       
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         toast.error('Convite inválido ou expirado');
         return;
       }
       
+      // Se já houver usuário logado, aceitar o convite imediatamente
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        try {
+          const { data: acceptResult, error: acceptError } = await supabase.rpc('accept_invitation', {
+            p_token: token,
+            p_user_id: sessionData.session.user.id
+          });
+          if (acceptError) {
+            console.error('Erro ao aceitar convite automaticamente:', acceptError);
+            toast.error('Não foi possível aceitar o convite automaticamente. Tente novamente.');
+          } else if (acceptResult?.success) {
+            toast.success('Convite aceito! Você foi adicionado à organização.');
+            navigate('/');
+            return; // Evitar mudar UI para registro se já aceitou
+          } else {
+            toast.error(acceptResult?.error || 'Falha ao aceitar convite');
+          }
+        } catch (e) {
+          console.error('Exceção ao aceitar convite automaticamente:', e);
+        }
+      }
+
+      const invite = (data as any[])[0];
       setInviteData({
-        email: data.email,
-        organizationName: (data.organization as any)?.name || 'Organização',
-        role: data.role,
-        token: data.token
+        email: invite.email,
+        organizationName: invite.organization_name || 'Organização',
+        role: invite.role,
+        token: invite.token
       });
       setIsLogin(false);
-      registerForm.setValue('email', data.email);
+      registerForm.setValue('email', invite.email);
     } catch (error) {
       console.error('Erro ao carregar convite:', error);
       toast.error('Erro ao carregar convite');
@@ -122,6 +165,32 @@ const Auth = () => {
         return;
       }
       toast.success('Login realizado com sucesso!');
+
+      // Se houve invite_token carregado, aceitar convite após login
+      const tokenToAccept = inviteData?.token ?? inviteTokenParam;
+      if (tokenToAccept) {
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          const userId = userData?.user?.id;
+          if (userId) {
+            const { data: acceptResult, error: acceptError } = await supabase.rpc('accept_invitation', {
+              p_token: tokenToAccept,
+              p_user_id: userId
+            });
+            if (acceptError) {
+              console.error('Erro ao aceitar convite após login:', acceptError);
+              toast.error('Não foi possível aceitar o convite após login.');
+            } else if (acceptResult?.success) {
+              toast.success('Convite aceito! Você foi adicionado à organização.');
+            } else {
+              toast.error(acceptResult?.error || 'Falha ao aceitar convite');
+            }
+          }
+        } catch (e) {
+          console.error('Exceção ao aceitar convite após login:', e);
+        }
+      }
+
       navigate('/');
     } catch (error) {
       toast.error('Erro inesperado. Tente novamente.');
@@ -143,8 +212,9 @@ const Auth = () => {
         }
       };
       
-      if (inviteData) {
-        signUpData.options.data.invite_token = inviteData.token;
+      const tokenForSignup = inviteData?.token ?? inviteTokenParam;
+      if (tokenForSignup) {
+        signUpData.options.data.invite_token = tokenForSignup;
       } else {
         if (!data.organizationName) {
           toast.error('Nome da organização é obrigatório');
@@ -154,9 +224,18 @@ const Auth = () => {
       }
       
       const { error } = await supabase.auth.signUp(signUpData);
-      
+
       if (error) {
-        if (error.message.includes('User already registered')) {
+        const lowerMsg = (error.message || '').toLowerCase();
+        // Mensagem explícita quando cadastro falhar por ausência de invite_token
+        if (
+          lowerMsg.includes('registration requires invite token') ||
+          lowerMsg.includes('invite token') ||
+          lowerMsg.includes('requires invite')
+        ) {
+          toast.error('Cadastro fechado: é necessário convite. Solicite acesso.');
+          toast.info('Use “Solicitar Acesso” para pedir um convite.');
+        } else if (lowerMsg.includes('user already registered')) {
           toast.error('Este email já está cadastrado');
         } else {
           toast.error(error.message);
@@ -193,7 +272,11 @@ const Auth = () => {
               {isLogin ? 'Fazer Login' : 'Criar Conta'}
             </CardTitle>
             <CardDescription>
-              {isLogin ? 'Entre com suas credenciais para acessar o sistema' : 'Crie sua conta e comece a usar o G360-Wpp'}
+              {isLogin 
+                ? 'Entre com suas credenciais para acessar o sistema'
+                : (inviteData || inviteTokenParam)
+                  ? 'Finalize seu cadastro para aceitar o convite'
+                  : 'Cadastro fechado. Solicite acesso para criar uma conta.'}
             </CardDescription>
           </div>
         </CardHeader>
@@ -270,7 +353,7 @@ const Auth = () => {
                       <FormMessage />
                     </FormItem>} />
 
-{!inviteData && (
+ {!(inviteData || inviteTokenParam) && (
                   <FormField control={registerForm.control} name="organizationName" render={({
                     field
                   }) => <FormItem>
@@ -333,10 +416,21 @@ const Auth = () => {
                       <FormMessage />
                     </FormItem>} />
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Criar Conta
-                </Button>
+                {(inviteData || inviteTokenParam) ? (
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Criar Conta
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <Button type="button" className="w-full" onClick={() => window.location.href = '/request-access'}>
+                      Solicitar Acesso
+                    </Button>
+                    <p className="text-xs text-slate-500 text-center">
+                      O cadastro é restrito e requer convite. Solicite acesso para prosseguir.
+                    </p>
+                  </div>
+                )}
               </form>
             </Form>}
 
@@ -358,7 +452,11 @@ const Auth = () => {
                 registerForm.setValue('organizationName', '');
               }
             }} className="text-sm">
-              {isLogin ? <>Não tem uma conta? <span className="font-semibold">Cadastre-se</span></> : <>Já tem uma conta? <span className="font-semibold">Faça login</span></>}
+              {isLogin ? (
+                <>Não tem uma conta? <span className="font-semibold">Solicite acesso</span></>
+              ) : (
+                <>Já tem uma conta? <span className="font-semibold">Faça login</span></>
+              )}
             </Button>
           </div>
         </CardContent>

@@ -23,6 +23,7 @@ import PublicCampaignStatus from "./pages/PublicCampaignStatus";
 import CampaignDetails from "./pages/CampaignDetails";
 import UserSettings from "./pages/UserSettings";
 import OrganizationSettings from "./pages/OrganizationSettings";
+import AccessRequest from "./pages/AccessRequest";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/request-access" element={<AccessRequest />} />
             {/* Public Event Status Route - Must be before catch-all */}
             <Route path="/public/event/:eventId" element={<PublicEventStatus />} />
             <Route path="/public/campaign-status/:campaignId" element={<PublicCampaignStatus />} />

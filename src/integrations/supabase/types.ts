@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          id: string
+          email: string
+          full_name: string
+          organization_name: string | null
+          message: string | null
+          status: string
+          requested_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          full_name: string
+          organization_name?: string | null
+          message?: string | null
+          status?: string
+          requested_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string
+          organization_name?: string | null
+          message?: string | null
+          status?: string
+          requested_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           completed_at: string | null
@@ -983,6 +1019,15 @@ export type Database = {
       }
     }
     Functions: {
+      get_invitation_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          email: string
+          role: string
+          token: string
+          organization_name: string
+        }[]
+      }
       accept_invitation: {
         Args: { p_token: string; p_user_id: string }
         Returns: Json

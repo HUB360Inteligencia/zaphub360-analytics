@@ -76,46 +76,71 @@ export const useAnalytics = () => {
         .select('name, status, metrics')
         .eq('organization_id', organization.id);
 
-      // Buscar mensagens de eventos
-      const { data: eventMessages } = await supabase
-        .from('event_messages')
-        .select('status, sent_at, delivered_at, read_at')
-        .eq('organization_id', organization.id);
-
-      // Helpers de data (normalização local)
+      // Helpers de data (normalização em UTC)
       const toDateKey = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
       };
       const normalizeKeyFromString = (s: string) => {
         const d = new Date(s);
         return toDateKey(d);
       };
+      const toDisplayDDMM = (key: string) => {
+        const [y, m, d] = key.split('-');
+        return `${d}/${m}`;
+      };
 
-      // Range dinâmico: últimos 7 dias incluindo hoje
-      const today = new Date();
-      const startDate = new Date();
-      startDate.setDate(today.getDate() - 6);
-      const startKey = toDateKey(startDate);
-      const endKey = toDateKey(today);
+      // Range dinâmico: últimos 7 dias incluindo hoje (UTC)
+      const todayUTC = new Date();
+      todayUTC.setUTCHours(0, 0, 0, 0);
+      const startDate = new Date(todayUTC);
+      startDate.setUTCDate(todayUTC.getUTCDate() - 6);
+      // Limites de período em UTC (ISO)
+      const startOfPeriod = new Date(startDate);
+      startOfPeriod.setUTCHours(0, 0, 0, 0);
+      const tomorrow = new Date(todayUTC);
+      tomorrow.setUTCDate(todayUTC.getUTCDate() + 1);
+      tomorrow.setUTCHours(0, 0, 0, 0);
+
+      // Buscar mensagens de eventos (sem filtro de período) para métricas gerais
+      const { data: eventMessages } = await supabase
+        .from('event_messages')
+        .select('status, sent_at, delivered_at, read_at')
+        .eq('organization_id', organization.id);
+
+      // Buscar envios de event_messages dentro do período para dailyActivity
+      const { data: eventSentMessages } = await supabase
+        .from('event_messages')
+        .select('status, sent_at')
+        .eq('organization_id', organization.id)
+        .gte('sent_at', startOfPeriod.toISOString())
+        .lt('sent_at', tomorrow.toISOString());
+
+      // Buscar respostas de event_messages dentro do período para dailyActivity
+      const { data: eventRespondedMessages } = await supabase
+        .from('event_messages')
+        .select('responded_at')
+        .eq('organization_id', organization.id)
+        .gte('responded_at', startOfPeriod.toISOString())
+        .lt('responded_at', tomorrow.toISOString());
 
       // Buscar mensagens enviadas no período
       const { data: sentMessages } = await supabase
         .from('mensagens_enviadas')
         .select('status, data_envio, data_leitura, data_resposta')
         .eq('organization_id', organization.id)
-        .gte('data_envio', startKey)
-        .lte('data_envio', endKey);
+        .gte('data_envio', startOfPeriod.toISOString())
+        .lt('data_envio', tomorrow.toISOString());
 
       // Buscar respostas no período
       const { data: responseMessages } = await supabase
         .from('mensagens_enviadas')
         .select('status, data_envio, data_leitura, data_resposta')
         .eq('organization_id', organization.id)
-        .gte('data_resposta', startKey)
-        .lte('data_resposta', endKey);
+        .gte('data_resposta', startOfPeriod.toISOString())
+        .lt('data_resposta', tomorrow.toISOString());
 
       // Buscar tags com contagem
       const { data: tagsData } = await supabase
@@ -140,28 +165,34 @@ export const useAnalytics = () => {
       const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
       const openRate = totalMessages > 0 ? (readMessages / totalMessages) * 100 : 0;
 
-      // Dias do período: últimos 7 dias (incluindo hoje), normalizados para data local
+      // Dias do período: últimos 7 dias (incluindo hoje), normalizados em UTC
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(startDate);
-        d.setDate(startDate.getDate() + i);
+        d.setUTCDate(startDate.getUTCDate() + i);
         return toDateKey(d);
       });
 
       const dailyActivity = last7Days.map(date => {
-        // Mensagens enviadas da tabela mensagens_enviadas (por dia)
-        const messagesOnDate = (sentMessages || []).filter(m => {
-          return m.data_envio && normalizeKeyFromString(m.data_envio) === date;
+        // Mensagens enviadas: apenas status 'enviado' e 'erro' na tabela mensagens_enviadas
+        const messagesOnDateEnviadas = (sentMessages || []).filter(m => {
+          const isSameDay = m.data_envio && normalizeKeyFromString(m.data_envio) === date;
+          const status = (m.status || '').toLowerCase();
+          const isValid = status === 'enviado' || status === 'erro';
+          return isSameDay && isValid;
         });
+        const messagesCount = messagesOnDateEnviadas.length;
 
-        // Respostas recebidas (por dia)
-        const responsesOnDate = (responseMessages || []).filter(m => {
-          return m.data_resposta && normalizeKeyFromString(m.data_resposta) === date;
+        // Respostas recebidas: somente considerar data_resposta no dia na tabela mensagens_enviadas
+        const responsesOnDateEnviadas = (responseMessages || []).filter(m => {
+          const hasResponseDate = m.data_resposta && normalizeKeyFromString(m.data_resposta) === date;
+          return !!hasResponseDate;
         });
+        const responsesCount = responsesOnDateEnviadas.length;
 
         return {
-          date: new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          messages: messagesOnDate.length,
-          responses: responsesOnDate.length,
+          date: toDisplayDDMM(date),
+          messages: messagesCount,
+          responses: responsesCount,
           contacts: totalContacts,
         };
       });
@@ -197,7 +228,6 @@ export const useAnalytics = () => {
         dailyActivity,
       };
     },
-    enabled: !!organization?.id,
     refetchInterval: 5 * 60 * 1000, // Refetch a cada 5 minutos
   });
 
