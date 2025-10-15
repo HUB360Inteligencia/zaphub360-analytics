@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X, Filter } from 'lucide-react';
 import { FilterOptions } from '@/hooks/useAdvancedContactFilter';
+import { getSentimentOption } from '@/lib/sentiment';
 import { Event } from '@/hooks/useEvents';
 import { Campaign } from '@/hooks/useCampaigns';
 import { Tag } from '@/hooks/useTags';
@@ -114,7 +115,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     htmlFor={`sentiment-${sentiment}`}
                     className="text-sm font-normal cursor-pointer"
                   >
-                    {sentiment}
+                    {getSentimentOption(sentiment)?.label || sentiment}
                   </Label>
                 </div>
               ))}

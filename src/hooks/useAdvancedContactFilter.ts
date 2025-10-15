@@ -4,7 +4,7 @@ import { useTags } from './useTags';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { normalizeSentiment } from '@/lib/sentiment';
+import { normalizeSentiment, SENTIMENT_VALUES } from '@/lib/sentiment';
 
 export interface FilterOptions {
   sentiments: string[];
@@ -180,8 +180,13 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       }
     });
     
-    // Ordem específica dos sentimentos
-    const sentimentOrder = ['Negativo', 'Neutro', 'Positivo', 'Super engajado'];
+    // Ordem específica dos sentimentos (normalizados em minúsculo)
+    const sentimentOrder = [
+      SENTIMENT_VALUES.NEGATIVO,
+      SENTIMENT_VALUES.NEUTRO,
+      SENTIMENT_VALUES.POSITIVO,
+      SENTIMENT_VALUES.SUPER_ENGAJADO
+    ];
     const sentiments = sentimentOrder.filter(s => sentimentsSet.has(s));
     
     // Cidades únicas e ordenadas (normalizar para evitar duplicatas)
