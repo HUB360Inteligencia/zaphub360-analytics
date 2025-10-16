@@ -22,6 +22,7 @@ export interface ContactMessage {
   responded_at: string | null;
   event_name: string;
   created_at: string;
+  direction?: 'sent' | 'received';
 }
 
 export interface ContactProfileData {
@@ -103,7 +104,7 @@ export const useContactProfile = (contactPhone: string) => {
       // Buscar mensagens no mensagens_enviadas para obter nome completo e dados completos
       const { data: mensagensEnviadas } = await supabase
         .from('mensagens_enviadas')
-        .select('nome_contato, sobrenome_contato, status, sentimento, data_envio, data_leitura, data_resposta, mensagem')
+        .select('nome_contato, sobrenome_contato, status, sentimento, data_envio, data_leitura, data_resposta, mensagem, resposta_usuario')
         .eq('celular', contactPhone)
         .eq('organization_id', organization.id)
         .order('data_envio', { ascending: false });
@@ -178,34 +179,119 @@ export const useContactProfile = (contactPhone: string) => {
           responded_at: msg.responded_at,
           event_name: (msg as any).events?.name || 'Evento não encontrado',
           created_at: msg.created_at,
+          direction: 'sent',
         });
       });
 
       // Adicionar mensagens do mensagens_enviadas
       (mensagensEnviadas || []).forEach(msg => {
         const msgAny = msg as any;
-        allMessages.push({
-          id: `me_${msgAny.data_envio}`,
-          message_content: msgAny.mensagem || 'Mensagem enviada',
-          status: msgAny.status,
-          sentiment: msgAny.sentimento,
-          sent_at: msgAny.data_envio,
-          read_at: msgAny.data_leitura,
-          responded_at: msgAny.data_resposta,
-          event_name: 'Evento',
-          created_at: msgAny.data_envio || new Date().toISOString(),
-        });
+        // Mensagem enviada (saída)
+        if (msgAny.mensagem) {
+          allMessages.push({
+            id: `me_sent_${msgAny.data_envio || Math.random()}`,
+            message_content: msgAny.mensagem,
+            status: msgAny.status,
+            sentiment: msgAny.sentimento,
+            sent_at: msgAny.data_envio,
+            read_at: msgAny.data_leitura,
+            responded_at: msgAny.data_resposta,
+            event_name: 'Evento',
+            created_at: msgAny.data_envio || new Date().toISOString(),
+            direction: 'sent',
+          });
+        }
+
+        // Mensagem recebida (entrada) se houver resposta do usuário
+        if (msgAny.resposta_usuario && msgAny.data_resposta) {
+          allMessages.push({
+            id: `me_received_${msgAny.data_resposta || Math.random()}`,
+            message_content: msgAny.resposta_usuario,
+            status: 'received',
+            sentiment: null,
+            sent_at: null,
+            read_at: null,
+            responded_at: msgAny.data_resposta,
+            event_name: 'Evento',
+            created_at: msgAny.data_resposta,
+            direction: 'received',
+          });
+        }
       });
 
       // Ordenar por data de criação
       allMessages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      // Calcular estatísticas
+      // Contagens exatas no banco para remover limite padrão de 1000
+      const [
+        { count: eventMsgCount } = { count: 0 } as any,
+        { count: meSentCount } = { count: 0 } as any,
+        { count: meRespBubbleCount } = { count: 0 } as any,
+        { count: emReadCount } = { count: 0 } as any,
+        { count: meReadCount } = { count: 0 } as any,
+        { count: emRespCount } = { count: 0 } as any,
+        { count: meRespCount } = { count: 0 } as any,
+      ] = await Promise.all([
+        // Total de mensagens em event_messages (cada linha é uma bolha)
+        supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('contact_phone', contactPhone)
+          .eq('organization_id', organization.id),
+        // Total de bolhas "enviadas" em mensagens_enviadas (tem campo mensagem)
+        supabase
+          .from('mensagens_enviadas')
+          .select('id', { count: 'exact', head: true })
+          .eq('celular', contactPhone)
+          .eq('organization_id', organization.id)
+          .not('mensagem', 'is', null),
+        // Total de bolhas "recebidas" (respostas de usuário) em mensagens_enviadas
+        supabase
+          .from('mensagens_enviadas')
+          .select('id', { count: 'exact', head: true })
+          .eq('celular', contactPhone)
+          .eq('organization_id', organization.id)
+          .not('resposta_usuario', 'is', null)
+          .not('data_resposta', 'is', null),
+        // Mensagens lidas: event_messages.read_at não nulo
+        supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('contact_phone', contactPhone)
+          .eq('organization_id', organization.id)
+          .not('read_at', 'is', null),
+        // Mensagens lidas: mensagens_enviadas.data_leitura não nulo
+        supabase
+          .from('mensagens_enviadas')
+          .select('id', { count: 'exact', head: true })
+          .eq('celular', contactPhone)
+          .eq('organization_id', organization.id)
+          .not('data_leitura', 'is', null),
+        // Respondidas: event_messages.responded_at não nulo
+        supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('contact_phone', contactPhone)
+          .eq('organization_id', organization.id)
+          .not('responded_at', 'is', null),
+        // Respondidas: mensagens_enviadas.data_resposta não nulo
+        supabase
+          .from('mensagens_enviadas')
+          .select('id', { count: 'exact', head: true })
+          .eq('celular', contactPhone)
+          .eq('organization_id', organization.id)
+          .not('data_resposta', 'is', null),
+      ]);
+
       const stats = {
         totalEvents: uniqueEvents.length,
-        totalMessages: allMessages.length,
-        readMessages: allMessages.filter(m => m.read_at).length,
-        respondedMessages: allMessages.filter(m => m.responded_at).length,
+        // Total exato de bolhas: event_messages + mensagens (saída) + respostas (entrada)
+        totalMessages: (eventMsgCount || 0) + (meSentCount || 0) + (meRespBubbleCount || 0),
+        // Lidas exatas somando ambas fontes
+        readMessages: (emReadCount || 0) + (meReadCount || 0),
+        // Respondidas exatas somando ambas fontes
+        respondedMessages: (emRespCount || 0) + (meRespCount || 0),
+        // Mantém contagem de sentimentos baseada nas mensagens carregadas atualmente
         sentimentCounts: {
           superEngajado: allMessages.filter(m => m.sentiment === 'super_engajado').length,
           positivo: allMessages.filter(m => m.sentiment === 'positivo').length,

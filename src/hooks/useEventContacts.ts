@@ -49,7 +49,9 @@ export const useEventContacts = (eventId?: string) => {
       // Use limit to fetch all records (increased cap)
       const allMessages: any[] = [];
       let page = 0;
-      const pageSize = 2000;
+      // Supabase/PostgREST tem limite de 1000 por página.
+      // Usamos pageSize = 1000 para garantir paginação completa acima de 1000.
+      const pageSize = 1000;
       
       while (true) {
         const { data: messages, error } = await supabase
@@ -69,7 +71,7 @@ export const useEventContacts = (eventId?: string) => {
         
         allMessages.push(...messages);
         
-        // If we got less than pageSize records, we've reached the end
+        // Se retornou menos que pageSize, chegamos ao fim
         if (messages.length < pageSize) break;
         
         page++;

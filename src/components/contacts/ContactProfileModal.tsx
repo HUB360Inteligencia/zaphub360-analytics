@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Phone, Mail, MapPin, Calendar, MessageSquare, Edit, Save, X, User, Building2 } from 'lucide-react';
+import { Phone, Mail, MapPin, Calendar, MessageSquare, Edit, Save, X, User, Building2, Check, CheckCheck } from 'lucide-react';
 import { Contact } from '@/hooks/useContacts';
 import { useContactProfile } from '@/hooks/useContactProfile';
 
@@ -46,6 +46,25 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
   const [editData, setEditData] = useState<Partial<Contact>>({});
   
   const { profileData, isLoading } = useContactProfile(contact?.phone || '');
+
+  const formatDayLabel = (date: Date) => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((startOfDate.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === -1) return 'Ontem';
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const getStatusIcon = (message: any) => {
+    if (!message || message.direction !== 'sent') return null;
+    const status = String(message.status || '').toLowerCase();
+    const isRead = Boolean(message.read_at);
+    if (isRead) return <CheckCheck className="w-3 h-3 text-[#53bdeb]" />; // azul do WhatsApp para lido
+    if (status.includes('delivered') || status.includes('entregue')) return <CheckCheck className="w-3 h-3 text-gray-500" />;
+    return <Check className="w-3 h-3 text-gray-500" />;
+  };
 
   useEffect(() => {
     if (contact) {
@@ -125,8 +144,9 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
             <TabsTrigger value="events">Eventos</TabsTrigger>
             <TabsTrigger value="messages">Mensagens</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="profile" className="space-y-6">
+          {/* Contêiner com altura fixa para manter tamanho consistente entre abas */}
+          <div className="h-[560px] overflow-y-auto mt-4">
+          <TabsContent value="profile" className="space-y-6 h-full">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -271,7 +291,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="events">
+          <TabsContent value="events" className="h-full">
             <Card>
               <CardHeader>
                 <CardTitle>Participação em Eventos</CardTitle>
@@ -300,7 +320,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="messages">
+          <TabsContent value="messages" className="h-full">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -312,18 +332,54 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
                 {isLoading ? (
                   <p className="text-muted-foreground">Carregando mensagens...</p>
                 ) : profileData?.messages?.length ? (
-                  <div className="space-y-3">
-                    {profileData.messages.map((message, index) => (
-                      <div key={index} className="p-3 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline">{message.status}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(message.created_at).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                        <p className="text-sm">{message.message_content}</p>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    <div className="max-h-[480px] overflow-y-auto p-3 rounded-md bg-[#efeae2]">
+                      {(() => {
+                        const sorted = profileData.messages
+                          .slice()
+                          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                        const nodes: JSX.Element[] = [];
+                        let lastDayKey = '';
+                        sorted.forEach((message, index) => {
+                          const msgDate = new Date(message.created_at);
+                          const dayKey = `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`;
+                          if (dayKey !== lastDayKey) {
+                            nodes.push(
+                              <div key={`sep-${dayKey}-${index}`} className="flex justify-center my-2">
+                                <span className="px-3 py-1 text-xs rounded-full bg-[#d1d7db] text-[#1f2c34]">
+                                  {formatDayLabel(msgDate)}
+                                </span>
+                              </div>
+                            );
+                            lastDayKey = dayKey;
+                          }
+                          const isSent = message.direction === 'sent';
+                          const timeLabel = msgDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                          nodes.push(
+                            <div key={message.id || index} className={`flex ${isSent ? 'justify-end' : 'justify-start'} mb-1`}>
+                              <div
+                                className={
+                                  `${isSent ?
+                                    'bg-[#dcf8c6] after:border-l-[#dcf8c6] after:right-0 after:translate-x-2' :
+                                    'bg-white after:border-r-white after:left-0 after:-translate-x-2'} ` +
+                                  'relative max-w-[75%] px-3 py-2 rounded-2xl shadow-sm text-[15px] text-[#111b21] ' +
+                                  'after:content-[""] after:absolute after:bottom-0 after:w-0 after:h-0 after:border-t-[12px] after:border-t-transparent'
+                                }
+                              >
+                                <p className="whitespace-pre-wrap break-words leading-snug">{message.message_content || 'Conteúdo indisponível'}</p>
+                                <div className={`mt-1 flex items-center gap-1 ${isSent ? 'justify-end' : 'justify-end'}`}>
+                                  <span className="text-[11px] text-[#667781]">{timeLabel}</span>
+                                  {isSent && (
+                                    <span className="flex items-center">{getStatusIcon(message)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                        return <>{nodes}</>;
+                      })()}
+                    </div>
                   </div>
                 ) : (
                   <p className="text-muted-foreground">Nenhuma mensagem encontrada.</p>
@@ -331,6 +387,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
               </CardContent>
             </Card>
           </TabsContent>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

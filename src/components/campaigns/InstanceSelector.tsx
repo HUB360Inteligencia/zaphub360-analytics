@@ -24,6 +24,10 @@ interface InstanceSelectorProps {
 export const InstanceSelector = ({ selectedInstances, onInstancesChange, currentEventInstanceIds = [] }: InstanceSelectorProps) => {
   const { instances, activeInstances, isLoading } = useInstances();
 
+  // Cálculo de seleção total (apenas instâncias ativas)
+  const allActiveInstanceIds = activeInstances.map(i => i.id);
+  const isAllSelected = allActiveInstanceIds.length > 0 && allActiveInstanceIds.every(id => selectedInstances.includes(id));
+
   // Handle instance status changes and auto-select based on event instance_ids
   useEffect(() => {
     const activeInstanceIds = new Set(activeInstances.map(i => i.id));
@@ -181,6 +185,23 @@ export const InstanceSelector = ({ selectedInstances, onInstancesChange, current
         {/* Lista de todas as instâncias */}
         <div className="space-y-2">
           <h4 className="font-medium text-gray-900">Instâncias Disponíveis</h4>
+          <div className="mt-2 flex items-center gap-2">
+            <Checkbox
+              checked={isAllSelected}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  // Seleciona todas as instâncias ativas
+                  onInstancesChange(allActiveInstanceIds);
+                } else {
+                  // Remove todas as seleções
+                  onInstancesChange([]);
+                }
+              }}
+              disabled={activeInstances.length === 0}
+              className={activeInstances.length === 0 ? 'opacity-50' : ''}
+            />
+            <span className="text-sm text-gray-700">Selecionar todas</span>
+          </div>
           <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
             {instances.map((instance) => {
               const isSelected = selectedInstances.includes(instance.id);

@@ -235,111 +235,108 @@ Deno.serve(async (req) => {
     let sentMessages = deliveredMessages + errorMessages;
 
     try {
-      // Prefer exact counts from mensagens_enviadas
-      let base = supabase
-        .from('mensagens_enviadas')
-        .select('*', { count: 'exact', head: true })
-        .eq('id_campanha', event.id);
-
-      if (startOfDayISO && endOfDayISO) {
-        base = base
-          .gte('data_envio', startOfDayISO)
-          .lt('data_envio', endOfDayISO);
-      }
+      // Primeiro: contar exatamente em mensagens_enviadas (tabela primária de campanha)
+      const applyMeFilters = (q: any) => {
+        let qq = q.eq('id_campanha', event.id);
+        if (startOfDayISO && endOfDayISO) {
+          qq = qq.gte('data_envio', startOfDayISO).lt('data_envio', endOfDayISO);
+        }
+        return qq;
+      };
 
       const [
-        totalRes,
-        queuedRes,
-        readRes,
-        respondedRes,
-        errorRes,
-        deliveredRes
+        meTotal,
+        meQueued,
+        meRead,
+        meResponded,
+        meError,
+        meDelivered
       ] = await Promise.all([
-        base,
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
-          .eq('id_campanha', event.id)
-          .in('status', ['fila','pendente','processando'])
-          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any) // hack p/ compor filtros condicionalmente
-          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
-          .eq('id_campanha', event.id).eq('status', 'lido')
-          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
-          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
-          .eq('id_campanha', event.id).not('data_resposta', 'is', null)
-          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
-          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
-          .eq('id_campanha', event.id).eq('status', 'erro')
-          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
-          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
-        supabase.from('mensagens_enviadas').select('*', { count: 'exact', head: true })
-          .eq('id_campanha', event.id).eq('status', 'enviado')
-          .gte(startOfDayISO ? 'data_envio' : 'id_campanha', startOfDayISO ?? event.id as any)
-          .lt(endOfDayISO ? 'data_envio' : 'id_campanha', (endOfDayISO ?? event.id) as any),
+        applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })),
+        applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).in('status', ['fila','pendente','processando']),
+        applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).eq('status', 'lido'),
+        applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).not('data_resposta', 'is', null),
+        applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).eq('status', 'erro'),
+        applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).eq('status', 'enviado'),
       ]);
 
-      if ((totalRes.count ?? 0) > 0) {
-        totalMessages = totalRes.count || 0;
-        queuedMessages = queuedRes.count || 0;
-        readMessages = readRes.count || 0;
-        responseMessages = respondedRes.count || 0;
-        errorMessages = errorRes.count || 0;
-        deliveredMessages = deliveredRes.count || 0;
+      if ((meTotal.count ?? 0) > 0) {
+        totalMessages = meTotal.count || totalMessages;
+        queuedMessages = meQueued.count || queuedMessages;
+        readMessages = meRead.count || readMessages;
+        responseMessages = meResponded.count || responseMessages;
+        errorMessages = meError.count || errorMessages;
+        deliveredMessages = meDelivered.count || deliveredMessages;
         sentMessages = deliveredMessages + errorMessages;
       } else {
-        // Fallback to event_messages
-        let eb = supabase
+        // Fallback: contar exatamente em event_messages
+        let totalQ = supabase
           .from('event_messages')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .eq('event_id', event.id);
 
+        let queuedQ = supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .in('status', ['queued', 'pending', 'processing']);
+
+        let readQ = supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .not('read_at', 'is', null);
+
+        let respondedQ = supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .not('responded_at', 'is', null);
+
+        let errorQ = supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .eq('status', 'failed');
+
+        let deliveredQ = supabase
+          .from('event_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .in('status', ['sent', 'delivered']);
+
         if (startOfDayISO && endOfDayISO) {
-          eb = eb
-            .gte('sent_at', startOfDayISO)
-            .lt('sent_at', endOfDayISO);
+          totalQ = totalQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
+          queuedQ = queuedQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
+          readQ = readQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
+          respondedQ = respondedQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
+          errorQ = errorQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
+          deliveredQ = deliveredQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
         }
 
         const [
-          total2,
-          queued2,
-          read2,
-          responded2,
-          error2,
-          delivered2
+          totalRes,
+          queuedRes,
+          readRes,
+          respondedRes,
+          errorRes,
+          deliveredRes
         ] = await Promise.all([
-          eb,
-          supabase.from('event_messages').select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id).in('status', ['queued','pending','processing'])
-            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
-            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id).not('read_at', 'is', null)
-            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
-            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id).not('responded_at', 'is', null)
-            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
-            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id).eq('status', 'failed')
-            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
-            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
-          supabase.from('event_messages').select('*', { count: 'exact', head: true })
-            .eq('event_id', event.id).in('status', ['sent','delivered'])
-            .gte(startOfDayISO ? 'sent_at' : 'event_id', startOfDayISO ?? event.id as any)
-            .lt(endOfDayISO ? 'sent_at' : 'event_id', (endOfDayISO ?? event.id) as any),
+          totalQ,
+          queuedQ,
+          readQ,
+          respondedQ,
+          errorQ,
+          deliveredQ
         ]);
 
-        if ((total2.count ?? 0) > 0) {
-          totalMessages = total2.count || 0;
-          queuedMessages = queued2.count || 0;
-          readMessages = read2.count || 0;
-          responseMessages = responded2.count || 0;
-          errorMessages = error2.count || 0;
-          deliveredMessages = delivered2.count || 0;
-          sentMessages = deliveredMessages + errorMessages;
-        }
+        totalMessages = totalRes.count || totalMessages;
+        queuedMessages = queuedRes.count || queuedMessages;
+        readMessages = readRes.count || readMessages;
+        responseMessages = respondedRes.count || responseMessages;
+        errorMessages = errorRes.count || errorMessages;
+        deliveredMessages = deliveredRes.count || deliveredMessages;
+        sentMessages = deliveredMessages + errorMessages;
       }
     } catch (e) {
       console.warn('Public analytics: falling back to client-side counts due to error:', e);
