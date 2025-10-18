@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
 import CampaignHourlyActivityCard from '@/components/campaigns/CampaignHourlyActivityCard';
 import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentimentAnalysisCard';
+import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
 
 const PublicCampaignStatus = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -86,6 +87,8 @@ const PublicCampaignStatus = () => {
 
   const campaign = campaignData;
   const analytics = campaignData.analytics;
+  const derivedStatus = computeCampaignStatus(analytics ?? undefined, campaign.status);
+  const badgeConfig = getCampaignStatusBadgeConfig(derivedStatus);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -102,7 +105,9 @@ const PublicCampaignStatus = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Status</p>
-                {getStatusBadge(campaign.status)}
+                <Badge variant={badgeConfig.variant} className={badgeConfig.className}>
+                  {badgeConfig.label}
+                </Badge>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Criada em</p>

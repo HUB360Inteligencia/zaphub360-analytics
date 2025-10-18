@@ -193,6 +193,26 @@ export const useEventContacts = (eventId?: string) => {
     },
   });
 
+  const updateContactStatus = useMutation({
+    mutationFn: async ({ contactId, status }: { contactId: string; status: string }) => {
+      const { error } = await supabase
+        .from('mensagens_enviadas')
+        .update({ status })
+        .eq('id', contactId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['event-contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['event-analytics'] });
+      toast.success('Status atualizado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar status');
+    },
+  });
+
   const getContactStats = (): ContactStats => {
     const contacts = contactsQuery.data || [];
     
@@ -234,6 +254,7 @@ export const useEventContacts = (eventId?: string) => {
     createEventContact,
     deleteEventContact,
     updateContactSentiment,
+    updateContactStatus,
     getContactStats,
   };
 };

@@ -25,6 +25,7 @@ import CampaignContactsTable from '@/components/campaigns/CampaignContactsTable'
 import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
 import CampaignHourlyActivityCard from '@/components/campaigns/CampaignHourlyActivityCard';
 import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentimentAnalysisCard';
+import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
 
 const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -120,6 +121,9 @@ const analytics = counts
           : 0,
     }
   : null;
+
+const derivedStatus = computeCampaignStatus(analytics, campaign?.status);
+const badgeConfig = getCampaignStatusBadgeConfig(derivedStatus);
 
 // ---- LISTA paginada só para a aba "Contatos" (opcional) ----
 const [page, setPage] = useState(0);
@@ -278,7 +282,10 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              {getStatusBadge(campaign.status)}
+              {/* Render status badge using derived status */}
+              <Badge variant={badgeConfig.variant} className={badgeConfig.className}>
+                {badgeConfig.label}
+              </Badge>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Criada em</p>

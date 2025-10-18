@@ -225,16 +225,32 @@ const Reports = () => {
                   <>
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={analytics.campaignPerformance}>
+                        <defs>
+                          <linearGradient id="reportsBarSent" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#93c5fd" />
+                            <stop offset="100%" stopColor="#2563EB" />
+                          </linearGradient>
+                          <linearGradient id="reportsBarDelivered" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#d8b4fe" />
+                            <stop offset="100%" stopColor="#7C3AED" />
+                          </linearGradient>
+                          <linearGradient id="reportsBarRead" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#34d399" />
+                            <stop offset="100%" stopColor="#059669" />
+                          </linearGradient>
+                          <linearGradient id="reportsBarResponded" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#fca5a5" />
+                            <stop offset="100%" stopColor="#DC2626" />
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis dataKey="name" stroke="#64748b" />
                         <YAxis stroke="#64748b" />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                        />
-                        <Bar dataKey="sent" fill="#2563EB" name="Enviadas" />
-                        <Bar dataKey="delivered" fill="#7C3AED" name="Entregues" />
-                        <Bar dataKey="read" fill="#059669" name="Lidas" />
-                        <Bar dataKey="responded" fill="#DC2626" name="Respostas" />
+                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                        <Bar dataKey="sent" fill="url(#reportsBarSent)" name="Enviadas" />
+                        <Bar dataKey="delivered" fill="url(#reportsBarDelivered)" name="Entregues" />
+                        <Bar dataKey="read" fill="url(#reportsBarRead)" name="Lidas" />
+                        <Bar dataKey="responded" fill="url(#reportsBarResponded)" name="Respostas" />
                       </BarChart>
                     </ResponsiveContainer>
                     

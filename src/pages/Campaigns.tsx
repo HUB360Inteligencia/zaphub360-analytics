@@ -13,6 +13,8 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { CampaignWizard } from '@/components/campaigns/CampaignWizard';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
+import { Progress } from '@/components/ui/progress';
 
 const Campaigns = () => {
   const navigate = useNavigate();
@@ -252,27 +254,32 @@ const Campaigns = () => {
                           <div className="text-sm text-slate-500">{campaign.description}</div>
                         </div>
                       </TableCell>
+
                       <TableCell>
-                        <Badge className={`${getStatusColor(campaign.status)} border`}>
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(campaign.status)}
-                            {getStatusLabel(campaign.status)}
-                          </div>
-                        </Badge>
+                        {(() => {
+                          const total = campaign.total_mensagens || 0;
+                          const sentProcessed = campaign.mensagens_enviadas || 0;
+                          const queued = Math.max(0, total - sentProcessed);
+                          const derived = computeCampaignStatus(
+                            { totalMessages: total, queuedMessages: queued, sentMessages: sentProcessed },
+                            campaign.status
+                          );
+                          const cfg = getCampaignStatusBadgeConfig(derived);
+                          return (
+                            <Badge variant={cfg.variant} className={cfg.className}>
+                              {cfg.label}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium">
-                            {sent.toLocaleString()}/{total.toLocaleString()}
-                          </div>
-                          <div className="w-full bg-slate-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${progressRate}%` }}
-                            />
-                          </div>
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="space-y-1">
+                           <div className="text-sm font-medium">
+                             {sent.toLocaleString()}/{total.toLocaleString()}
+                           </div>
+                           <Progress value={progressRate} className="h-2" />
+                         </div>
+                       </TableCell>
                        <TableCell>
                          <div className="text-sm">
                            <div className="font-medium">{responseRate.toFixed(1)}%</div>
@@ -291,25 +298,6 @@ const Campaigns = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {campaign.status === 'draft' || campaign.status === 'paused' ? (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleActivateCampaign(campaign.id)}
-                              disabled={activateCampaign.isPending}
-                            >
-                              <Play className="w-4 h-4" />
-                            </Button>
-                          ) : campaign.status === 'active' ? (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handlePauseCampaign(campaign.id)}
-                              disabled={pauseCampaign.isPending}
-                            >
-                              <Pause className="w-4 h-4" />
-                            </Button>
-                          ) : null}
                           <Button 
                             variant="ghost" 
                             size="sm"

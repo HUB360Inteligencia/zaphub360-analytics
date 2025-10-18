@@ -16,6 +16,7 @@ import { Plus, Search, Download, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown } 
 import { useEventContacts } from '@/hooks/useEventContacts';
 import EventContactsImport from './EventContactsImport';
 import SentimentSelect from './SentimentSelect';
+import StatusSelect from './StatusSelect';
 import ContactProfileModal from '../contacts/ContactProfileModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -47,7 +48,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   
-  const { contacts, isLoading, createEventContact, deleteEventContact, updateContactSentiment, getContactStats } = useEventContacts(eventId);
+  const { contacts, isLoading, createEventContact, deleteEventContact, updateContactSentiment, updateContactStatus, getContactStats } = useEventContacts(eventId);
   
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -457,6 +458,16 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSort('name')}
+                      className="h-auto p-0 font-medium"
+                    >
+                      Nome {getSortIcon('name')}
+                    </Button>
+                  </TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>
                     <Button 
@@ -492,16 +503,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      onClick={() => handleSort('name')}
-                      className="h-auto p-0 font-medium"
-                    >
-                      Nome {getSortIcon('name')}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
                       onClick={() => handleSort('created_at')}
                       className="h-auto p-0 font-medium"
                     >
@@ -525,10 +526,22 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                   paginatedContacts.map((contact) => (
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">
+                        <span className="truncate">{contact.contact_name || 'Sistema'}</span>
+                      </TableCell>
+                      <TableCell>
                         <span className="break-all">{contact.contact_phone || 'Sem telefone'}</span>
                       </TableCell>
                       <TableCell>
-                        {getStatusBadge(contact.status)}
+                        <StatusSelect
+                          value={contact.status}
+                          onValueChange={(status) => 
+                            updateContactStatus.mutate({
+                              contactId: contact.id,
+                              status,
+                            })
+                          }
+                          disabled={updateContactStatus.isPending}
+                        />
                       </TableCell>
                       <TableCell>
                         <SentimentSelect
@@ -546,9 +559,6 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                         <Badge variant="outline" className="truncate max-w-[120px]">
                           {contact.profile || 'Sem classificação'}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {contact.contact_name || 'Sistema'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(contact.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
@@ -584,7 +594,7 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                       </TableCell>
                     </TableRow>
                   ))
-                )}
+              )}
               </TableBody>
             </Table>
           </div>
@@ -602,15 +612,30 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
               paginatedContacts.map((contact) => (
                 <Card key={contact.id} className="p-4">
                   <div className="space-y-3">
-                    {/* Primeira linha: Telefone + Status */}
+                    {/* Primeira linha: Nome + Status */}
                     <div className="flex items-center justify-between">
-                      <div className="font-medium text-sm break-all flex-1 mr-2">
-                        {contact.contact_phone || 'Sem telefone'}
+                      <div className="font-medium text-sm truncate flex-1 mr-2">
+                        {contact.contact_name || 'Sistema'}
                       </div>
-                      {getStatusBadge(contact.status)}
+                      <StatusSelect
+                        value={contact.status}
+                        onValueChange={(status) => 
+                          updateContactStatus.mutate({
+                            contactId: contact.id,
+                            status,
+                          })
+                        }
+                        disabled={updateContactStatus.isPending}
+                        className="w-28 shrink-0"
+                      />
                     </div>
 
-                    {/* Segunda linha: Sentimento + Perfil */}
+                    {/* Segunda linha: Telefone */}
+                    <div className="text-xs text-muted-foreground break-all">
+                      {contact.contact_phone || 'Sem telefone'}
+                    </div>
+
+                    {/* Terceira linha: Sentimento + Perfil */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex-1 min-w-0">
                         <SentimentSelect
@@ -629,11 +654,8 @@ const EventContactsList = ({ eventId, eventName }: EventContactsListProps) => {
                       </Badge>
                     </div>
 
-                    {/* Terceira linha: Nome + Data */}
+                    {/* Quarta linha: Data */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="truncate flex-1 mr-2">
-                        {contact.contact_name || 'Sistema'}
-                      </span>
                       <span className="shrink-0">
                         {format(new Date(contact.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                       </span>
