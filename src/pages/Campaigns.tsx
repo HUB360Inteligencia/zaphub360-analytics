@@ -28,7 +28,21 @@ const Campaigns = () => {
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (campaign.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || campaign.status.toLowerCase() === statusFilter;
+    const matchesStatus =
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'active'
+        ? (() => {
+            const total = campaign.total_mensagens || 0;
+            const sentProcessed = campaign.mensagens_enviadas || 0;
+            const queued = Math.max(0, total - sentProcessed);
+            const derived = computeCampaignStatus(
+              { totalMessages: total, queuedMessages: queued, sentMessages: sentProcessed },
+              campaign.status
+            );
+            return derived === 'sending';
+          })()
+        : campaign.status.toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -103,7 +117,16 @@ const Campaigns = () => {
 
   // Calcular estatísticas reais das campanhas
   const totalCampaigns = campaigns.length;
-  const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
+  const activeCampaigns = campaigns.filter(c => {
+    const total = c.total_mensagens || 0;
+    const sentProcessed = c.mensagens_enviadas || 0;
+    const queued = Math.max(0, total - sentProcessed);
+    const derived = computeCampaignStatus(
+      { totalMessages: total, queuedMessages: queued, sentMessages: sentProcessed },
+      c.status
+    );
+    return derived === 'sending';
+  }).length;
   const totalMessages = campaigns.reduce((acc, c) => acc + (c.total_mensagens || 0), 0);
   const totalSent = campaigns.reduce((acc, c) => acc + (c.mensagens_enviadas || 0), 0);
   const avgDeliveryRate = totalMessages > 0 ? (totalSent / totalMessages) * 100 : 0;
