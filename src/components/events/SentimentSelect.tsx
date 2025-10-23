@@ -30,7 +30,8 @@ const SentimentSelect = ({ value, onValueChange, disabled }: SentimentSelectProp
       onValueChange={handleValueChange} 
       disabled={disabled}
     >
-      <SelectTrigger className="w-36">
+      {/* Remove a borda/background padrão para deixar apenas o estilo essencial do badge */}
+      <SelectTrigger className="w-36 border-0 bg-transparent shadow-none px-0">
         <SelectValue>
           {selectedOption ? (
             <Badge variant="outline" className={selectedOption.color}>

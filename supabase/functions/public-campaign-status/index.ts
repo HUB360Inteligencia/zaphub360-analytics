@@ -58,8 +58,9 @@ serve(async (req) => {
     while (true) {
       let query = supabase
         .from('mensagens_enviadas')
-        .select('*')
-        .eq('id_campanha', campaignId);
+        .select('data_envio, data_resposta, status, sentimento')
+        .eq('id_campanha', campaignId)
+        .order('data_envio', { ascending: true });
 
       // Apply date filter at database level if selectedDate is provided
       if (selectedDate) {
@@ -94,15 +95,15 @@ serve(async (req) => {
     // Calculate analytics
     const analytics = messages ? {
       totalMessages: messages.length,
-      sentMessages: messages.filter(m => ['enviado', 'erro'].includes(m.status)).length, // enviado + erro
-      deliveredMessages: messages.filter(m => m.status === 'enviado').length, // apenas enviado
+      sentMessages: messages.filter(m => ['enviado', 'erro'].includes((m.status || '').toLowerCase())).length, // enviado + erro
+      deliveredMessages: messages.filter(m => (m.status || '').toLowerCase() === 'enviado').length, // apenas enviado
       responseMessages: messages.filter(m => m.data_resposta).length,
-      errorMessages: messages.filter(m => m.status === 'erro').length,
-      queuedMessages: messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length,
+      errorMessages: messages.filter(m => (m.status || '').toLowerCase() === 'erro').length,
+      queuedMessages: messages.filter(m => ['fila', 'pendente', 'processando'].includes((m.status || '').toLowerCase())).length,
       progressRate: messages.length > 0 ? 
-        ((messages.length - messages.filter(m => ['fila', 'pendente', 'processando'].includes(m.status)).length) / messages.length) * 100 : 0,
-      responseRate: messages.filter(m => ['enviado', 'erro'].includes(m.status)).length > 0 ?
-        (messages.filter(m => m.data_resposta).length / messages.filter(m => ['enviado', 'erro'].includes(m.status)).length) * 100 : 0,
+        ((messages.length - messages.filter(m => ['fila', 'pendente', 'processando'].includes((m.status || '').toLowerCase())).length) / messages.length) * 100 : 0,
+      responseRate: messages.filter(m => ['enviado', 'erro'].includes((m.status || '').toLowerCase())).length > 0 ?
+        (messages.filter(m => m.data_resposta).length / messages.filter(m => ['enviado', 'erro'].includes((m.status || '').toLowerCase())).length) * 100 : 0,
     } : null;
 
     // Calculate hourly activity
@@ -124,7 +125,7 @@ serve(async (req) => {
       if (!data) return;
       
       // Enviados: todas as mensagens que tentaram ser enviadas (exceto pendente/fila)
-      if (!['pendente', 'fila'].includes(message.status)) {
+      if (!['pendente', 'fila'].includes((message.status || '').toLowerCase())) {
         data.enviados++;
       }
       
@@ -140,15 +141,15 @@ serve(async (req) => {
       respondidos: data.respondidos
     })).sort((a, b) => a.hour.localeCompare(b.hour));
 
-    // Calculate sentiment analysis
-    const normalizeSentiment = (sentiment: string | null): string | null => {
+    // Calculate sentiment analysis (alinhado com front-end: valores não reconhecidos => sem_classificacao)
+    const normalizeSentiment = (sentiment: string | null): 'super_engajado' | 'positivo' | 'neutro' | 'negativo' | null => {
       if (!sentiment) return null;
       const normalized = sentiment.toLowerCase().trim();
       switch (normalized) {
         case 'super engajado':
         case 'super_engajado':
         case 'superengajado':
-          return 'super engajado';
+          return 'super_engajado';
         case 'positivo':
           return 'positivo';
         case 'neutro':
@@ -156,25 +157,34 @@ serve(async (req) => {
         case 'negativo':
           return 'negativo';
         default:
-          return sentiment;
+          return null; // não reconhecido
       }
     };
 
-    const sentimentCounts = {
-      'super engajado': messages?.filter(m => normalizeSentiment(m.sentimento) === 'super engajado').length || 0,
-      'positivo': messages?.filter(m => normalizeSentiment(m.sentimento) === 'positivo').length || 0,
-      'neutro': messages?.filter(m => normalizeSentiment(m.sentimento) === 'neutro').length || 0,
-      'negativo': messages?.filter(m => normalizeSentiment(m.sentimento) === 'negativo').length || 0,
-      'sem_classificacao': messages?.filter(m => m.sentimento === null || m.sentimento === undefined).length || 0,
+    const sentimentCounts: Record<string, number> = {
+      super_engajado: 0,
+      positivo: 0,
+      neutro: 0,
+      negativo: 0,
+      sem_classificacao: 0,
     };
+
+    for (const m of messages || []) {
+      const s = normalizeSentiment(m.sentimento ?? null);
+      if (s) {
+        sentimentCounts[s] = (sentimentCounts[s] || 0) + 1;
+      } else {
+        sentimentCounts.sem_classificacao = (sentimentCounts.sem_classificacao || 0) + 1;
+      }
+    }
 
     const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
 
     const sentimentDistribution = [
       {
         sentiment: 'Super Engajado',
-        count: sentimentCounts['super engajado'],
-        percentage: sentimentTotal > 0 ? (sentimentCounts['super engajado'] / sentimentTotal) * 100 : 0,
+        count: sentimentCounts['super_engajado'],
+        percentage: sentimentTotal > 0 ? (sentimentCounts['super_engajado'] / sentimentTotal) * 100 : 0,
         color: '#FF6B35',
         emoji: '🔥'
       },
@@ -224,7 +234,7 @@ serve(async (req) => {
         ...analytics,
         hourlyActivity,
         sentimentAnalysis: {
-          superEngajado: sentimentCounts['super engajado'],
+          superEngajado: sentimentCounts['super_engajado'],
           positivo: sentimentCounts['positivo'],
           neutro: sentimentCounts['neutro'],
           negativo: sentimentCounts['negativo'],
@@ -248,8 +258,8 @@ serve(async (req) => {
       JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
-})
+});

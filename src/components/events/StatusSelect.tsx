@@ -23,7 +23,8 @@ const StatusSelect = ({ value, onValueChange, disabled, className }: StatusSelec
 
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-      <SelectTrigger className={className || 'w-32'}>
+      {/* Remove borda/background padrão do Trigger sem afetar acessibilidade */}
+      <SelectTrigger className={(className || 'w-32') + ' border-0 bg-transparent shadow-none px-0'}>
         <SelectValue>
           {selectedOption ? (
             <Badge variant={selectedOption.variant} className={selectedOption.color}>

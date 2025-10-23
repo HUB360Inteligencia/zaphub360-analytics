@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import CampaignContactsTable from '@/components/campaigns/CampaignContactsTable';
+import CampaignContactsList from '@/components/campaigns/CampaignContactsList';
 import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePreview';
 import CampaignHourlyActivityCard from '@/components/campaigns/CampaignHourlyActivityCard';
 import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentimentAnalysisCard';
@@ -475,8 +475,11 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
           </div>
         </TabsContent>
 
-        <TabsContent value="contacts" className="space-y-6">
-          <CampaignContactsTable campaignMessages={campaignMessages} campaign={campaign} navigate={navigate} />
+        <TabsContent value="contacts" className="space-y-4">
+          <Suspense fallback={<div>Carregando contatos...</div>}>
+            {/* Substitui a tabela antiga por nova lista responsiva com busca/filtros/sort server-side */}
+            <CampaignContactsList campaignId={campaign.id} />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="message" className="space-y-6">
