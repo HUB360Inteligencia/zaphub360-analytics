@@ -222,6 +222,20 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
       </Card>
 
       {/* Tabs de Eventos e Mensagens */}
+      // Remover uso direto de format para evitar erros de fuso horário
+      // Usar Intl.DateTimeFormat com timeZone 'America/Sao_Paulo'
+      const formatInSaoPaulo = (isoOrDate: string | Date) => {
+      const date = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+      return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      }).format(date);
+      };
       <Tabs defaultValue="messages" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="messages">Mensagens ({stats.totalMessages})</TabsTrigger>
@@ -240,36 +254,26 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
                   Nenhuma mensagem encontrada
                 </p>
               ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div key={message.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-medium">{message.event_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(message.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                          </p>
+                <div className="space-y-3">
+                  {[...messages]
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    .map((message) => {
+                      const displayedAt = message.responded_at || message.read_at || message.sent_at || message.created_at;
+                      const isReceived = message.direction === 'received';
+                      return (
+                        <div key={message.id} className={`flex ${isReceived ? 'justify-start' : 'justify-end'}`}>
+                          <div className={`max-w-[80%] rounded-lg border p-3 ${isReceived ? 'bg-slate-50' : 'bg-blue-50'}`}>
+                            <div className="flex items-start justify-between mb-1">
+                              <p className="font-medium text-sm">{message.event_name}</p>
+                              <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+                                {displayedAt ? formatInSaoPaulo(displayedAt) : ''}
+                              </span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap break-words">{message.message_content}</p>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          {getStatusBadge(message.status)}
-                          {getSentimentBadge(message.sentiment)}
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
-                        {message.message_content || 'Conteúdo da mensagem não disponível'}
-                      </p>
-                      {message.read_at && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Lida em: {format(new Date(message.read_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                        </p>
-                      )}
-                      {message.responded_at && (
-                        <p className="text-xs text-muted-foreground">
-                          Respondida em: {format(new Date(message.responded_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
             </CardContent>

@@ -20,6 +20,7 @@ const initialFilters: FilterOptions = {
   sentiments: [],
   cidades: [],
   bairros: [],
+  profiles: [],
   includeEvents: [],
   excludeEvents: [],
   includeCampaigns: [],

@@ -17,6 +17,7 @@ interface FilterPanelProps {
     sentiments: string[];
     cidades: string[];
     bairros: string[];
+    profiles: string[];
   };
   events: Event[];
   campaigns: Campaign[];
@@ -48,6 +49,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       sentiments: [],
       cidades: [],
       bairros: [],
+      profiles: [],
       includeEvents: [],
       excludeEvents: [],
       includeCampaigns: [],
@@ -180,6 +182,38 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     className="text-sm font-normal cursor-pointer"
                   >
                     {bairro}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Filtros por Perfil do Contato */}
+        {filterData.profiles.length > 0 && (
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Perfil do Contato</Label>
+            <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+              {filterData.profiles.map((profile) => (
+                <div key={profile} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`profile-${profile}`}
+                    checked={filters.profiles.includes(profile)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        updateFilter('profiles', [...filters.profiles, profile]);
+                      } else {
+                        updateFilter('profiles', filters.profiles.filter(p => p !== profile));
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
+                  />
+                  <Label 
+                    htmlFor={`profile-${profile}`}
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    {profile}
                   </Label>
                 </div>
               ))}

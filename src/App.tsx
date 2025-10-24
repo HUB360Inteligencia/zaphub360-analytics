@@ -25,6 +25,7 @@ import CampaignDetails from "./pages/CampaignDetails";
 import UserSettings from "./pages/UserSettings";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import AccessRequest from "./pages/AccessRequest";
+import PauseResumeDebug from "./pages/PauseResumeDebug";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,13 @@ const App = () => (
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/debug/pause-resume" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PauseResumeDebug />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

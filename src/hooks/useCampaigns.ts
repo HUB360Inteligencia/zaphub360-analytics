@@ -38,7 +38,7 @@ export interface Campaign {
 }
 
 export const useCampaigns = () => {
-  const { organization } = useAuth();
+  const { organization, profile } = useAuth();
   const queryClient = useQueryClient();
   const { handleError, validateRequired } = useErrorHandler();
 
@@ -381,29 +381,119 @@ export const useCampaigns = () => {
     },
   });
 
-  // Nova função para pausar campanha
+  // Nova função para pausar campanha (atômica: atualiza mensagens e registra batch)
   const pauseCampaign = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase
+  mutationFn: async (id: string) => {
+  // Buscar campanha para obter organization_id
+  const { data: campaign, error: campaignError } = await supabase
+  .from('campaigns')
+  .select('id, organization_id')
+  .eq('id', id)
+  .single();
+  
+  if (campaignError) throw campaignError;
+  
+  // Chamar RPC que atualiza mensagens (pendente/processando -> fila) e retorna batch_id/message_ids
+  const { data: rpcResult, error: rpcError } = await supabase
+  .rpc('rpc_pause_campaign_messages', {
+  org_id: campaign.organization_id,
+  campaign_id: id,
+  performed_by: profile?.id || null
+  });
+  
+  if (rpcError) {
+  console.error('Erro ao executar RPC pause:', rpcError);
+  throw rpcError;
+  }
+  
+  const batchId = (Array.isArray(rpcResult) && rpcResult.length > 0) ? rpcResult[0].batch_id : null;
+  
+  // Atualizar o status da campanha
+  const { data: updatedCampaign, error: updateError } = await supabase
+  .from('campaigns')
+  .update({
+  status: 'paused',
+  updated_at: new Date().toISOString()
+  })
+  .eq('id', id)
+  .select()
+  .single();
+  
+  if (updateError) throw updateError;
+  
+  return { campaign: updatedCampaign, pauseBatchId: batchId };
+  },
+  onSuccess: (data) => {
+  queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+  toast.success('Campanha pausada com sucesso!');
+  },
+  onError: (error) => {
+  console.error('Erro ao pausar campanha:', error);
+  toast.error('Erro ao pausar campanha');
+  },
+  });
+
+  // Função para retomar campanha (usa batch_id para desfazer alterações realizadas durante a pausa)
+  const resumeCampaign = useMutation({
+    mutationFn: async ({ id, batchId }: { id: string; batchId?: string }) => {
+      // Buscar campanha para organization_id
+      const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
-        .update({ 
-          status: 'paused',
-          updated_at: new Date().toISOString()
-        })
+        .select('id, organization_id')
+        .eq('id', id)
+        .single();
+
+      if (campaignError) throw campaignError;
+
+      let targetBatchId = batchId;
+
+      // Se nenhum batchId for fornecido, buscar o último registro de auditoria para esta campanha
+      if (!targetBatchId) {
+        const { data: rows, error: rowsError } = await supabase
+          .from('campaign_message_audits')
+          .select('batch_id')
+          .eq('campaign_id', id)
+          .order('performed_at', { ascending: false })
+          .limit(1);
+
+        if (rowsError) throw rowsError;
+        if (!rows || rows.length === 0) throw new Error('Nenhum batch de pausa encontrado para esta campanha');
+        targetBatchId = rows[0].batch_id;
+      }
+
+      // Chamar RPC que reverte mensagens do batch para 'pendente'
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('rpc_resume_campaign_messages', {
+          org_id: campaign.organization_id,
+          campaign_id: id,
+          target_batch_id: targetBatchId,
+          performed_by: profile?.id || null
+        });
+
+      if (rpcError) {
+        console.error('Erro ao executar RPC resume:', rpcError);
+        throw rpcError;
+      }
+
+      // Atualizar o status da campanha para active
+      const { data: updatedCampaign, error: updateError } = await supabase
+        .from('campaigns')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (updateError) throw updateError;
+
+      return { campaign: updatedCampaign, resumedMessageIds: rpcResult };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      toast.success('Campanha pausada com sucesso!');
+      toast.success('Campanha retomada com sucesso!');
     },
     onError: (error) => {
-      console.error('Erro ao pausar campanha:', error);
-      toast.error('Erro ao pausar campanha');
+      console.error('Erro ao retomar campanha:', error);
+      toast.error('Erro ao retomar campanha');
     },
   });
 
@@ -416,6 +506,7 @@ export const useCampaigns = () => {
     deleteCampaign,
     activateCampaign,
     pauseCampaign,
+    resumeCampaign,
     refetch: campaignsQuery.refetch,
   };
 };

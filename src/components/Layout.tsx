@@ -80,7 +80,7 @@ const Layout = ({
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg overflow-hidden">
                 <img src="/logo.png" alt="ZapHub360 Logo" className="w-full h-full object-contain" />
@@ -166,8 +166,8 @@ const Layout = ({
       {/* Main Content */}
       <div className={`${sidebarOpen ? 'lg:ml-64' : ''} transition-all duration-300`}>
         {/* Top Header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="flex items-center justify-between px-6 py-4">
+        <header className="bg-white border-b border-slate-200">
+          <div className="mx-auto max-w-screen-2xl flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-600">
                 <Menu className="w-5 h-5" />
@@ -237,7 +237,9 @@ const Layout = ({
 
         {/* Page Content */}
         <main className="min-h-screen w-full min-w-0 overflow-x-hidden">
-          {children}
+          <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+            {children}
+          </div>
         </main>
       </div>
 

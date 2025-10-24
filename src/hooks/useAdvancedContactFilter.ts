@@ -10,6 +10,7 @@ export interface FilterOptions {
   sentiments: string[];
   cidades: string[];
   bairros: string[];
+  profiles: string[];
   includeEvents: string[];
   excludeEvents: string[];
   includeCampaigns: string[];
@@ -29,6 +30,7 @@ export interface ContactWithDetails {
   bairro?: string;
   ultima_instancia?: string;
   evento?: string; // Campo evento da tabela
+  profile?: string | null;
   campaignParticipations?: string[];
   tags?: Array<{ id: string; name: string; color: string }>;
 }
@@ -90,6 +92,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
           bairro: contact.bairro?.trim() || null, // Normalizar bairro com trim
           ultima_instancia: contact.ultima_instancia,
           evento: contact.evento, // Adicionar campo evento
+          profile: contact.perfil_contato || contact.perfil || null,
           tags: []
         }));
     },
@@ -131,52 +134,28 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         aggregated = aggregated.concat(pageData || []);
       }
 
-      // Extrair eventos únicos (muitos contatos têm múltiplos eventos separados por vírgulas/pontos)
-      const eventSet = new Set<string>();
-      (aggregated || []).forEach(item => {
+      const uniqueSet = new Set<string>();
+      aggregated.forEach(item => {
         if (item.evento) {
-          const eventNames = item.evento
-            .split(/[,.]/)
-            .map(e => e.trim())
-            .filter(e => e.length > 0);
-          eventNames.forEach(name => eventSet.add(name));
+          uniqueSet.add(item.evento);
         }
       });
 
-      return Array.from(eventSet)
-        .sort()
-        .map(name => ({ id: name, name }));
-    },
-    enabled: !!organization?.id,
+      return Array.from(uniqueSet).sort().map(eventName => ({
+        id: eventName,
+        name: eventName,
+        status: 'active'
+      }));
+    }
   });
 
-  // Buscar participações em campanhas
-  const { data: campaignParticipations } = useQuery({
-    queryKey: ['campaign-participations', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('mensagens_enviadas')
-        .select('celular, id_campanha')
-        .eq('organization_id', organization.id)
-        .not('status', 'eq', 'failed');
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organization?.id,
-  });
-
-  // Dados únicos para os filtros
+  // Dados para filtros
   const filterData = useMemo(() => {
-    if (!allContacts) return { sentiments: [], cidades: [], bairros: [] };
-    
-    // Normalizar e ordenar sentimentos
     const sentimentsSet = new Set<string>();
-    allContacts.forEach(contact => {
-      if (contact.sentiment) {
-        sentimentsSet.add(contact.sentiment);
+    allContacts?.forEach(contact => {
+      const normalized = normalizeSentiment(contact.sentiment);
+      if (normalized) {
+        sentimentsSet.add(normalized);
       }
     });
     
@@ -191,9 +170,9 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     
     // Cidades únicas e ordenadas (normalizar para evitar duplicatas)
     const cidadesSet = new Set<string>();
-    allContacts.forEach(contact => {
+    allContacts?.forEach(contact => {
       if (contact.cidade) {
-        const normalized = contact.cidade.trim();
+        const normalized = (contact.cidade || '').trim();
         if (normalized) cidadesSet.add(normalized);
       }
     });
@@ -201,16 +180,40 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     
     // Bairros únicos e ordenados (normalizar para evitar duplicatas)
     const bairrosSet = new Set<string>();
-    allContacts.forEach(contact => {
+    allContacts?.forEach(contact => {
       if (contact.bairro) {
-        const normalized = contact.bairro.trim();
+        const normalized = (contact.bairro || '').trim();
         if (normalized) bairrosSet.add(normalized);
       }
     });
     const bairros = Array.from(bairrosSet).sort();
 
-    return { sentiments, cidades, bairros };
+    // Perfis únicos
+    const perfisSet = new Set<string>();
+    allContacts?.forEach(contact => {
+      if (contact.profile) {
+        const normalized = (contact.profile || '').trim();
+        if (normalized) perfisSet.add(normalized);
+      }
+    });
+    const profiles = Array.from(perfisSet).sort();
+
+    return { sentiments, cidades, bairros, profiles };
   }, [allContacts]);
+
+  // Participações em campanhas
+  const { data: campaignParticipations } = useQuery({
+    queryKey: ['campaign-participations', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('mensagens_enviadas')
+        .select('id_campanha, celular')
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Contatos filtrados
   const filteredContacts = useMemo(() => {
@@ -249,13 +252,20 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         }
       }
 
+      // Filtro por perfil do contato
+      if (filters.profiles.length > 0) {
+        if (!contact.profile || !filters.profiles.includes(contact.profile)) {
+          return false;
+        }
+      }
+
       // Filtro por eventos - CORRIGIDO para usar coluna 'evento'
       if (filters.includeEvents.length > 0) {
         if (!contact.evento) return false;
         
         // Verificar se o campo evento contém algum dos eventos selecionados
         const hasIncludedEvent = filters.includeEvents.some(eventName => 
-          contact.evento.includes(eventName)
+          (contact.evento || '').includes(eventName)
         );
         if (!hasIncludedEvent) {
           return false;
@@ -268,7 +278,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
         
         // Verificar se o campo evento contém algum evento a ser excluído
         const hasExcludedEvent = filters.excludeEvents.some(eventName => 
-          contact.evento.includes(eventName)
+          (contact.evento || '').includes(eventName)
         );
         if (hasExcludedEvent) {
           return false;

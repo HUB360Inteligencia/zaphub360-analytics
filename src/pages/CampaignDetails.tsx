@@ -1,7 +1,17 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useRef, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,10 +41,106 @@ const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const { campaigns, activateCampaign, pauseCampaign, isLoading } = useCampaigns();
+  const { campaigns, activateCampaign, pauseCampaign, resumeCampaign, isLoading } = useCampaigns();
   const { analytics: campaignAnalytics } = useCampaignAnalytics(id, selectedDate);
   
   const campaign = campaigns?.find(c => c.id === id);
+
+  // UI state para confirmação/execução de pause/resume e undo temporário
+  const [showPauseConfirm, setShowPauseConfirm] = useState(false);
+  const [showResumeConfirm, setShowResumeConfirm] = useState(false);
+  const [isProcessingPause, setIsProcessingPause] = useState(false);
+  const [isProcessingResume, setIsProcessingResume] = useState(false);
+  const [lastPauseBatchId, setLastPauseBatchId] = useState<string | null>(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const undoTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) {
+        window.clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePauseClick = () => setShowPauseConfirm(true);
+  const handleResumeClick = () => setShowResumeConfirm(true);
+
+  const confirmPause = async () => {
+    if (!campaign) return;
+    setIsProcessingPause(true);
+    try {
+      const result = await pauseCampaign.mutateAsync(campaign.id);
+      const batchId = result?.pauseBatchId || null;
+      setLastPauseBatchId(batchId);
+      setShowPauseConfirm(false);
+      setShowUndo(true);
+
+      // Permitir desfazer por 20 segundos
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = window.setTimeout(() => {
+        setShowUndo(false);
+        setLastPauseBatchId(null);
+        undoTimerRef.current = null;
+      }, 20000);
+
+    } catch (error) {
+      console.error('Erro ao pausar campanha:', error);
+      toast.error('Erro ao pausar a campanha');
+    } finally {
+      setIsProcessingPause(false);
+    }
+  };
+
+  const handleUndoPause = async () => {
+    if (!campaign) return;
+    if (!lastPauseBatchId) {
+      toast.error('Não há ação de pausa para desfazer');
+      return;
+    }
+
+    setIsProcessingResume(true);
+    try {
+      await resumeCampaign.mutateAsync({ id: campaign.id, batchId: lastPauseBatchId });
+      toast.success('Pausa desfeita com sucesso');
+      setShowUndo(false);
+      setLastPauseBatchId(null);
+      if (undoTimerRef.current) {
+        window.clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+    } catch (error) {
+      console.error('Erro ao desfazer pausa:', error);
+      toast.error('Erro ao desfazer a pausa');
+    } finally {
+      setIsProcessingResume(false);
+    }
+  };
+
+  const confirmResume = async () => {
+    if (!campaign) return;
+    setIsProcessingResume(true);
+    try {
+      // Se tiver batch_id local, passa para garantir que só reverte as mensagens alteradas pela pausa
+      await resumeCampaign.mutateAsync({ id: campaign.id, batchId: lastPauseBatchId || undefined });
+      toast.success('Campanha retomada com sucesso!');
+      setShowResumeConfirm(false);
+
+      // limpar estado de undo se existir
+      setShowUndo(false);
+      setLastPauseBatchId(null);
+      if (undoTimerRef.current) {
+        window.clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+    } catch (error) {
+      console.error('Erro ao retomar campanha:', error);
+      toast.error('Erro ao retomar a campanha');
+    } finally {
+      setIsProcessingResume(false);
+    }
+  };
 
 // ---- CONTADORES (sem limite de paginação) ----
 const { data: counts, isLoading: countsLoading } = useQuery({
@@ -262,11 +368,26 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
             </Button>
           )}
           {campaign.status === 'active' && (
-            <Button onClick={handlePauseCampaign} variant="outline" size="sm">
-              <Pause className="w-4 h-4 mr-2" />
-              Pausar Campanha
+            <>
+              <Button onClick={handlePauseClick} variant="outline" size="sm">
+                <Pause className="w-4 h-4 mr-2" />
+                Pausar Campanha
+              </Button>
+              {showUndo && lastPauseBatchId && (
+                <Button variant="ghost" size="sm" onClick={handleUndoPause}>
+                  Desfazer
+                </Button>
+              )}
+            </>
+          )}
+
+          {campaign.status === 'paused' && (
+            <Button onClick={handleResumeClick} variant="outline" size="sm">
+              <Play className="w-4 h-4 mr-2" />
+              Retomar Campanha
             </Button>
           )}
+
           <Button variant="outline" size="sm" asChild>
             <Link to={`/campaigns/${campaign.id}/edit`}>
               <Edit className="w-4 h-4 mr-2" />
@@ -276,6 +397,55 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
         </div>
       </div>
 
+      {/* Confirm dialogs para pause/retomar */}
+      <AlertDialog open={showPauseConfirm} onOpenChange={setShowPauseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pausar Campanha</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ao confirmar, todas as mensagens com status "pendente" ou "processando" desta campanha serão movidas para "fila". Esta ação pode ser desfeita usando o botão "Retomar Campanha" ou o botão "Desfazer" disponível imediatamente após a ação.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPause} className="bg-destructive text-destructive-foreground">
+              {isProcessingPause ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Pausando...
+                </>
+              ) : (
+                'Pausar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showResumeConfirm} onOpenChange={setShowResumeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retomar Campanha</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ao confirmar, as mensagens que foram movidas para "fila" pela ação de pausa (do batch relacionado) serão colocadas de volta em "pendente" para retomada do envio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResume}>
+              {isProcessingResume ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Retomando...
+                </>
+              ) : (
+                'Retomar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       {/* Campaign Info */}
       <Card className="bg-card border-border">
         <CardContent className="p-6">

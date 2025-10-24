@@ -30,6 +30,8 @@ type AdvancedFilters = {
 import { useAdvancedContactFilters } from '@/hooks/useAdvancedContactFilters';
 import { useDebounce } from '@/hooks/useDebounce';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const Contacts = () => {
   const { organization } = useAuth();
@@ -285,6 +287,277 @@ const Contacts = () => {
     XLSX.writeFile(wb, filename);
   };
 
+  // Estados e helpers de importação CSV
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState({ total: 0, processed: 0, inserted: 0, skipped: 0, invalid: 0 });
+
+  function normalizePhone(raw: string | null | undefined) {
+    if (!raw) return '';
+    const digits = raw.replace(/\D+/g, '');
+    const cleaned = digits.length > 13 && digits.startsWith('55') ? digits.slice(2) : digits;
+    return cleaned;
+  }
+
+  function parseCsvFlexible(text: string) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return { headers: [], rows: [] };
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const parseLine = (line: string) => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = !inQuotes; }
+        } else if (ch === delimiter && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+    const headerCells = parseLine(lines[0]).map(h => h.toLowerCase().trim());
+    const rows = lines.slice(1).map(parseLine);
+    return { headers: headerCells, rows };
+  }
+
+  function mapHeader(header: string) {
+    const h = header.toLowerCase().trim();
+    if (['celular', 'telefone', 'phone', 'whatsapp', 'contato', 'numero'].includes(h)) return 'celular';
+    if (['nome', 'name'].includes(h)) return 'name';
+    if (['sobrenome', 'last_name', 'lastname'].includes(h)) return 'sobrenome';
+    if (['cidade', 'city'].includes(h)) return 'cidade';
+    if (['bairro', 'neighborhood'].includes(h)) return 'bairro';
+    if (['sentimento', 'sentiment'].includes(h)) return 'sentimento';
+    if (['evento', 'event'].includes(h)) return 'evento';
+    if (['perfil_contato', 'perfil', 'perfil contato', 'profile'].includes(h)) return 'perfil_contato';
+    return h;
+  }
+
+  const handleFileChange = (e: any) => {
+    const file = e.target.files?.[0] || null;
+    setImportError(null);
+    setImportProgress({ total: 0, processed: 0, inserted: 0, skipped: 0, invalid: 0 });
+    if (!file) { setImportFile(null); return; }
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setImportError('Selecione um arquivo .csv');
+      setImportFile(null);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImportError('Arquivo muito grande (máx. 10MB)');
+      setImportFile(null);
+      return;
+    }
+    setImportFile(file);
+  };
+
+  async function handleImportFileClick() {
+    if (!importFile) {
+      toast.error('Selecione um arquivo CSV antes de importar');
+      return;
+    }
+    if (!organization?.id) {
+      toast.error('Organização não encontrada');
+      return;
+    }
+
+    setImportError(null);
+    setImporting(true);
+    setImportProgress({ total: 0, processed: 0, inserted: 0, skipped: 0, invalid: 0 });
+
+    try {
+      if (!importFile.name.toLowerCase().endsWith('.csv')) {
+        throw new Error('Arquivo precisa ser .csv');
+      }
+      if (importFile.size > 10 * 1024 * 1024) {
+        throw new Error('Arquivo muito grande (máx. 10MB)');
+      }
+
+      const text = await importFile.text();
+      const { headers, rows } = parseCsvFlexible(text);
+      if (!headers.length || !rows.length) {
+        throw new Error('CSV vazio ou cabeçalho ausente');
+      }
+
+      const mappedHeaders = headers.map(mapHeader);
+      const idx = (key: string) => mappedHeaders.findIndex(h => h === key);
+      const idxPhone = idx('celular');
+      const idxName = idx('name');
+      const idxSobrenome = idx('sobrenome');
+      const idxCidade = idx('cidade');
+      const idxBairro = idx('bairro');
+      const idxSentimento = idx('sentimento');
+      const idxEvento = idx('evento');
+      const idxPerfil = idx('perfil_contato');
+
+      if (idxPhone === -1) {
+        throw new Error('Coluna de telefone não encontrada (ex.: celular/telefone/phone)');
+      }
+
+      const prepared = rows.map((cells, index) => {
+        const phone = normalizePhone(cells[idxPhone] || '');
+        const name = idxName !== -1 ? cells[idxName] : '';
+        const sobrenome = idxSobrenome !== -1 ? cells[idxSobrenome] : '';
+        const cidade = idxCidade !== -1 ? cells[idxCidade] : '';
+        const bairro = idxBairro !== -1 ? cells[idxBairro] : '';
+        const sentimento = idxSentimento !== -1 ? cells[idxSentimento] : null;
+        const evento = idxEvento !== -1 ? cells[idxEvento] : 'Import CSV';
+        const perfil_contato = idxPerfil !== -1 ? cells[idxPerfil] : null;
+        return {
+          phone,
+          name,
+          sobrenome,
+          cidade,
+          bairro,
+          sentimento,
+          evento,
+          perfil_contato,
+          rowIndex: index + 2,
+          originalRow: {
+            headers,
+            cells
+          }
+        };
+      });
+
+      const total = prepared.length;
+      setImportProgress(prev => ({ ...prev, total }));
+
+      // Registros inválidos (telefone vazio ou < 10 dígitos)
+      const invalidRecords = prepared.filter(r => !r.phone || r.phone.length < 10);
+      const invalid = invalidRecords.length;
+      const valid = prepared.filter(r => r.phone && r.phone.length >= 10);
+      setImportProgress(prev => ({ ...prev, invalid }));
+
+      // Criar registro de auditoria
+      const { data: audit, error: auditErr } = await supabase
+        .from('contact_import_audits')
+        .insert({
+          organization_id: organization.id,
+          filename: importFile.name,
+          total_rows: total
+        })
+        .select()
+        .single();
+      if (auditErr) throw auditErr;
+      const auditId = audit.id;
+
+      // Logar inválidos
+      if (invalidRecords.length > 0) {
+        const invalidIgnored = invalidRecords.map(r => ({
+          audit_id: auditId,
+          celular: r.phone || '',
+          reason: 'invalid phone',
+          original_row: r.originalRow
+        }));
+        const chunkSizeLog = 1000;
+        for (let i = 0; i < invalidIgnored.length; i += chunkSizeLog) {
+          const chunk = invalidIgnored.slice(i, i + chunkSizeLog);
+          const { error: logErr } = await supabase
+            .from('contact_import_ignored')
+            .insert(chunk);
+          if (logErr) throw logErr;
+        }
+      }
+
+      // Consultar existentes na base para este lote
+      const uniquePhones = Array.from(new Set(valid.map(r => r.phone)));
+      let existingSet = new Set<string>();
+      if (uniquePhones.length > 0) {
+        const { data: existingRows, error: existingErr } = await supabase
+          .from('new_contact_event')
+          .select('celular')
+          .eq('organization_id', organization.id)
+          .in('celular', uniquePhones);
+        if (existingErr) throw existingErr;
+        existingSet = new Set((existingRows || []).map(r => r.celular));
+      }
+
+      // Separar duplicados e novos para inserção
+      const duplicateRecords = valid.filter(r => existingSet.has(r.phone));
+      const toInsertRecords = valid.filter(r => !existingSet.has(r.phone));
+
+      // Logar duplicados
+      if (duplicateRecords.length > 0) {
+        const dupIgnored = duplicateRecords.map(r => ({
+          audit_id: auditId,
+          celular: r.phone,
+          reason: 'duplicate',
+          original_row: r.originalRow
+        }));
+        const chunkSizeLog = 1000;
+        for (let i = 0; i < dupIgnored.length; i += chunkSizeLog) {
+          const chunk = dupIgnored.slice(i, i + chunkSizeLog);
+          const { error: logErr } = await supabase
+            .from('contact_import_ignored')
+            .insert(chunk);
+          if (logErr) throw logErr;
+        }
+      }
+
+      // Montar payload apenas dos que serão inseridos
+      const payload = toInsertRecords.map(r => ({
+        celular: r.phone,
+        name: r.name || null,
+        sobrenome: r.sobrenome || null,
+        cidade: r.cidade || null,
+        bairro: r.bairro || null,
+        sentimento: r.sentimento,
+        evento: r.evento,
+        perfil_contato: r.perfil_contato,
+        organization_id: organization.id,
+        responsavel_cadastro: 'Importador',
+        status_envio: 'pendente',
+      }));
+
+      const chunkSize = 500;
+      let processed = 0;
+      let inserted = 0;
+      for (let i = 0; i < payload.length; i += chunkSize) {
+        const chunk = payload.slice(i, i + chunkSize);
+        const { error } = await supabase
+          .from('new_contact_event')
+          .upsert(chunk, {
+            onConflict: 'celular,organization_id',
+            ignoreDuplicates: true,
+            returning: 'minimal',
+          });
+        if (error) throw error;
+        processed += chunk.length;
+        inserted += chunk.length;
+        setImportProgress(prev => ({ ...prev, processed, inserted }));
+      }
+
+      // Atualizar auditoria
+      await supabase
+        .from('contact_import_audits')
+        .update({
+          valid_rows: valid.length,
+          inserted_rows: inserted,
+          ignored_rows: invalid + duplicateRecords.length
+        })
+        .eq('id', auditId);
+
+      toast.success(`Importação concluída: ${processed} inseridos, ${invalid} inválidos, ${duplicateRecords.length} duplicados ignorados`);
+      setIsImportDialogOpen(false);
+      setImportFile(null);
+      await refetch();
+    } catch (err: any) {
+      console.error('Erro na importação:', err);
+      setImportError(err?.message || 'Erro ao importar CSV');
+      toast.error(err?.message || 'Erro ao importar CSV');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   if (tagsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -319,8 +592,27 @@ const Contacts = () => {
                 <p className="text-sm text-slate-600">
                   Faça upload de um arquivo CSV com os dados dos contatos
                 </p>
-                <Input type="file" accept=".csv" />
-                <Button className="w-full">Importar Arquivo</Button>
+                <Input type="file" accept=".csv" onChange={handleFileChange} />
+                {importError && (
+                  <p className="text-sm text-red-600">{importError}</p>
+                )}
+                {importing ? (
+                  <Button className="w-full" disabled>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Importando...
+                  </Button>
+                ) : (
+                  <Button className="w-full" onClick={handleImportFileClick} disabled={!importFile}>
+                    Importar Arquivo
+                  </Button>
+                )}
+                {(importProgress.total > 0) && (
+                  <div className="text-sm text-slate-600">
+                    <div>Total: {importProgress.total}</div>
+                    <div>Processados: {importProgress.processed}</div>
+                    <div>Inválidos: {importProgress.invalid}</div>
+                  </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
