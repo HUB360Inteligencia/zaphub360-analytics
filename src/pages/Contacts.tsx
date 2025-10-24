@@ -357,6 +357,13 @@ const Contacts = () => {
     }
     setImportFile(file);
   };
+  
+  // Helper para normalizar valores do CSV (vazio -> null)
+  const normalizeCsvValue = (v: any) => {
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s.length ? s : null;
+  };
 
   async function handleImportFileClick() {
     if (!importFile) {
@@ -502,19 +509,46 @@ const Contacts = () => {
         }
       }
 
+      // Atualizar duplicados com dados do CSV apenas quando campos estão vazios
+      let updatedCount = 0;
+      if (duplicateRecords.length > 0) {
+        const batch = duplicateRecords.map(r => ({
+          celular: r.phone,
+          name: normalizeCsvValue(r.name),
+          sobrenome: normalizeCsvValue(r.sobrenome),
+          cidade: normalizeCsvValue(r.cidade),
+          bairro: normalizeCsvValue(r.bairro),
+          perfil_contato: normalizeCsvValue(r.perfil_contato),
+          sentimento: normalizeCsvValue(r.sentimento),
+          evento: normalizeCsvValue(r.evento),
+          tag: null,
+        }));
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('update_new_contact_event_if_empty_batch', {
+            records: batch,
+            p_org_id: organization.id,
+          });
+        if (rpcError) {
+          console.error('Erro ao atualizar duplicados:', rpcError);
+          toast.error('Falha ao atualizar contatos duplicados.');
+        } else {
+          updatedCount = rpcData ?? 0;
+        }
+      }
+      const duplicatesLeft = duplicateRecords.length - (updatedCount || 0);
+
       // Montar payload apenas dos que serão inseridos
       const payload = toInsertRecords.map(r => ({
         celular: r.phone,
-        name: r.name || null,
-        sobrenome: r.sobrenome || null,
-        cidade: r.cidade || null,
-        bairro: r.bairro || null,
-        sentimento: r.sentimento,
-        evento: r.evento,
-        perfil_contato: r.perfil_contato,
+        name: normalizeCsvValue(r.name),
+        sobrenome: normalizeCsvValue(r.sobrenome),
+        cidade: normalizeCsvValue(r.cidade),
+        bairro: normalizeCsvValue(r.bairro),
+        sentimento: normalizeCsvValue(r.sentimento),
+        evento: normalizeCsvValue(r.evento) ?? 'Import CSV',
+        perfil_contato: normalizeCsvValue(r.perfil_contato),
         organization_id: organization.id,
         responsavel_cadastro: 'Importador',
-        status_envio: 'pendente',
       }));
 
       const chunkSize = 500;
@@ -524,11 +558,7 @@ const Contacts = () => {
         const chunk = payload.slice(i, i + chunkSize);
         const { error } = await supabase
           .from('new_contact_event')
-          .upsert(chunk, {
-            onConflict: 'celular,organization_id',
-            ignoreDuplicates: true,
-            returning: 'minimal',
-          });
+          .insert(chunk);
         if (error) throw error;
         processed += chunk.length;
         inserted += chunk.length;
@@ -541,11 +571,11 @@ const Contacts = () => {
         .update({
           valid_rows: valid.length,
           inserted_rows: inserted,
-          ignored_rows: invalid + duplicateRecords.length
+          ignored_rows: invalid + duplicatesLeft,
         })
         .eq('id', auditId);
 
-      toast.success(`Importação concluída: ${processed} inseridos, ${invalid} inválidos, ${duplicateRecords.length} duplicados ignorados`);
+      toast.success(`Importação concluída: ${processed} inseridos, ${invalid} inválidos, ${updatedCount} duplicados atualizados, ${duplicatesLeft} duplicados ignorados`);
       setIsImportDialogOpen(false);
       setImportFile(null);
       await refetch();
