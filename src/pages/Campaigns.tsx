@@ -120,9 +120,9 @@ const Campaigns = () => {
   const activeCampaigns = campaigns.filter(c => {
     const total = c.total_mensagens || 0;
     const sentProcessed = c.mensagens_enviadas || 0;
-    const queued = Math.max(0, total - sentProcessed);
+    const queuedFromMetrics = (c as any).metrics?.fila ?? Math.max(0, total - sentProcessed);
     const derived = computeCampaignStatus(
-      { totalMessages: total, queuedMessages: queued, sentMessages: sentProcessed },
+      { totalMessages: total, queuedMessages: queuedFromMetrics, sentMessages: sentProcessed },
       c.status
     );
     return derived === 'sending';
@@ -282,9 +282,9 @@ const Campaigns = () => {
                         {(() => {
                           const total = campaign.total_mensagens || 0;
                           const sentProcessed = campaign.mensagens_enviadas || 0;
-                          const queued = Math.max(0, total - sentProcessed);
+                          const queuedFromMetrics = (campaign as any).metrics?.fila ?? Math.max(0, total - sentProcessed);
                           const derived = computeCampaignStatus(
-                            { totalMessages: total, queuedMessages: queued, sentMessages: sentProcessed },
+                            { totalMessages: total, queuedMessages: queuedFromMetrics, sentMessages: sentProcessed },
                             campaign.status
                           );
                           const cfg = getCampaignStatusBadgeConfig(derived);
@@ -301,6 +301,7 @@ const Campaigns = () => {
                              {sent.toLocaleString()}/{total.toLocaleString()}
                            </div>
                            <Progress value={progressRate} className="h-2" />
+                           <span className="text-xs text-slate-600 mt-1">{progressRate.toFixed(1)}%</span>
                          </div>
                        </TableCell>
                        <TableCell>

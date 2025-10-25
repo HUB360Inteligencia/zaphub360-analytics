@@ -4,13 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Calendar, Loader2, TrendingUp, Activity, 
+  Calendar, Loader2, Activity, 
   Send, CheckCircle, Eye, MessageSquare, AlertTriangle
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  PieChart, Pie, Cell, BarChart, Bar
-} from 'recharts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
@@ -226,37 +222,6 @@ const PublicCampaignStatus = () => {
             </Card>
         </div>
 
-        {/* Distribution of Status */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Distribuição de Status</CardTitle>
-            <CardDescription>Status atual das mensagens da campanha</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{analytics?.queuedMessages || 0}</div>
-                <div className="text-xs text-muted-foreground">Na Fila</div>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{analytics?.sentMessages || 0}</div>
-                <div className="text-xs text-muted-foreground">Enviados</div>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{analytics?.deliveredMessages || 0}</div>
-                <div className="text-xs text-muted-foreground">Entregues</div>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold text-emerald-600">{analytics?.responseMessages || 0}</div>
-                <div className="text-xs text-muted-foreground">Respondidos</div>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold text-red-600">{analytics?.errorMessages || 0}</div>
-                <div className="text-xs text-muted-foreground">Erros</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Campaign Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

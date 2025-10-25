@@ -63,35 +63,41 @@ export const useCampaigns = () => {
       
       // Buscar métricas reais das mensagens para cada campanha
       const campaignsWithMetrics = await Promise.all((data || []).map(async (campaign) => {
-        // Buscar estatísticas reais da tabela mensagens_enviadas
-        // Count metrics without row limit using HEAD exact counts
+        // Contagens alinhadas com CampaignDetails
         const [
           { count: totalCount, error: totalError },
-          { count: sentCount, error: sentError },
+          { count: queueCount, error: queueError },
+          { count: sentProcessedCount, error: sentProcessedError },
           { count: respondedCount, error: respondedError },
         ] = await Promise.all([
           supabase
             .from('mensagens_enviadas')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('id_campanha', campaign.id),
           supabase
             .from('mensagens_enviadas')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('id_campanha', campaign.id)
-            .in('status', ['enviado', 'enviada', 'erro']),
+            .in('status', ['fila', 'pendente', 'processando']),
           supabase
             .from('mensagens_enviadas')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
+            .eq('id_campanha', campaign.id)
+            .in('status', ['enviado', 'erro']),
+          supabase
+            .from('mensagens_enviadas')
+            .select('id', { count: 'exact', head: true })
             .eq('id_campanha', campaign.id)
             .not('data_resposta', 'is', null),
         ]);
 
-        if (totalError || sentError || respondedError) {
-          console.error('Error counting campaign messages:', { totalError, sentError, respondedError });
+        if (totalError || queueError || sentProcessedError || respondedError) {
+          console.error('Error counting campaign messages:', { totalError, queueError, sentProcessedError, respondedError });
         }
 
         const totalMessages = totalCount || 0;
-        const sentMessages = sentCount || 0;
+        const queuedMessages = queueCount || 0;
+        const sentProcessed = sentProcessedCount || 0;
         const respondedMessages = respondedCount || 0;
         
         return {
@@ -102,12 +108,19 @@ export const useCampaigns = () => {
           horario_disparo_fim: campaign.horario_disparo_fim || '20:00:00',
           tipo_conteudo: campaign.tipo_conteudo || ['texto'],
           total_mensagens: totalMessages,
-          mensagens_enviadas: sentMessages,
+          mensagens_enviadas: sentProcessed,
           mensagens_lidas: campaign.mensagens_lidas || 0,
           mensagens_respondidas: respondedMessages,
           target_contacts: campaign.target_contacts || { contacts: [] },
           status: campaign.status || 'draft',
-          id_tipo_mensagem: campaign.id_tipo_mensagem || 1
+          id_tipo_mensagem: campaign.id_tipo_mensagem || 1,
+          // Expor métricas para consumo pelo Dashboard e Campaigns
+          metrics: {
+            total: totalMessages,
+            fila: queuedMessages,
+            sent: sentProcessed,
+            respondidos: respondedMessages,
+          },
         };
       }));
       

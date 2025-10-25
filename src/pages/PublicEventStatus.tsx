@@ -4,12 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Calendar, MapPin, Loader2, TrendingUp, Activity, 
+  Calendar, MapPin, Loader2, Activity, 
   Send, CheckCircle, Eye, MessageSquare, AlertTriangle
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, PieChart, Pie, Cell, Tooltip
-} from 'recharts';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
 import { EventHourlyActivityCard } from '@/components/events/EventHourlyActivityCard';
@@ -225,55 +222,7 @@ const PublicEventStatus = () => {
             onDateChange={setSelectedDate}
           />
 
-          {/* Status Distribution */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Distribuição por Status</CardTitle>
-              <CardDescription>Status das mensagens enviadas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {analytics?.statusDistribution?.length > 0 ? (
-                <div className="space-y-4">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={analytics.statusDistribution}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="count"
-                      >
-                        {analytics.statusDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [value, 'Mensagens']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-2">
-                    {analytics.statusDistribution.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                          <span className="text-sm capitalize">{item.status}</span>
-                        </div>
-                        <span className="text-sm font-medium">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="h-72 flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <TrendingUp className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                    <p>Nenhum dado de status disponível</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+
         </div>
 
         {/* Analytics Grid */}

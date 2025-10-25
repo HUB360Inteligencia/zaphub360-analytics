@@ -9,6 +9,7 @@ import { Users, Heart, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle, L
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
 
 // Gera pares de cores para gradiente a partir de uma cor base em HSL
 const deriveGradientColors = (base: string): { start: string; end: string } => {
@@ -50,13 +51,19 @@ const Dashboard = () => {
 
   // Preparar dados das campanhas recentes para exibição
   const recentCampaigns = campaigns.slice(0, 4).map(campaign => {
-    const metrics = (campaign.metrics as any) || null;
+    const metrics = (campaign.metrics as any) || {};
+    const total = metrics.total ?? campaign.total_mensagens ?? 0;
+    const sent = metrics.sent ?? campaign.mensagens_enviadas ?? 0;
+    const queued = metrics.fila ?? Math.max(0, total - sent);
+    const statusLabel = campaign.status === 'active' ? 'Ativa' : campaign.status === 'completed' ? 'Concluída' : campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho';
+    const progress = total > 0 ? Number((((total - queued) / total) * 100).toFixed(1)) : 0;
     return {
       id: campaign.id,
       name: campaign.name,
-      status: campaign.status === 'active' ? 'Ativa' : campaign.status === 'completed' ? 'Concluída' : campaign.status === 'scheduled' ? 'Agendada' : 'Rascunho',
-      sent: metrics?.sent || 0,
-      progress: campaign.status === 'completed' ? 100 : campaign.status === 'active' ? Math.floor(Math.random() * 80) + 20 : 0
+      status: statusLabel,
+      sent,
+      total,
+      progress
     };
   });
   return (
@@ -356,20 +363,36 @@ const Dashboard = () => {
                   <div className="flex-1">
                     <h4 className="font-medium text-slate-900">{campaign.name}</h4>
                     <div className="flex items-center gap-4 mt-2">
-                      <Badge variant={campaign.status === 'Ativa' ? 'default' : campaign.status === 'Concluída' ? 'secondary' : 'outline'} className={campaign.status === 'Ativa' ? 'bg-green-100 text-green-800' : ''}>
-                        {campaign.status}
-                      </Badge>
+                      {(() => {
+                        const base = campaigns.find(c => c.id === campaign.id);
+                        const total = campaign.total || 0;
+                        const sentProcessed = campaign.sent || 0;
+                        const queuedFromMetrics = (base as any)?.metrics?.fila ?? Math.max(0, total - sentProcessed);
+                        const derived = computeCampaignStatus(
+                          { totalMessages: total, queuedMessages: queuedFromMetrics, sentMessages: sentProcessed },
+                          base?.status || 'draft'
+                        );
+                        const cfg = getCampaignStatusBadgeConfig(derived);
+                        return (
+                          <Badge variant={cfg.variant} className={cfg.className}>
+                            {cfg.label}
+                          </Badge>
+                        );
+                      })()}
                       <span className="text-sm text-slate-600">{campaign.sent.toLocaleString()} mensagens enviadas</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="w-32">
+                      <div className="text-xs font-medium text-slate-700 mb-1">{campaign.sent.toLocaleString()}/{campaign.total.toLocaleString()}</div>
                       <Progress value={campaign.progress} className="h-2" />
                       <span className="text-xs text-slate-600 mt-1">{campaign.progress}%</span>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    <Link to={`/campaigns/${campaign.id}`}>
+                      <Button variant="ghost" size="sm">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>))}
             </div> : <div className="text-center py-8">
