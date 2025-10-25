@@ -40,13 +40,36 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
   isOpen,
   onClose,
   onUpdate,
-  mode: initialMode
+  mode: initialMode = 'view'
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
   const [editData, setEditData] = useState<Partial<Contact>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isValid, setIsValid] = useState(false);
   
   const { profileData, isLoading } = useContactProfile(contact?.phone || '');
 
+  const normalize = (v?: string) => (v || '').trim();
+
+  const computeHasChanges = (base: Contact | null, current: Partial<Contact>) => {
+    if (!base) return false;
+    return (
+      normalize(current.name) !== normalize(base.name) ||
+      normalize(current.sobrenome) !== normalize(base.sobrenome) ||
+      normalize(current.cidade) !== normalize(base.cidade) ||
+      normalize(current.bairro) !== normalize(base.bairro) ||
+      normalize(current.evento) !== normalize(base.evento) ||
+      normalize(current.sentimento) !== normalize(base.sentimento)
+    );
+  };
+
+  const computeIsValid = (base: Contact | null, current: Partial<Contact>) => {
+    const nameValue = normalize(current.name ?? base?.name);
+    const phoneValue = normalize(base?.phone);
+    return Boolean(nameValue.length > 0 && phoneValue.length > 0);
+  };
+
+  // Reintroduz util de formatação de separador de dia
   const formatDayLabel = (date: Date) => {
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -57,34 +80,61 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
     return date.toLocaleDateString('pt-BR');
   };
 
+  // Reintroduz util para ícones de status de mensagem
   const getStatusIcon = (message: any) => {
     if (!message || message.direction !== 'sent') return null;
     const status = String(message.status || '').toLowerCase();
     const isRead = Boolean(message.read_at);
-    if (isRead) return <CheckCheck className="w-3 h-3 text-[#53bdeb]" />; // azul do WhatsApp para lido
+    if (isRead) return <CheckCheck className="w-3 h-3 text-[#53bdeb]" />;
     if (status.includes('delivered') || status.includes('entregue')) return <CheckCheck className="w-3 h-3 text-gray-500" />;
     return <Check className="w-3 h-3 text-gray-500" />;
   };
 
   useEffect(() => {
-    if (contact) {
-      setEditData({
-        name: contact.name,
-        sobrenome: contact.sobrenome || '',
-        cidade: contact.cidade || '',
-        bairro: contact.bairro || '',
-        evento: contact.evento || '',
-        sentimento: contact.sentimento || '',
-      });
+    // Quando abre a janela, sempre força modo visualização e reseta edição
+    if (isOpen) {
+      setMode('view');
+      if (contact) {
+        setEditData({
+          name: contact.name,
+          sobrenome: contact.sobrenome || '',
+          cidade: contact.cidade || '',
+          bairro: contact.bairro || '',
+          evento: contact.evento || '',
+          sentimento: contact.sentimento || '',
+        });
+        setHasChanges(false);
+        setIsValid(computeIsValid(contact, {
+          name: contact.name,
+          sobrenome: contact.sobrenome || '',
+          cidade: contact.cidade || '',
+          bairro: contact.bairro || '',
+          evento: contact.evento || '',
+          sentimento: contact.sentimento || '',
+        }));
+      } else {
+        setEditData({});
+        setHasChanges(false);
+        setIsValid(false);
+      }
     }
-  }, [contact]);
+  }, [isOpen, contact]);
+
+  useEffect(() => {
+    // Recalcula mudanças e validação quando editData ou contato alteram
+    setHasChanges(computeHasChanges(contact, editData));
+    setIsValid(computeIsValid(contact, editData));
+  }, [editData, contact]);
 
   if (!contact) return null;
 
   const handleSave = () => {
-    if (onUpdate) {
-      onUpdate({ ...contact, ...editData });
+    if (!onUpdate) {
+      setMode('view');
+      return;
     }
+    if (mode !== 'edit' || !hasChanges || !isValid) return;
+    onUpdate({ ...contact, ...editData });
     setMode('view');
   };
 
@@ -97,11 +147,20 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
       evento: contact.evento || '',
       sentimento: contact.sentimento || '',
     });
+    setHasChanges(false);
+    setIsValid(computeIsValid(contact, {
+      name: contact.name,
+      sobrenome: contact.sobrenome || '',
+      cidade: contact.cidade || '',
+      bairro: contact.bairro || '',
+      evento: contact.evento || '',
+      sentimento: contact.sentimento || '',
+    }));
     setMode('view');
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -128,7 +187,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
                     <X className="h-4 w-4 mr-1" />
                     Cancelar
                   </Button>
-                  <Button size="sm" onClick={handleSave}>
+                  <Button size="sm" onClick={handleSave} disabled={mode !== 'edit' || !hasChanges || !isValid}>
                     <Save className="h-4 w-4 mr-1" />
                     Salvar
                   </Button>

@@ -164,7 +164,19 @@ export const useContactProfile = (contactPhone: string) => {
         }
       });
 
-      // Combinar mensagens de ambas as fontes
+      // Buscar mensagens do contato na tabela contact_messages (histórico principal)
+      const { data: contactMessages, error: cmError } = await supabase
+        .from('contact_messages')
+        .select('id, mensagem, sentiment, direction, data_mensagem')
+        .eq('celular', contactPhone)
+        .eq('organization_id', organization.id)
+        .order('data_mensagem', { ascending: false });
+
+      if (cmError) {
+        console.error('Error fetching contact_messages:', cmError);
+      }
+
+      // Combinar mensagens de todas as fontes
       const allMessages: ContactMessage[] = [];
       
       // Adicionar mensagens do event_messages
@@ -219,6 +231,24 @@ export const useContactProfile = (contactPhone: string) => {
         }
       });
 
+      // Adicionar mensagens do contact_messages
+      (contactMessages || []).forEach(cm => {
+        const dir = String(cm.direction || '').toLowerCase();
+        const normalizedDir: 'sent' | 'received' = dir === 'enviada' ? 'sent' : 'received';
+        allMessages.push({
+          id: cm.id,
+          message_content: (cm as any).mensagem || '',
+          status: normalizedDir, // não há status explícito, usa direção
+          sentiment: (cm as any).sentiment || null,
+          sent_at: normalizedDir === 'sent' ? (cm as any).data_mensagem : null,
+          read_at: null,
+          responded_at: normalizedDir === 'received' ? (cm as any).data_mensagem : null,
+          event_name: 'Histórico',
+          created_at: (cm as any).data_mensagem,
+          direction: normalizedDir,
+        });
+      });
+
       // Ordenar por data de criação
       allMessages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -231,6 +261,7 @@ export const useContactProfile = (contactPhone: string) => {
         { count: meReadCount } = { count: 0 } as any,
         { count: emRespCount } = { count: 0 } as any,
         { count: meRespCount } = { count: 0 } as any,
+        { count: cmCount } = { count: 0 } as any,
       ] = await Promise.all([
         // Total de mensagens em event_messages (cada linha é uma bolha)
         supabase
@@ -281,19 +312,25 @@ export const useContactProfile = (contactPhone: string) => {
           .eq('celular', contactPhone)
           .eq('organization_id', organization.id)
           .not('data_resposta', 'is', null),
+        // Total de mensagens no contact_messages
+        supabase
+          .from('contact_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('celular', contactPhone)
+          .eq('organization_id', organization.id),
       ]);
 
       const stats = {
         totalEvents: uniqueEvents.length,
-        // Total exato de bolhas: event_messages + mensagens (saída) + respostas (entrada)
-        totalMessages: (eventMsgCount || 0) + (meSentCount || 0) + (meRespBubbleCount || 0),
-        // Lidas exatas somando ambas fontes
+        // Total exato de bolhas: event_messages + mensagens (saída) + respostas (entrada) + contact_messages
+        totalMessages: (eventMsgCount || 0) + (meSentCount || 0) + (meRespBubbleCount || 0) + (cmCount || 0),
+        // Lidas exatas somando ambas fontes (contact_messages não tem campo de leitura)
         readMessages: (emReadCount || 0) + (meReadCount || 0),
-        // Respondidas exatas somando ambas fontes
+        // Respondidas exatas somando ambas fontes (contact_messages não tem responded_at)
         respondedMessages: (emRespCount || 0) + (meRespCount || 0),
         // Mantém contagem de sentimentos baseada nas mensagens carregadas atualmente
         sentimentCounts: {
-          superEngajado: allMessages.filter(m => m.sentiment === 'super_engajado').length,
+          superEngajado: allMessages.filter(m => m.sentiment === 'super engajado' || m.sentiment === 'super_engajado').length,
           positivo: allMessages.filter(m => m.sentiment === 'positivo').length,
           neutro: allMessages.filter(m => m.sentiment === 'neutro').length,
           negativo: allMessages.filter(m => m.sentiment === 'negativo').length,

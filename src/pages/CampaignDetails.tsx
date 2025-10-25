@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, Send, CheckCircle, Eye, MessageSquare, 
-  Calendar, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle, Play, Pause, ExternalLink
+  Calendar, Copy, Loader2, TrendingUp, Activity, Users, AlertTriangle, Play, Pause, ExternalLink, Download, Menu, Trash2
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -36,13 +36,17 @@ import WhatsAppMessagePreview from '@/components/campaigns/WhatsAppMessagePrevie
 import CampaignHourlyActivityCard from '@/components/campaigns/CampaignHourlyActivityCard';
 import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentimentAnalysisCard';
 import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
+import ExportReportModal from '@/components/campaigns/ExportReportModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const { campaigns, activateCampaign, pauseCampaign, resumeCampaign, isLoading } = useCampaigns();
+  const { campaigns, activateCampaign, pauseCampaign, resumeCampaign, isLoading, deleteCampaign } = useCampaigns();
   const { analytics: campaignAnalytics } = useCampaignAnalytics(id, selectedDate);
+  const { organization } = useAuth();
   
   const campaign = campaigns?.find(c => c.id === id);
 
@@ -55,11 +59,27 @@ const CampaignDetails = () => {
   const [showUndo, setShowUndo] = useState(false);
   const undoTimerRef = useRef<number | null>(null);
 
+  // Export modal
+  const [exportOpen, setExportOpen] = useState(false);
+  const hourlyRef = useRef<HTMLDivElement>(null);
+  const sentimentRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Estados para exclusão e desfazer
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isProcessingDelete, setIsProcessingDelete] = useState(false);
+  const deletedCampaignRef = useRef<any | null>(null);
+  const undoDeleteTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     return () => {
       if (undoTimerRef.current) {
         window.clearTimeout(undoTimerRef.current);
         undoTimerRef.current = null;
+      }
+      if (undoDeleteTimerRef.current) {
+        window.clearTimeout(undoDeleteTimerRef.current);
+        undoDeleteTimerRef.current = null;
       }
     };
   }, []);
@@ -142,8 +162,67 @@ const CampaignDetails = () => {
     }
   };
 
+  // Ações de exclusão com desfazer
+  const handleDeleteClick = () => setShowDeleteConfirm(true);
+
+  const confirmDelete = async () => {
+    if (!campaign) return;
+    setIsProcessingDelete(true);
+    try {
+      deletedCampaignRef.current = campaign;
+      await deleteCampaign.mutateAsync(campaign.id);
+      setShowDeleteConfirm(false);
+
+      toast.success('Campanha excluída. Você pode desfazer por 10 segundos.', {
+        action: {
+          label: 'Desfazer',
+          onClick: async () => {
+            await handleUndoDelete();
+          },
+        },
+      } as any);
+
+      undoDeleteTimerRef.current = window.setTimeout(() => {
+        deletedCampaignRef.current = null;
+        undoDeleteTimerRef.current = null;
+      }, 10000);
+
+      navigate('/campaigns');
+    } catch (error) {
+      console.error('Erro ao excluir campanha:', error);
+      toast.error('Erro ao excluir a campanha');
+    } finally {
+      setIsProcessingDelete(false);
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    const backup = deletedCampaignRef.current;
+    if (!backup) {
+      toast.error('Tempo de desfazer expirado');
+      return;
+    }
+    try {
+      const { created_at, updated_at, id: _oldId, ...rest } = backup;
+      const { data, error } = await supabase.from('campaigns').insert(rest).select().single();
+      if (error) throw error;
+      toast.success('Exclusão desfeita com sucesso!');
+      deletedCampaignRef.current = null;
+      if (undoDeleteTimerRef.current) {
+        window.clearTimeout(undoDeleteTimerRef.current);
+        undoDeleteTimerRef.current = null;
+      }
+      if (data?.id) {
+        navigate(`/campaigns/${data.id}`);
+      }
+    } catch (error) {
+      console.error('Erro ao desfazer exclusão:', error);
+      toast.error('Não foi possível desfazer a exclusão');
+    }
+  };
+
 // ---- CONTADORES (sem limite de paginação) ----
-const { data: counts, isLoading: countsLoading } = useQuery({
+const { data: counts, isLoading: countsLoading, error: countsError } = useQuery({
   queryKey: ['campaign-counts', id],
   enabled: !!id,
   refetchInterval: 30000, // Refresh every 30 seconds
@@ -235,7 +314,7 @@ const badgeConfig = getCampaignStatusBadgeConfig(derivedStatus);
 const [page, setPage] = useState(0);
 const PAGE_SIZE = 200;
 
-const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
+const { data: campaignMessages, isLoading: messagesLoading, error: messagesError } = useQuery({
   queryKey: ['campaign-messages', id, page],
   enabled: !!id,
   queryFn: async () => {
@@ -348,54 +427,83 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
             <p className="text-muted-foreground">{campaign.description}</p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              const publicUrl = `${window.location.origin}/public/campaign-status/${campaign.id}`;
-              navigator.clipboard.writeText(publicUrl);
-              toast.success('Link público copiado para a área de transferência!');
-            }}
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Link Público
-          </Button>
-          {campaign.status === 'draft' && (
-            <Button onClick={handleActivateCampaign} size="sm">
-              <Play className="w-4 h-4 mr-2" />
-              Ativar Campanha
+        <div className="flex gap-3 items-center">
+          {/* Botão desfazer após pausa (continua visível quando aplicável) */}
+          {showUndo && lastPauseBatchId && (
+            <Button variant="ghost" size="sm" onClick={handleUndoPause}>
+              Desfazer
             </Button>
           )}
-          {campaign.status === 'active' && (
-            <>
-              <Button onClick={handlePauseClick} variant="outline" size="sm">
-                <Pause className="w-4 h-4 mr-2" />
-                Pausar Campanha
+
+          {/* Menu suspenso de ações */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" aria-label="Abrir menu de ações">
+                <Menu className="w-4 h-4 mr-2" />
+                Ações
               </Button>
-              {showUndo && lastPauseBatchId && (
-                <Button variant="ghost" size="sm" onClick={handleUndoPause}>
-                  Desfazer
-                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[220px] p-2 space-y-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in data-[state=closed]:fade-out data-[side=bottom]:slide-in-from-top data-[side=top]:slide-in-from-bottom">
+              <DropdownMenuItem
+                onClick={() => {
+                  const publicUrl = `${window.location.origin}/public/campaign-status/${campaign.id}`;
+                  navigator.clipboard.writeText(publicUrl);
+                  toast.success('Link público copiado!');
+                }}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Link Público
+              </DropdownMenuItem>
+
+              {campaign.status === 'draft' && (
+                <DropdownMenuItem onClick={handleActivateCampaign}>
+                  <Play className="w-4 h-4 mr-2" />
+                  Ativar Campanha
+                </DropdownMenuItem>
               )}
-            </>
-          )}
 
-          {campaign.status === 'paused' && (
-            <Button onClick={handleResumeClick} variant="outline" size="sm">
-              <Play className="w-4 h-4 mr-2" />
-              Retomar Campanha
-            </Button>
-          )}
+              {campaign.status === 'active' && (
+                <DropdownMenuItem onClick={handlePauseClick}>
+                  <Pause className="w-4 h-4 mr-2" />
+                  Pausar Campanha
+                </DropdownMenuItem>
+              )}
 
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/campaigns/${campaign.id}/edit`}>
-              <Edit className="w-4 h-4 mr-2" />
-              Editar
-            </Link>
-          </Button>
+              {campaign.status === 'paused' && (
+                <DropdownMenuItem onClick={handleResumeClick}>
+                  <Play className="w-4 h-4 mr-2" />
+                  Retomar Campanha
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuItem asChild>
+                <Link to={`/campaigns/${campaign.id}/edit`}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                <Download className="w-4 h-4 mr-2" />
+                Exportar Relatório
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem className="text-destructive" onClick={handleDeleteClick}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir Campanha
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      {(countsError || messagesError) && (
+        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          Ocorreu um erro ao carregar os dados da campanha. Tente novamente mais tarde.
+        </div>
+      )}
 
       {/* Confirm dialogs para pause/retomar */}
       <AlertDialog open={showPauseConfirm} onOpenChange={setShowPauseConfirm}>
@@ -440,6 +548,30 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
                 </>
               ) : (
                 'Retomar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Campanha</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente. Você poderá desfazer por alguns segundos após excluir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+              {isProcessingDelete ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -627,21 +759,25 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
 
           {/* Campaign Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CampaignHourlyActivityCard 
-              hourlyActivity={campaignAnalytics?.hourlyActivity || []}
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-            />
-            <CampaignSentimentAnalysisCard 
-              sentimentAnalysis={campaignAnalytics?.sentimentAnalysis || {
-                superEngajado: 0,
-                positivo: 0,
-                neutro: 0,
-                negativo: 0,
-                semClassificacao: 0,
-                distribution: []
-              }}
-            />
+            <div ref={hourlyRef}>
+              <CampaignHourlyActivityCard 
+                hourlyActivity={campaignAnalytics?.hourlyActivity || []}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+              />
+            </div>
+            <div ref={sentimentRef}>
+              <CampaignSentimentAnalysisCard 
+                sentimentAnalysis={campaignAnalytics?.sentimentAnalysis || {
+                  superEngajado: 0,
+                  positivo: 0,
+                  neutro: 0,
+                  negativo: 0,
+                  semClassificacao: 0,
+                  distribution: []
+                }}
+              />
+            </div>
           </div>
         </TabsContent>
 
@@ -659,17 +795,38 @@ const { data: campaignMessages, isLoading: messagesLoading } = useQuery({
               <CardDescription>Visualize o conteúdo que está sendo enviado</CardDescription>
             </CardHeader>
             <CardContent>
-              <WhatsAppMessagePreview
-                message={(campaign as any).message_text || 'Conteúdo da mensagem não definido'}
-                mediaType={(campaign as any).media_type}
-                mediaUrl={(campaign as any).url_media}
-                mediaName={(campaign as any).name_media}
-                mimeType={(campaign as any).mime_type}
-              />
+              <div ref={previewRef}>
+                <WhatsAppMessagePreview
+                  message={(campaign as any).message_text || 'Conteúdo da mensagem não definido'}
+                  mediaType={(campaign as any).media_type}
+                  mediaUrl={(campaign as any).url_media}
+                  mediaName={(campaign as any).name_media}
+                  mimeType={(campaign as any).mime_type}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ExportReportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        campaign={{ id: campaign!.id, name: campaign!.name, description: (campaign as any).description }}
+        analytics={{
+          totalMessages: analytics?.totalMessages,
+          deliveredMessages: analytics?.deliveredMessages,
+          responseMessages: analytics?.responseMessages,
+          errorMessages: analytics?.errorMessages,
+          sentimentAnalysis: campaignAnalytics?.sentimentAnalysis,
+        }}
+        organization={{ name: organization?.name, logo_url: organization?.logo_url } as any}
+        chartRefs={{
+          hourly: hourlyRef.current!,
+          sentiment: sentimentRef.current!,
+          preview: previewRef.current!,
+        }}
+      />
     </div>
   );
 };

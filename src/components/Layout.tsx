@@ -102,7 +102,6 @@ const Layout = ({
             return <Link key={item.name} to={item.href} className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${item.current ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : 'text-slate-700 hover:bg-slate-100'}`}>
                   <IconComponent className="w-5 h-5 mr-3" />
                   {item.name}
-                  {item.name === 'Campanhas' && <Badge className="ml-auto bg-green-100 text-green-800 text-xs">0</Badge>}
                 </Link>;
           })}
           </nav>
