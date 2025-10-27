@@ -220,72 +220,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Engajamento dos Últimos 7 Dias (lado direito) */}
-        <Card className="bg-white border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Engajamento por Dia (Histórico Completo)</CardTitle>
-            <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={analytics.dailyActivity}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="messages" stroke="#2563EB" strokeWidth={3} name="Mensagens" />
-                <Line type="monotone" dataKey="responses" stroke="#7C3AED" strokeWidth={3} name="Respostas" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance + Segmentação lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mobile-responsive">
-        {/* Performance das Campanhas (reduzido) */}
-        {analytics.campaignPerformance.length > 0 && (
-          <Card className="bg-white border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Performance das Campanhas</CardTitle>
-              <CardDescription>Métricas detalhadas das últimas campanhas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={analytics.campaignPerformance} barCategoryGap={28} barGap={8} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                  <defs>
-                    <linearGradient id="barSent" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#93c5fd" />
-                      <stop offset="100%" stopColor="#2563EB" />
-                    </linearGradient>
-                    <linearGradient id="barDelivered" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#d8b4fe" />
-                      <stop offset="100%" stopColor="#7C3AED" />
-                    </linearGradient>
-                    <linearGradient id="barErrors" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fca5a5" />
-                      <stop offset="100%" stopColor="#DC2626" />
-                    </linearGradient>
-                    <linearGradient id="barResponded" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fde68a" />
-                      <stop offset="100%" stopColor="#f59e0b" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" stroke="#64748b" tickMargin={12} />
-                  <YAxis stroke="#64748b" allowDecimals={false} />
-                  <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                  <Bar dataKey="sent" fill="url(#barSent)" name="Enviadas" />
-                  <Bar dataKey="delivered" fill="url(#barDelivered)" name="Entregues" />
-                  <Bar dataKey="errors" fill="url(#barErrors)" name="Erros" />
-                  <Bar dataKey="responded" fill="url(#barResponded)" name="Respondidos" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Segmentação de Contatos (ao lado da Performance) */}
+        {/* Segmentação de Contatos */}
         <Card className="bg-white border-0 shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Segmentação de Contatos</CardTitle>
@@ -339,6 +274,71 @@ const Dashboard = () => {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Performance + Segmentação lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mobile-responsive">
+        {/* Performance das Campanhas (reduzido) */}
+        {analytics.campaignPerformance.length > 0 && (
+          <Card className="bg-white border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Performance das Campanhas</CardTitle>
+              <CardDescription>Métricas detalhadas das últimas campanhas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={analytics.campaignPerformance} barCategoryGap={28} barGap={8} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                  <defs>
+                    <linearGradient id="barSent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#93c5fd" />
+                      <stop offset="100%" stopColor="#2563EB" />
+                    </linearGradient>
+                    <linearGradient id="barDelivered" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#d8b4fe" />
+                      <stop offset="100%" stopColor="#7C3AED" />
+                    </linearGradient>
+                    <linearGradient id="barErrors" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fca5a5" />
+                      <stop offset="100%" stopColor="#DC2626" />
+                    </linearGradient>
+                    <linearGradient id="barResponded" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fde68a" />
+                      <stop offset="100%" stopColor="#f59e0b" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="name" stroke="#64748b" tickMargin={12} />
+                  <YAxis stroke="#64748b" allowDecimals={false} />
+                  <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                  <Bar dataKey="sent" fill="url(#barSent)" name="Enviadas" />
+                  <Bar dataKey="delivered" fill="url(#barDelivered)" name="Entregues" />
+                  <Bar dataKey="errors" fill="url(#barErrors)" name="Erros" />
+                  <Bar dataKey="responded" fill="url(#barResponded)" name="Respondidos" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Engajamento por Dia (ao lado da Performance) */}
+        <Card className="bg-white border-0 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Engajamento por Dia (Histórico Completo)</CardTitle>
+            <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={analytics.dailyActivity}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="date" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="messages" stroke="#2563EB" strokeWidth={3} name="Mensagens" />
+                <Line type="monotone" dataKey="responses" stroke="#7C3AED" strokeWidth={3} name="Respostas" />
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
