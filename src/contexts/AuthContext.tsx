@@ -184,22 +184,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Check if this is a new user by attempting to fetch their profile first
-          setTimeout(async () => {
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('id, organization_id')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            
-            if (!existingProfile || !existingProfile.organization_id) {
-              // New user or user without organization - set up their account
-              handleNewUser(session.user);
-            } else {
-              // Existing user, fetch their profile
-              fetchProfile(session.user.id);
-            }
-          }, 100);
+          // CORREÇÃO: Só chamar handleNewUser durante SIGNED_UP, não em SIGNED_IN
+          // Isso previne a criação de organizações duplicadas em logins subsequentes
+          if (event === 'SIGNED_UP') {
+            // Usuário realmente novo, precisa de setup
+            setTimeout(async () => {
+              const { data: existingProfile } = await supabase
+                .from('profiles')
+                .select('id, organization_id')
+                .eq('id', session.user.id)
+                .maybeSingle();
+              
+              // Só criar organização se REALMENTE não tiver
+              if (!existingProfile?.organization_id) {
+                console.log('New user detected, setting up account');
+                handleNewUser(session.user);
+              } else {
+                console.log('User already has organization, fetching profile');
+                fetchProfile(session.user.id);
+              }
+            }, 100);
+          } else {
+            // Para qualquer outro evento (SIGNED_IN, etc), apenas buscar o perfil
+            // NUNCA criar uma nova organização durante login
+            fetchProfile(session.user.id);
+          }
         } else {
           // No session, clear profile data
           setProfile(null);

@@ -44,9 +44,28 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     onFiltersChange({ ...filters, [key]: values });
   };
 
+  const handleIncludeSentiment = (sentiment: string, checked: boolean) => {
+    const newInclude = checked
+      ? [...filters.sentiments, sentiment]
+      : filters.sentiments.filter(s => s !== sentiment);
+    const newExclude = filters.sentimentsExclude.filter(s => s !== sentiment);
+    onFiltersChange({ ...filters, sentiments: newInclude, sentimentsExclude: newExclude });
+  };
+
+  const handleExcludeSentiment = (sentiment: string, checked: boolean) => {
+    const newExclude = checked
+      ? [...filters.sentimentsExclude, sentiment]
+      : filters.sentimentsExclude.filter(s => s !== sentiment);
+    const newInclude = checked
+      ? filters.sentiments.filter(s => s !== sentiment)
+      : filters.sentiments;
+    onFiltersChange({ ...filters, sentiments: newInclude, sentimentsExclude: newExclude });
+  };
+
   const clearAllFilters = () => {
     onFiltersChange({
       sentiments: [],
+      sentimentsExclude: [],
       cidades: [],
       bairros: [],
       profiles: [],
@@ -95,32 +114,62 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       <CardContent className="space-y-6">
         {/* Filtros por Sentimento */}
         {filterData.sentiments.length > 0 && (
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Sentimento</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {filterData.sentiments.map((sentiment) => (
-                <div key={sentiment} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id={`sentiment-${sentiment}`}
-                    checked={filters.sentiments.includes(sentiment)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        updateFilter('sentiments', [...filters.sentiments, sentiment]);
-                      } else {
-                        updateFilter('sentiments', filters.sentiments.filter(s => s !== sentiment));
-                      }
-                    }}
-                    className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
-                  />
-                  <Label 
-                    htmlFor={`sentiment-${sentiment}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {getSentimentOption(sentiment)?.label || sentiment}
-                  </Label>
-                </div>
-              ))}
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Incluir Sentimentos</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {filterData.sentiments.map((sentiment) => {
+                  const displayLabel = getSentimentOption(sentiment)?.label || sentiment;
+                  const isChecked = filters.sentiments.includes(sentiment);
+                  return (
+                    <div key={`include-${sentiment}`} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`sentiment-include-${sentiment}`}
+                        checked={isChecked}
+                        onChange={(e) => handleIncludeSentiment(sentiment, e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
+                      />
+                      <Label
+                        htmlFor={`sentiment-include-${sentiment}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {displayLabel}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Excluir Sentimentos</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {filterData.sentiments.map((sentiment) => {
+                  const displayLabel = getSentimentOption(sentiment)?.label || sentiment;
+                  const isChecked = filters.sentimentsExclude.includes(sentiment);
+                  return (
+                    <div key={`exclude-${sentiment}`} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`sentiment-exclude-${sentiment}`}
+                        checked={isChecked}
+                        onChange={(e) => handleExcludeSentiment(sentiment, e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
+                      />
+                      <Label
+                        htmlFor={`sentiment-exclude-${sentiment}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {displayLabel}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Contatos com os sentimentos selecionados acima serão removidos do público alvo, mesmo que estejam incluídos por outros filtros.
+              </p>
             </div>
           </div>
         )}

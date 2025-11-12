@@ -1,7 +1,42 @@
+@import 'leaflet/dist/leaflet.css';
+@import 'react-day-picker/dist/style.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Correções específicas para o DayPicker (evita resets globais em tabelas) */
+table[role="grid"] {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+table[role="grid"] thead tr,
+table[role="grid"] tbody tr {
+  display: table-row;
+}
+
+table[role="grid"] th,
+table[role="grid"] td {
+  display: table-cell;
+  vertical-align: middle;
+  padding: 0;
+}
+
+table[role="grid"] th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  width: 2.25rem;
+}
+
+table[role="grid"] td > button {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+}
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 

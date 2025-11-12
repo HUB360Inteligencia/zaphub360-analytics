@@ -1,5 +1,7 @@
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toPng } from 'html-to-image';
+import { AnalyticsData } from '@/hooks/useAnalytics';
 
 export type DateRange = { start?: Date; end?: Date };
 

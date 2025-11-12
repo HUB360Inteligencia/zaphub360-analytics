@@ -18,6 +18,7 @@ const CONTACTS_PER_PAGE = 100; // Paginação de 100 contatos por página
 // Inicializar filtros fora do componente para evitar recriação
 const initialFilters: FilterOptions = {
   sentiments: [],
+  sentimentsExclude: [],
   cidades: [],
   bairros: [],
   profiles: [],

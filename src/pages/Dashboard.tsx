@@ -30,11 +30,10 @@ const deriveGradientColors = (base: string): { start: string; end: string } => {
 };
 
 const Dashboard = () => {
-  const [timeRange, setTimeRange] = useState('7d');
   const {
     analytics,
     isLoading: analyticsLoading
-  } = useAnalytics();
+  } = useAnalytics('all');  // Modo 'all' = dados totais desde sempre
   const {
     campaigns,
     isLoading: campaignsLoading
@@ -73,6 +72,10 @@ const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-600">Visão geral das suas campanhas e comunicações</p>
+          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            📊 Dados totais desde o início
+          </p>
         </div>
         <div className="flex gap-3">
           <Link to="/campaigns">
@@ -92,10 +95,6 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm font-medium text-slate-600">Total de Contatos</p>
                 <p className="text-2xl font-bold text-slate-900">{analytics.totalContacts.toLocaleString()}</p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  {analytics.activeContacts} ativos
-                </p>
               </div>
               <Users className="w-8 h-8 text-blue-600" />
             </div>

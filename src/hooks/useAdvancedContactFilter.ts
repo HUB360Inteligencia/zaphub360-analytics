@@ -8,6 +8,7 @@ import { normalizeSentiment, SENTIMENT_VALUES } from '@/lib/sentiment';
 
 export interface FilterOptions {
   sentiments: string[];
+  sentimentsExclude: string[];
   cidades: string[];
   bairros: string[];
   profiles: string[];
@@ -234,6 +235,13 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       // Filtro por sentimento
       if (filters.sentiments.length > 0) {
         if (!contact.sentiment || !filters.sentiments.includes(contact.sentiment)) {
+          return false;
+        }
+      }
+
+      // Exclusão por sentimento
+      if (filters.sentimentsExclude.length > 0) {
+        if (contact.sentiment && filters.sentimentsExclude.includes(contact.sentiment)) {
           return false;
         }
       }
