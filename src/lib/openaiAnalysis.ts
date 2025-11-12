@@ -1,16 +1,11 @@
+import { supabase } from '@/integrations/supabase/client';
 import { AnalyticsData } from '@/hooks/useAnalytics';
+
+const SYSTEM_PROMPT =
+  'Você é um estrategista político especializado em comunicação digital no Paraná. Sua função é seguir EXATAMENTE a estrutura fornecida pelo usuário, sem desvios. Use os títulos EXATOS solicitados. Analise dados de WhatsApp focando em engajamento, sentimento da base por região e perfil, e impacto na imagem pública. Use linguagem clara e profissional.';
 
 export async function generateAIAnalysis(analytics: AnalyticsData, timeRange: string): Promise<string> {
   try {
-    // Verificar se a API key está configurada
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    
-    if (!apiKey) {
-      console.error('❌ API Key da OpenAI não encontrada');
-      throw new Error('API Key da OpenAI não configurada. Verifique o arquivo .env.local');
-    }
-    
-    // Preparar dados para a API
     const prompt = `Você é um estrategista político especializado em comunicação digital no Paraná. 
 
 IMPORTANTE: Você DEVE seguir EXATAMENTE a estrutura abaixo, sem exceções. Use EXATAMENTE esses títulos numerados.
@@ -77,35 +72,26 @@ REGRAS IMPORTANTES:
 - Máximo 700 palavras
 - Seja objetivo e prático`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('generate-ai-analysis', {
+      body: {
+        prompt,
+        systemPrompt: SYSTEM_PROMPT,
         model: 'gpt-4o',
-        messages: [
-          { 
-            role: 'system', 
-            content: 'Você é um estrategista político especializado em comunicação digital no Paraná. Sua função é seguir EXATAMENTE a estrutura fornecida pelo usuário, sem desvios. Use os títulos EXATOS solicitados. Analise dados de WhatsApp focando em engajamento, sentimento da base por região e perfil, e impacto na imagem pública. Use linguagem clara e profissional.' 
-          },
-          { role: 'user', content: prompt }
-        ],
         temperature: 0.3,
         max_tokens: 2000,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Erro na resposta da OpenAI:', response.status);
-      throw new Error(`Erro ao chamar API OpenAI: ${response.status} - ${JSON.stringify(errorData)}`);
+    if (error) {
+      console.error('❌ Erro na função generate-ai-analysis:', error);
+      throw new Error(`Erro ao invocar função generate-ai-analysis: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
-    
+    if (!data?.content) {
+      throw new Error('Resposta vazia da função generate-ai-analysis');
+    }
+
+    return data.content;
   } catch (error) {
     console.error('❌ Erro na análise por IA:', error);
     throw error;
