@@ -154,36 +154,36 @@ const fetchTotalContacts = async (orgId: string) => {
   return count || 0;
 };
 
-// Fetch sentiment data
+// Fetch sentiment data using server-side aggregation
 const fetchSentimentData = async (orgId: string) => {
-  const { data: sentiments } = await supabase
-    .from('new_contact_event')
-    .select('sentimento')
-    .eq('organization_id', orgId)
-    .not('sentimento', 'is', null)
-    .neq('sentimento', '')
-    .range(0, 14999);
-  
+  const { data: sentiments, error } = await supabase
+    .rpc('get_sentiment_distribution', { p_organization_id: orgId });
+
+  if (error) {
+    console.error('[Analytics] Error fetching sentiment distribution:', error);
+    return { distribution: [], totalClassified: 0 };
+  }
+
+  console.log(`[Analytics] Fetched sentiment distribution from server:`, sentiments);
+
   if (!sentiments || sentiments.length === 0) {
     return { distribution: [], totalClassified: 0 };
   }
 
-  console.log(`[Analytics] Fetched ${sentiments.length} contacts with sentiment`);
-
-  // Normalize and count sentiments
-  const sentimentCounts: Record<string, number> = {};
+  // Normalize sentiments and calculate total
+  const normalizedData: Record<string, number> = {};
   
-  sentiments.forEach(({ sentimento }) => {
-    const normalized = normalizeSentiment(sentimento);
+  sentiments.forEach(({ sentiment, count }: { sentiment: string; count: number }) => {
+    const normalized = normalizeSentiment(sentiment);
     if (normalized) {
-      sentimentCounts[normalized] = (sentimentCounts[normalized] || 0) + 1;
+      normalizedData[normalized] = (normalizedData[normalized] || 0) + Number(count);
     }
   });
 
-  const total = Object.values(sentimentCounts).reduce((sum, count) => sum + count, 0);
+  const total = Object.values(normalizedData).reduce((sum, count) => sum + count, 0);
 
   // Map to distribution format
-  const distribution = Object.entries(sentimentCounts).map(([sentiment, count]) => {
+  const distribution = Object.entries(normalizedData).map(([sentiment, count]) => {
     const option = SENTIMENT_VALUES;
     let color = '#6B7280'; // default gray
     
@@ -206,41 +206,55 @@ const fetchSentimentData = async (orgId: string) => {
   };
 };
 
-// Fetch messages data for rates
+// Fetch messages data using server-side counting
 const fetchMessagesData = async (orgId: string, startDate: string | null, endDate: string | null) => {
-  let query = supabase
+  // Build base queries with count
+  let totalQuery = supabase
     .from('mensagens_enviadas')
-    .select('status, data_resposta, data_envio')
+    .select('*', { count: 'exact', head: true })
     .eq('organization_id', orgId);
-  
-  // Apply date filter ONLY if startDate and endDate exist
+
+  let deliveredQuery = supabase
+    .from('mensagens_enviadas')
+    .select('*', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .eq('status', 'enviado');
+
+  let errorQuery = supabase
+    .from('mensagens_enviadas')
+    .select('*', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .eq('status', 'erro');
+
+  let respondedQuery = supabase
+    .from('mensagens_enviadas')
+    .select('*', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .not('data_resposta', 'is', null);
+
+  // Apply date filter if provided
   if (startDate && endDate) {
-    query = query
-      .gte('data_envio', startDate)
-      .lte('data_envio', endDate);
-  }
-  
-  const { data: messages } = await query.range(0, 49999);
-  
-  console.log(`[Analytics] Fetched ${messages?.length || 0} messages for rates calculation`);
-  
-  if (!messages || messages.length === 0) {
-    return {
-      totalMessages: 0,
-      deliveredMessagesCount: 0,
-      errorMessagesCount: 0,
-      respondedMessagesCount: 0,
-      deliveryRate: 0,
-      responseRate: 0,
-      responsesCount: 0
-    };
+    totalQuery = totalQuery.gte('data_envio', startDate).lte('data_envio', endDate);
+    deliveredQuery = deliveredQuery.gte('data_envio', startDate).lte('data_envio', endDate);
+    errorQuery = errorQuery.gte('data_envio', startDate).lte('data_envio', endDate);
+    respondedQuery = respondedQuery.gte('data_envio', startDate).lte('data_envio', endDate);
   }
 
-  const totalMessages = messages.length;
-  const deliveredMessagesCount = messages.filter(m => m.status === 'enviado').length;
-  const errorMessagesCount = messages.filter(m => m.status === 'erro').length;
-  const respondedMessagesCount = messages.filter(m => m.data_resposta !== null).length;
-  
+  // Execute all counts in parallel
+  const [totalResult, deliveredResult, errorResult, respondedResult] = await Promise.all([
+    totalQuery,
+    deliveredQuery,
+    errorQuery,
+    respondedQuery
+  ]);
+
+  const totalMessages = totalResult.count || 0;
+  const deliveredMessagesCount = deliveredResult.count || 0;
+  const errorMessagesCount = errorResult.count || 0;
+  const respondedMessagesCount = respondedResult.count || 0;
+
+  console.log(`[Analytics] Messages counts: ${totalMessages} total, ${deliveredMessagesCount} delivered, ${errorMessagesCount} errors, ${respondedMessagesCount} responded`);
+
   const deliveryRate = totalMessages > 0 ? Math.round((deliveredMessagesCount / totalMessages) * 100) : 0;
   const responseRate = deliveredMessagesCount > 0 ? Math.round((respondedMessagesCount / deliveredMessagesCount) * 100) : 0;
 
@@ -255,37 +269,32 @@ const fetchMessagesData = async (orgId: string, startDate: string | null, endDat
   };
 };
 
-// Fetch profiles data
+// Fetch profiles data using server-side aggregation
 const fetchProfilesData = async (orgId: string) => {
-  const { data: profiles } = await supabase
-    .from('new_contact_event')
-    .select('perfil_contato')
-    .eq('organization_id', orgId)
-    .not('perfil_contato', 'is', null)
-    .neq('perfil_contato', '')
-    .range(0, 14999);
-  
-  console.log(`[Analytics] Fetched ${profiles?.length || 0} profiles`);
-  
+  const { data: profiles, error } = await supabase
+    .rpc('get_profile_distribution', { p_organization_id: orgId });
+
+  if (error) {
+    console.error('[Analytics] Error fetching profile distribution:', error);
+    return [];
+  }
+
+  console.log(`[Analytics] Fetched ${profiles?.length || 0} profile types from server`);
+
   if (!profiles || profiles.length === 0) {
     return [];
   }
 
-  // Group and count profiles
-  const profileCounts: Record<string, number> = {};
-  
-  profiles.forEach(({ perfil_contato }) => {
-    const normalized = perfil_contato?.trim();
-    if (normalized) {
-      profileCounts[normalized] = (profileCounts[normalized] || 0) + 1;
-    }
-  });
+  const profileData = profiles.map((p: { profile: string; count: number }) => ({
+    profile: p.profile,
+    count: Number(p.count)
+  }));
 
-  const total = Object.values(profileCounts).reduce((sum, count) => sum + count, 0);
-  const profileList = Object.keys(profileCounts);
+  const total = profileData.reduce((sum, item) => sum + item.count, 0);
+  const profileList = profileData.map(p => p.profile);
   const colorMap = generateProfileColors(profileList);
 
-  return Object.entries(profileCounts).map(([profile, count]) => ({
+  return profileData.map(({ profile, count }) => ({
     profile,
     count,
     percentage: Math.round((count / total) * 100),
