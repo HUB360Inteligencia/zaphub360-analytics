@@ -262,7 +262,10 @@ const fetchProfilesData = async (orgId: string) => {
     .select('perfil_contato')
     .eq('organization_id', orgId)
     .not('perfil_contato', 'is', null)
-    .neq('perfil_contato', '');
+    .neq('perfil_contato', '')
+    .limit(15000);
+  
+  console.log(`[Analytics] Fetched ${profiles?.length || 0} profiles`);
   
   if (!profiles || profiles.length === 0) {
     return [];
@@ -297,8 +300,7 @@ const fetchDailyActivity = async (orgId: string, startDate: string | null, endDa
     .select('data_envio, data_resposta')
     .eq('organization_id', orgId)
     .not('data_envio', 'is', null)
-    .order('data_envio', { ascending: true })
-    .limit(50000);
+    .order('data_envio', { ascending: true });
   
   // Apply date filter ONLY if startDate and endDate exist
   if (startDate && endDate) {
@@ -307,7 +309,8 @@ const fetchDailyActivity = async (orgId: string, startDate: string | null, endDa
       .lte('data_envio', endDate);
   }
   
-  const { data: messages } = await query;
+  // Apply limit AFTER filters
+  const { data: messages } = await query.limit(50000);
   
   if (!messages || messages.length === 0) {
     return [];
@@ -365,7 +368,10 @@ const fetchCampaignPerformance = async (orgId: string) => {
       const { data: messages } = await supabase
         .from('mensagens_enviadas')
         .select('status, data_resposta')
-        .eq('id_campanha', campaign.id);
+        .eq('id_campanha', campaign.id)
+        .limit(50000);
+      
+      console.log(`[Analytics] Campaign ${campaign.name}: ${messages?.length || 0} messages`);
       
       const sent = messages?.length || 0;
       const delivered = messages?.filter(m => m.status === 'enviado').length || 0;
