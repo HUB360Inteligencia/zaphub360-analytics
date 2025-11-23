@@ -388,7 +388,7 @@ export const useAnalytics = (timeRange: TimeRange = '30d') => {
   const { organization } = useAuth();
 
   const analyticsQuery = useQuery({
-    queryKey: ['analytics', organization?.id, timeRange],
+    queryKey: ['analytics-v2', organization?.id, timeRange],
     queryFn: async (): Promise<AnalyticsData> => {
       if (!organization?.id) {
         return emptyAnalyticsData;
@@ -464,6 +464,9 @@ export const useAnalytics = (timeRange: TimeRange = '30d') => {
       }
     },
     enabled: !!organization?.id,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   return {

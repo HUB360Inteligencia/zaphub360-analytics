@@ -5,11 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Users, Heart, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle, Loader2, MessageSquare } from 'lucide-react';
+import { Users, Heart, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle, Loader2, MessageSquare, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Gera pares de cores para gradiente a partir de uma cor base em HSL
 const deriveGradientColors = (base: string): { start: string; end: string } => {
@@ -30,6 +32,7 @@ const deriveGradientColors = (base: string): { start: string; end: string } => {
 };
 
 const Dashboard = () => {
+  const queryClient = useQueryClient();
   const [engagementFilter, setEngagementFilter] = useState<'7d' | '30d'>('30d');
   const {
     analytics,
@@ -39,6 +42,13 @@ const Dashboard = () => {
     campaigns,
     isLoading: campaignsLoading
   } = useCampaigns();
+
+  const handleRefreshData = async () => {
+    toast.info('Atualizando dados...');
+    await queryClient.invalidateQueries({ queryKey: ['analytics-v2'] });
+    await queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    toast.success('Dados atualizados com sucesso!');
+  };
   if (analyticsLoading || campaignsLoading) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -94,6 +104,14 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleRefreshData}
+            className="border-blue-200 hover:bg-blue-50"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar
+          </Button>
           <Link to="/campaigns">
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Send className="w-4 h-4 mr-2" />
