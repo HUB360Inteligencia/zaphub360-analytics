@@ -304,59 +304,35 @@ const fetchProfilesData = async (orgId: string) => {
 
 // Fetch daily activity
 const fetchDailyActivity = async (orgId: string, startDate: string | null, endDate: string | null) => {
-  let query = supabase
-    .from('mensagens_enviadas')
-    .select('data_envio, data_resposta')
-    .eq('organization_id', orgId)
-    .not('data_envio', 'is', null)
-    .order('data_envio', { ascending: true });
-  
-  // Apply date filter ONLY if startDate and endDate exist
-  if (startDate && endDate) {
-    query = query
-      .gte('data_envio', startDate)
-      .lte('data_envio', endDate);
-  }
-  
-  // Apply range AFTER filters
-  const { data: messages } = await query.range(0, 49999);
-  
-  if (!messages || messages.length === 0) {
+  const { data: dailyData, error } = await supabase
+    .rpc('get_daily_activity', {
+      p_organization_id: orgId,
+      p_start_date: startDate,
+      p_end_date: endDate
+    });
+
+  if (error) {
+    console.error('[Analytics] Error fetching daily activity:', error);
     return [];
   }
 
-  console.log(`[Analytics] Fetched ${messages.length} messages for daily activity`);
+  if (!dailyData || dailyData.length === 0) {
+    return [];
+  }
 
-  // Group by date
-  const dailyData: Record<string, { messages: number; responses: number; contacts: Set<string> }> = {};
-  
-  messages.forEach(({ data_envio, data_resposta }) => {
-    if (!data_envio) return;
-    
-    const date = new Date(data_envio).toLocaleDateString('pt-BR');
-    
-    if (!dailyData[date]) {
-      dailyData[date] = { messages: 0, responses: 0, contacts: new Set() };
-    }
-    
-    dailyData[date].messages += 1;
-    if (data_resposta) {
-      dailyData[date].responses += 1;
-    }
-  });
+  console.log(`[Analytics] Fetched ${dailyData.length} days of activity from server`);
 
-  return Object.entries(dailyData)
-    .map(([date, data]) => ({
-      date,
-      messages: data.messages,
-      responses: data.responses,
-      contacts: data.contacts.size
-    }))
-    .sort((a, b) => {
-      const [dayA, monthA, yearA] = a.date.split('/').map(Number);
-      const [dayB, monthB, yearB] = b.date.split('/').map(Number);
-      return new Date(yearA, monthA - 1, dayA).getTime() - new Date(yearB, monthB - 1, dayB).getTime();
-    });
+  // Converter formato de data para pt-BR
+  return dailyData.map((day: { 
+    activity_date: string; 
+    messages: number; 
+    responses: number 
+  }) => ({
+    date: new Date(day.activity_date).toLocaleDateString('pt-BR'),
+    messages: Number(day.messages),
+    responses: Number(day.responses),
+    contacts: 0 // Este campo não é usado no gráfico
+  }));
 };
 
 // Fetch campaign performance
