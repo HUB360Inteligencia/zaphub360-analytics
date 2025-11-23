@@ -252,7 +252,7 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
                             <div className="flex items-start justify-between mb-1">
                               <p className="font-medium text-sm">{message.event_name}</p>
                               <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
-                                {displayedAt ? formatInSaoPaulo(displayedAt) : ''}
+                                {displayedAt ? format(new Date(displayedAt), "dd/MM/yyyy HH:mm", { locale: ptBR }) : ''}
                               </span>
                             </div>
                             <p className="text-sm whitespace-pre-wrap break-words">{message.message_content}</p>
