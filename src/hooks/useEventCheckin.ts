@@ -1,0 +1,243 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+
+export interface CheckinFormData {
+  nome: string;
+  celular: string;
+  bairro?: string;
+  cidade?: string;
+  cargo?: string;
+  data_aniversario_text?: string;
+}
+
+export const useEventCheckin = (eventId: string) => {
+  const { organization, user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Check if user has permission to do check-in
+  const hasPermissionQuery = useQuery({
+    queryKey: ['checkin-permission', eventId, user?.id],
+    queryFn: async () => {
+      if (!user?.id || !eventId) return false;
+
+      // Check if user has explicit permission
+      const { data: permission } = await supabase
+        .from('event_checkin_permissions')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (permission) return true;
+
+      // Check if user is admin/client/manager
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      return profile?.role && ['saas_admin', 'client', 'manager'].includes(profile.role);
+    },
+    enabled: !!user?.id && !!eventId,
+  });
+
+  // Fetch check-ins for event
+  const checkinsQuery = useQuery({
+    queryKey: ['checkins', eventId, organization?.id],
+    queryFn: async () => {
+      if (!organization?.id || !eventId) return [];
+
+      const { data, error } = await supabase
+        .from('checkins_evento')
+        .select(`
+          *,
+          contacts (
+            id,
+            name,
+            phone,
+            email
+          )
+        `)
+        .eq('event_id', eventId)
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id && !!eventId,
+  });
+
+  // Fetch message queue for event
+  const messagesQueueQuery = useQuery({
+    queryKey: ['checkin-messages-queue', eventId, organization?.id],
+    queryFn: async () => {
+      if (!organization?.id || !eventId) return [];
+
+      const { data, error } = await supabase
+        .from('mensagens_checkin_eventos')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id && !!eventId,
+  });
+
+  // Normalize phone number to MSISDN format
+  const normalizePhone = (phone: string): string => {
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // If starts with 0, remove it (common in Brazilian numbers)
+    if (digits.startsWith('0')) {
+      return digits.substring(1);
+    }
+    
+    return digits;
+  };
+
+  // Perform check-in
+  const performCheckin = useMutation({
+    mutationFn: async (formData: CheckinFormData) => {
+      if (!organization?.id || !eventId || !user?.id) {
+        throw new Error('Organização, evento ou usuário não identificado');
+      }
+
+      const normalizedPhone = normalizePhone(formData.celular);
+
+      // Validate phone number
+      if (normalizedPhone.length < 10 || normalizedPhone.length > 13) {
+        throw new Error('Número de telefone inválido');
+      }
+
+      // Upsert contact
+      const { data: contact, error: contactError } = await supabase
+        .from('contacts')
+        .upsert(
+          {
+            phone: normalizedPhone,
+            name: formData.nome,
+            organization_id: organization.id,
+            origin: 'checkin_evento',
+            status: 'active',
+          },
+          {
+            onConflict: 'organization_id,phone',
+            ignoreDuplicates: false,
+          }
+        )
+        .select()
+        .single();
+
+      if (contactError) throw contactError;
+      if (!contact) throw new Error('Erro ao criar/atualizar contato');
+
+      // Get last used instance for this contact
+      const { data: lastMessage } = await supabase
+        .from('mensagens_enviadas')
+        .select('instancia_id')
+        .eq('celular', normalizedPhone)
+        .eq('organization_id', organization.id)
+        .order('data_envio', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+
+      const lastInstanceId = lastMessage?.instancia_id || null;
+
+      // Get event details
+      const { data: event, error: eventError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError) throw eventError;
+
+      // Insert check-in
+      const { data: checkin, error: checkinError } = await supabase
+        .from('checkins_evento')
+        .insert({
+          event_id: eventId,
+          contact_id: contact.id,
+          nome: formData.nome,
+          celular: normalizedPhone,
+          bairro: formData.bairro || null,
+          cidade: formData.cidade || null,
+          cargo: formData.cargo || null,
+          data_aniversario_text: formData.data_aniversario_text || null,
+          organization_id: organization.id,
+          checked_in_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (checkinError) throw checkinError;
+
+      // Render message with placeholders
+      let messageText = event.message_text;
+      const placeholders: Record<string, string> = {
+        '{{nome}}': formData.nome,
+        '{{bairro}}': formData.bairro || '',
+        '{{cidade}}': formData.cidade || '',
+        '{{cargo}}': formData.cargo || '',
+        '{{data_aniversario_text}}': formData.data_aniversario_text || '',
+        '{{nome_evento}}': event.name,
+        '{{data_evento}}': event.event_date
+          ? new Date(event.event_date).toLocaleDateString('pt-BR')
+          : '',
+      };
+
+      Object.entries(placeholders).forEach(([key, value]) => {
+        messageText = messageText.replace(new RegExp(key, 'g'), value);
+      });
+
+      // Insert message in queue
+      const { error: messageError } = await supabase
+        .from('mensagens_checkin_eventos')
+        .insert({
+          tipo_fluxo: 'evento',
+          event_id: eventId,
+          contact_id: contact.id,
+          checkin_id: checkin.id,
+          celular: normalizedPhone,
+          mensagem: messageText,
+          url_midia: event.message_image || null,
+          tipo_midia: event.media_type || null,
+          nome_midia: event.image_filename || null,
+          instancia_id: lastInstanceId,
+          status: 'fila',
+          organization_id: organization.id,
+        });
+
+      if (messageError) throw messageError;
+
+      return checkin;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checkins', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['checkin-messages-queue', eventId] });
+      toast.success('Check-in realizado com sucesso!');
+    },
+    onError: (error: any) => {
+      console.error('Erro ao realizar check-in:', error);
+      toast.error(error.message || 'Erro ao realizar check-in');
+    },
+  });
+
+  return {
+    hasPermission: hasPermissionQuery.data ?? false,
+    isLoadingPermission: hasPermissionQuery.isLoading,
+    checkins: checkinsQuery.data || [],
+    isLoadingCheckins: checkinsQuery.isLoading,
+    messagesQueue: messagesQueueQuery.data || [],
+    isLoadingMessages: messagesQueueQuery.isLoading,
+    performCheckin,
+  };
+};
