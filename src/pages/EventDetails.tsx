@@ -25,6 +25,10 @@ import { supabase } from '@/integrations/supabase/client';
 import EventContactsList from '@/components/events/EventContactsList';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
+import { CheckinsTable } from '@/components/events/CheckinsTable';
+import { CheckinMessagesQueue } from '@/components/events/CheckinMessagesQueue';
+import { CheckinPermissionsModal } from '@/components/events/CheckinPermissionsModal';
+import { useEventCheckin } from '@/hooks/useEventCheckin';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -41,6 +45,10 @@ const EventDetails = () => {
   // N8N Webhook state
   const [isWebhookLoading, setIsWebhookLoading] = useState(false);
   const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
+  
+  // Check-in state
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const { checkins, isLoadingCheckins, messagesQueue, isLoadingMessages } = useEventCheckin(id || '');
 
   // Real-time status updates
   const { data: publicEventData } = useQuery({
@@ -379,12 +387,13 @@ const EventDetails = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="analytics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="contacts">
             <Users className="w-4 h-4 mr-2" />
             Contatos
           </TabsTrigger>
+          <TabsTrigger value="checkins">Check-ins</TabsTrigger>
           <TabsTrigger value="message">Mensagem</TabsTrigger>
         </TabsList>
 
@@ -470,6 +479,36 @@ const EventDetails = () => {
           <EventContactsList eventId={event.id} eventName={event.name} />
         </TabsContent>
 
+        <TabsContent value="checkins" className="space-y-6">
+          {/* Check-in Actions */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Check-ins do Evento</h3>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPermissionsModalOpen(true)}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Gerenciar Permissões
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate(`/events/${event.id}/checkin`)}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Fazer Check-in
+              </Button>
+            </div>
+          </div>
+
+          {/* Check-ins Table */}
+          <CheckinsTable checkins={checkins} isLoading={isLoadingCheckins} />
+
+          {/* Messages Queue */}
+          <CheckinMessagesQueue messages={messagesQueue} isLoading={isLoadingMessages} />
+        </TabsContent>
+
         <TabsContent value="message">
           {/* Message Preview */}
           <Card className="bg-card border-border">
@@ -495,6 +534,13 @@ const EventDetails = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Permissions Modal */}
+      <CheckinPermissionsModal
+        eventId={id || ''}
+        open={isPermissionsModalOpen}
+        onOpenChange={setIsPermissionsModalOpen}
+      />
     </div>
   );
 };

@@ -26,6 +26,7 @@ import UserSettings from "./pages/UserSettings";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import AccessRequest from "./pages/AccessRequest";
 import PauseResumeDebug from "./pages/PauseResumeDebug";
+import EventCheckin from "./pages/EventCheckin";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +118,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <EventForm />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/events/:id/checkin" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EventCheckin />
                 </Layout>
               </ProtectedRoute>
             } />

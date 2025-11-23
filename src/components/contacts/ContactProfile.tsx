@@ -222,20 +222,6 @@ const ContactProfile = ({ contactPhone, onClose }: ContactProfileProps) => {
       </Card>
 
       {/* Tabs de Eventos e Mensagens */}
-      // Remover uso direto de format para evitar erros de fuso horário
-      // Usar Intl.DateTimeFormat com timeZone 'America/Sao_Paulo'
-      const formatInSaoPaulo = (isoOrDate: string | Date) => {
-      const date = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
-      return new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      }).format(date);
-      };
       <Tabs defaultValue="messages" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="messages">Mensagens ({stats.totalMessages})</TabsTrigger>

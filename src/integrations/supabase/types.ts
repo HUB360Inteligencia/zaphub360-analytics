@@ -229,6 +229,73 @@ export type Database = {
           },
         ]
       }
+      checkins_evento: {
+        Row: {
+          bairro: string | null
+          cargo: string | null
+          celular: string
+          checked_in_by: string | null
+          cidade: string | null
+          contact_id: string
+          created_at: string
+          data_aniversario_text: string | null
+          event_id: string
+          id: string
+          nome: string
+          organization_id: string
+        }
+        Insert: {
+          bairro?: string | null
+          cargo?: string | null
+          celular: string
+          checked_in_by?: string | null
+          cidade?: string | null
+          contact_id: string
+          created_at?: string
+          data_aniversario_text?: string | null
+          event_id: string
+          id?: string
+          nome: string
+          organization_id: string
+        }
+        Update: {
+          bairro?: string | null
+          cargo?: string | null
+          celular?: string
+          checked_in_by?: string | null
+          cidade?: string | null
+          contact_id?: string
+          created_at?: string
+          data_aniversario_text?: string | null
+          event_id?: string
+          id?: string
+          nome?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkins_evento_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkins_evento_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkins_evento_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_import_audits: {
         Row: {
           created_at: string
@@ -411,6 +478,48 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      event_checkin_permissions: {
+        Row: {
+          created_at: string
+          event_id: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_checkin_permissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_checkin_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_messages: {
         Row: {
@@ -622,6 +731,125 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mensagens_checkin_eventos: {
+        Row: {
+          caption: string | null
+          celular: string
+          checkin_id: string
+          contact_id: string
+          created_at: string
+          data_envio: string | null
+          delay_mensagem: number | null
+          error_message: string | null
+          event_id: string
+          id: string
+          instancia_id: string | null
+          mensagem: string | null
+          nome_midia: string | null
+          organization_id: string
+          status: string
+          template_id: string | null
+          tipo_fluxo: string
+          tipo_midia: string | null
+          updated_at: string
+          url_midia: string | null
+        }
+        Insert: {
+          caption?: string | null
+          celular: string
+          checkin_id: string
+          contact_id: string
+          created_at?: string
+          data_envio?: string | null
+          delay_mensagem?: number | null
+          error_message?: string | null
+          event_id: string
+          id?: string
+          instancia_id?: string | null
+          mensagem?: string | null
+          nome_midia?: string | null
+          organization_id: string
+          status?: string
+          template_id?: string | null
+          tipo_fluxo?: string
+          tipo_midia?: string | null
+          updated_at?: string
+          url_midia?: string | null
+        }
+        Update: {
+          caption?: string | null
+          celular?: string
+          checkin_id?: string
+          contact_id?: string
+          created_at?: string
+          data_envio?: string | null
+          delay_mensagem?: number | null
+          error_message?: string | null
+          event_id?: string
+          id?: string
+          instancia_id?: string | null
+          mensagem?: string | null
+          nome_midia?: string | null
+          organization_id?: string
+          status?: string
+          template_id?: string | null
+          tipo_fluxo?: string
+          tipo_midia?: string | null
+          updated_at?: string
+          url_midia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensagens_checkin_eventos_checkin_id_fkey"
+            columns: ["checkin_id"]
+            isOneToOne: false
+            referencedRelation: "checkins_evento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
             referencedColumns: ["id"]
           },
         ]
