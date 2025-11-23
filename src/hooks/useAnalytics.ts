@@ -162,7 +162,7 @@ const fetchSentimentData = async (orgId: string) => {
     .eq('organization_id', orgId)
     .not('sentimento', 'is', null)
     .neq('sentimento', '')
-    .limit(10000);
+    .limit(15000);
   
   if (!sentiments || sentiments.length === 0) {
     return { distribution: [], totalClassified: 0 };
@@ -220,7 +220,9 @@ const fetchMessagesData = async (orgId: string, startDate: string | null, endDat
       .lte('data_envio', endDate);
   }
   
-  const { data: messages } = await query;
+  const { data: messages } = await query.limit(50000);
+  
+  console.log(`[Analytics] Fetched ${messages?.length || 0} messages for rates calculation`);
   
   if (!messages || messages.length === 0) {
     return {
