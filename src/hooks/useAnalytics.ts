@@ -162,7 +162,7 @@ const fetchSentimentData = async (orgId: string) => {
     .eq('organization_id', orgId)
     .not('sentimento', 'is', null)
     .neq('sentimento', '')
-    .limit(15000);
+    .range(0, 14999);
   
   if (!sentiments || sentiments.length === 0) {
     return { distribution: [], totalClassified: 0 };
@@ -220,7 +220,7 @@ const fetchMessagesData = async (orgId: string, startDate: string | null, endDat
       .lte('data_envio', endDate);
   }
   
-  const { data: messages } = await query.limit(50000);
+  const { data: messages } = await query.range(0, 49999);
   
   console.log(`[Analytics] Fetched ${messages?.length || 0} messages for rates calculation`);
   
@@ -263,7 +263,7 @@ const fetchProfilesData = async (orgId: string) => {
     .eq('organization_id', orgId)
     .not('perfil_contato', 'is', null)
     .neq('perfil_contato', '')
-    .limit(15000);
+    .range(0, 14999);
   
   console.log(`[Analytics] Fetched ${profiles?.length || 0} profiles`);
   
@@ -309,8 +309,8 @@ const fetchDailyActivity = async (orgId: string, startDate: string | null, endDa
       .lte('data_envio', endDate);
   }
   
-  // Apply limit AFTER filters
-  const { data: messages } = await query.limit(50000);
+  // Apply range AFTER filters
+  const { data: messages } = await query.range(0, 49999);
   
   if (!messages || messages.length === 0) {
     return [];
@@ -369,7 +369,7 @@ const fetchCampaignPerformance = async (orgId: string) => {
         .from('mensagens_enviadas')
         .select('status, data_resposta')
         .eq('id_campanha', campaign.id)
-        .limit(50000);
+        .range(0, 49999);
       
       console.log(`[Analytics] Campaign ${campaign.name}: ${messages?.length || 0} messages`);
       
