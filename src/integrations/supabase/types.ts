@@ -14,39 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      access_requests: {
+      _csv_upload: {
         Row: {
-          id: string
-          email: string
-          full_name: string
-          organization_name: string | null
-          message: string | null
-          status: string
-          requested_by: string | null
-          created_at: string
-          updated_at: string
+          celular: string | null
+          cidade: string | null
+          name: string | null
+          organization_id: string | null
+          perfil_contato: string | null
+          sobrenome: string | null
         }
         Insert: {
-          id?: string
-          email: string
-          full_name: string
-          organization_name?: string | null
-          message?: string | null
-          status?: string
-          requested_by?: string | null
-          created_at?: string
-          updated_at?: string
+          celular?: string | null
+          cidade?: string | null
+          name?: string | null
+          organization_id?: string | null
+          perfil_contato?: string | null
+          sobrenome?: string | null
         }
         Update: {
+          celular?: string | null
+          cidade?: string | null
+          name?: string | null
+          organization_id?: string | null
+          perfil_contato?: string | null
+          sobrenome?: string | null
+        }
+        Relationships: []
+      }
+      campaign_message_audits: {
+        Row: {
+          batch_id: string
+          campaign_id: string | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          new_status: string | null
+          operation: string
+          organization_id: string
+          performed_at: string
+          performed_by: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          batch_id: string
+          campaign_id?: string | null
           id?: string
-          email?: string
-          full_name?: string
-          organization_name?: string | null
-          message?: string | null
-          status?: string
-          requested_by?: string | null
-          created_at?: string
-          updated_at?: string
+          message_id?: string | null
+          metadata?: Json | null
+          new_status?: string | null
+          operation: string
+          organization_id: string
+          performed_at?: string
+          performed_by?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          batch_id?: string
+          campaign_id?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          new_status?: string | null
+          operation?: string
+          organization_id?: string
+          performed_at?: string
+          performed_by?: string | null
+          previous_status?: string | null
         }
         Relationships: []
       }
@@ -196,6 +229,74 @@ export type Database = {
           },
         ]
       }
+      contact_import_audits: {
+        Row: {
+          created_at: string
+          filename: string
+          id: number
+          ignored_rows: number
+          inserted_rows: number
+          organization_id: string
+          total_rows: number
+          valid_rows: number
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: number
+          ignored_rows?: number
+          inserted_rows?: number
+          organization_id: string
+          total_rows?: number
+          valid_rows?: number
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: number
+          ignored_rows?: number
+          inserted_rows?: number
+          organization_id?: string
+          total_rows?: number
+          valid_rows?: number
+        }
+        Relationships: []
+      }
+      contact_import_ignored: {
+        Row: {
+          audit_id: number
+          celular: string
+          created_at: string
+          id: number
+          original_row: Json | null
+          reason: string
+        }
+        Insert: {
+          audit_id: number
+          celular: string
+          created_at?: string
+          id?: number
+          original_row?: Json | null
+          reason: string
+        }
+        Update: {
+          audit_id?: number
+          celular?: string
+          created_at?: string
+          id?: number
+          original_row?: Json | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_import_ignored_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "contact_import_audits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           caption_media: string | null
@@ -248,7 +349,29 @@ export type Database = {
           sentiment?: string | null
           url_media?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contact_messages_inst_fk"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_messages_inst_fk"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_messages_org_fk"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {
@@ -796,6 +919,24 @@ export type Database = {
         }
         Relationships: []
       }
+      private_settings: {
+        Row: {
+          inserted_at: string | null
+          key: string
+          value: string
+        }
+        Insert: {
+          inserted_at?: string | null
+          key: string
+          value: string
+        }
+        Update: {
+          inserted_at?: string | null
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1019,15 +1160,6 @@ export type Database = {
       }
     }
     Functions: {
-      get_invitation_by_token: {
-        Args: { p_token: string }
-        Returns: {
-          email: string
-          role: string
-          token: string
-          organization_name: string
-        }[]
-      }
       accept_invitation: {
         Args: { p_token: string; p_user_id: string }
         Returns: Json
@@ -1036,13 +1168,28 @@ export type Database = {
         Args: { val1: string; val2: string }
         Returns: string
       }
-      expire_old_invitations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_invite_token: {
-        Args: Record<PropertyKey, never>
-        Returns: string
+      expire_old_invitations: { Args: never; Returns: undefined }
+      generate_invite_token: { Args: never; Returns: string }
+      get_campaign_contacts_ordered: {
+        Args: {
+          p_campaign_id: string
+          p_offset?: number
+          p_organization_id: string
+          p_page_size?: number
+          p_search?: string
+          p_sort_by?: string
+          p_sort_direction?: string
+          p_statuses?: string[]
+        }
+        Returns: {
+          celular: string
+          id: string
+          nome_contato: string
+          perfil_contato: string
+          sentimento: string
+          status: string
+          total_count: number
+        }[]
       }
       get_grouped_events: {
         Args: { contact_phone: string; org_id: string }
@@ -1052,39 +1199,56 @@ export type Database = {
         Args: { contact_phone: string; org_id: string }
         Returns: string
       }
-      get_instance_api_key: {
-        Args: { instance_id: string }
-        Returns: string
+      get_hourly_activity: {
+        Args: {
+          p_end_date: string
+          p_organization_id: string
+          p_start_date: string
+        }
+        Returns: {
+          hour: number
+          messages: number
+          responses: number
+        }[]
       }
-      get_user_organization_id: {
-        Args: { user_id?: string }
-        Returns: string
-      }
-      is_saas_admin: {
-        Args: { user_id?: string }
-        Returns: boolean
-      }
-      map_existing_sentiments: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      get_instance_api_key: { Args: { instance_id: string }; Returns: string }
+      get_secret: { Args: { secret_name: string }; Returns: string }
+      get_user_organization_id: { Args: { user_id?: string }; Returns: string }
+      is_saas_admin: { Args: { user_id?: string }; Returns: boolean }
+      map_existing_sentiments: { Args: never; Returns: undefined }
       refresh_event_instance_ids: {
         Args: { target_event_id: string }
         Returns: undefined
       }
-      sync_event_contacts_to_main: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      rpc_pause_campaign_messages: {
+        Args: { campaign_id: string; org_id: string; performed_by?: string }
+        Returns: {
+          batch_id: string
+          message_id: string
+        }[]
       }
+      rpc_resume_campaign_messages: {
+        Args: {
+          campaign_id: string
+          org_id: string
+          performed_by?: string
+          target_batch_id: string
+        }
+        Returns: {
+          message_id: string
+        }[]
+      }
+      sync_event_contacts_to_main: { Args: never; Returns: undefined }
       sync_ultima_instancia_manual: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           updated_contacts: number
         }[]
       }
-      update_contact_ultima_instancia: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      update_contact_ultima_instancia: { Args: never; Returns: undefined }
+      update_new_contact_event_if_empty_batch: {
+        Args: { p_org_id: string; records: Json }
+        Returns: number
       }
       upsert_new_contact_event_min: {
         Args: {
