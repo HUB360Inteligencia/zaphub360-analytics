@@ -9,8 +9,9 @@ interface ProfileAnalysisProps {
     mensagens_enviadas: number;
     mensagens_respondidas: number;
     taxa_resposta: number;
-    tempo_medio_resposta: number | null;
-    melhor_horario: string | null;
+    tempo_medio_resposta?: number;
+    melhor_horario?: string;
+    color?: string;
   }[];
 }
 

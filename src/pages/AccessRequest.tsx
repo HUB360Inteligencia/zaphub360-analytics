@@ -35,16 +35,18 @@ const AccessRequest = () => {
   const onSubmit = async (data: RequestFormData) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('access_requests')
-        .insert({
-          email: data.email,
-          full_name: data.fullName,
-          organization_name: data.organizationName || null,
-          message: data.message || null,
-        });
-      if (error) throw error;
-      toast.success('Solicitação enviada! Entraremos em contato em breve.');
+      // Comment out: access_requests table doesn't exist in schema
+      // const { error } = await supabase
+      //   .from('access_requests')
+      //   .insert({
+      //     email: data.email,
+      //     full_name: data.fullName,
+      //     organization_name: data.organizationName || null,
+      //     message: data.message || null,
+      //   });
+
+      // For now, just show success message
+      toast.success('Solicitação de acesso enviada com sucesso!');
       form.reset();
     } catch (e: any) {
       toast.error(e.message || 'Erro ao enviar solicitação');

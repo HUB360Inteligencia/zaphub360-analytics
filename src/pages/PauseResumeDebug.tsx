@@ -47,11 +47,11 @@ export default function PauseResumeDebug() {
             <Input value={campaignId} onChange={(e) => setCampaignId((e.target as HTMLInputElement).value)} placeholder="ID da campanha" />
 
             <div className="flex gap-2">
-              <Button disabled={!campaignId || pauseCampaign.isLoading} onClick={handlePause}>
-                {pauseCampaign.isLoading ? <Loader2 className="animate-spin" /> : 'Pausar campanha'}
+              <Button disabled={!campaignId || pauseCampaign.isPending} onClick={handlePause}>
+                {pauseCampaign.isPending ? <Loader2 className="animate-spin" /> : 'Pausar campanha'}
               </Button>
-              <Button disabled={!campaignId || resumeCampaign.isLoading} onClick={handleResume}>
-                {resumeCampaign.isLoading ? <Loader2 className="animate-spin" /> : 'Retomar campanha'}
+              <Button disabled={!campaignId || resumeCampaign.isPending} onClick={handleResume}>
+                {resumeCampaign.isPending ? <Loader2 className="animate-spin" /> : 'Retomar campanha'}
               </Button>
             </div>
 
