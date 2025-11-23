@@ -161,11 +161,14 @@ const fetchSentimentData = async (orgId: string) => {
     .select('sentimento')
     .eq('organization_id', orgId)
     .not('sentimento', 'is', null)
-    .neq('sentimento', '');
+    .neq('sentimento', '')
+    .limit(10000);
   
   if (!sentiments || sentiments.length === 0) {
     return { distribution: [], totalClassified: 0 };
   }
+
+  console.log(`[Analytics] Fetched ${sentiments.length} contacts with sentiment`);
 
   // Normalize and count sentiments
   const sentimentCounts: Record<string, number> = {};
@@ -292,7 +295,8 @@ const fetchDailyActivity = async (orgId: string, startDate: string | null, endDa
     .select('data_envio, data_resposta')
     .eq('organization_id', orgId)
     .not('data_envio', 'is', null)
-    .order('data_envio', { ascending: true });
+    .order('data_envio', { ascending: true })
+    .limit(50000);
   
   // Apply date filter ONLY if startDate and endDate exist
   if (startDate && endDate) {
@@ -306,6 +310,8 @@ const fetchDailyActivity = async (orgId: string, startDate: string | null, endDa
   if (!messages || messages.length === 0) {
     return [];
   }
+
+  console.log(`[Analytics] Fetched ${messages.length} messages for daily activity`);
 
   // Group by date
   const dailyData: Record<string, { messages: number; responses: number; contacts: Set<string> }> = {};
