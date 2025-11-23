@@ -1419,6 +1419,18 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_daily_activity: {
+        Args: {
+          p_end_date?: string
+          p_organization_id: string
+          p_start_date?: string
+        }
+        Returns: {
+          activity_date: string
+          messages: number
+          responses: number
+        }[]
+      }
       get_grouped_events: {
         Args: { contact_phone: string; org_id: string }
         Returns: string
