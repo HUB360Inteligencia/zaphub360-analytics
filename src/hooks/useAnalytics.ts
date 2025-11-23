@@ -121,7 +121,11 @@ const emptyAnalyticsData: AnalyticsData = {
 };
 
 // Helper function to get date range based on timeRange
-const getDateRange = (timeRange: TimeRange) => {
+const getDateRange = (timeRange: TimeRange): { startDate: string | null; endDate: string | null } => {
+  if (timeRange === 'all') {
+    return { startDate: null, endDate: null };
+  }
+  
   const now = new Date();
   const startDate = new Date();
   
@@ -134,9 +138,6 @@ const getDateRange = (timeRange: TimeRange) => {
       break;
     case '90d':
       startDate.setDate(now.getDate() - 90);
-      break;
-    case 'all':
-      startDate.setFullYear(2020, 0, 1); // Start from 2020
       break;
   }
   
@@ -203,13 +204,20 @@ const fetchSentimentData = async (orgId: string) => {
 };
 
 // Fetch messages data for rates
-const fetchMessagesData = async (orgId: string, startDate: string, endDate: string) => {
-  const { data: messages } = await supabase
+const fetchMessagesData = async (orgId: string, startDate: string | null, endDate: string | null) => {
+  let query = supabase
     .from('mensagens_enviadas')
     .select('status, data_resposta, data_envio')
-    .eq('organization_id', orgId)
-    .gte('data_envio', startDate)
-    .lte('data_envio', endDate);
+    .eq('organization_id', orgId);
+  
+  // Apply date filter ONLY if startDate and endDate exist
+  if (startDate && endDate) {
+    query = query
+      .gte('data_envio', startDate)
+      .lte('data_envio', endDate);
+  }
+  
+  const { data: messages } = await query;
   
   if (!messages || messages.length === 0) {
     return {
@@ -278,15 +286,22 @@ const fetchProfilesData = async (orgId: string) => {
 };
 
 // Fetch daily activity
-const fetchDailyActivity = async (orgId: string, startDate: string, endDate: string) => {
-  const { data: messages } = await supabase
+const fetchDailyActivity = async (orgId: string, startDate: string | null, endDate: string | null) => {
+  let query = supabase
     .from('mensagens_enviadas')
     .select('data_envio, data_resposta')
     .eq('organization_id', orgId)
     .not('data_envio', 'is', null)
-    .gte('data_envio', startDate)
-    .lte('data_envio', endDate)
     .order('data_envio', { ascending: true });
+  
+  // Apply date filter ONLY if startDate and endDate exist
+  if (startDate && endDate) {
+    query = query
+      .gte('data_envio', startDate)
+      .lte('data_envio', endDate);
+  }
+  
+  const { data: messages } = await query;
   
   if (!messages || messages.length === 0) {
     return [];

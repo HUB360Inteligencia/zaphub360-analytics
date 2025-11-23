@@ -30,6 +30,7 @@ const deriveGradientColors = (base: string): { start: string; end: string } => {
 };
 
 const Dashboard = () => {
+  const [engagementFilter, setEngagementFilter] = useState<'7d' | '30d'>('30d');
   const {
     analytics,
     isLoading: analyticsLoading
@@ -47,6 +48,21 @@ const Dashboard = () => {
       </div>;
   }
   if (!analytics) return null;
+
+  // Filtrar dados de engajamento diário por período selecionado
+  const getFilteredDailyActivity = () => {
+    if (!analytics?.dailyActivity) return [];
+    
+    const now = new Date();
+    const daysToShow = engagementFilter === '7d' ? 7 : 30;
+    const cutoffDate = new Date(now.getTime() - (daysToShow * 24 * 60 * 60 * 1000));
+    
+    return analytics.dailyActivity.filter(day => {
+      const [dayPart, monthPart, yearPart] = day.date.split('/').map(Number);
+      const dayDate = new Date(yearPart, monthPart - 1, dayPart);
+      return dayDate >= cutoffDate;
+    });
+  };
 
   // Preparar dados das campanhas recentes para exibição
   const recentCampaigns = campaigns.slice(0, 4).map(campaign => {
@@ -324,12 +340,32 @@ const Dashboard = () => {
         {/* Engajamento por Dia (ao lado da Performance) */}
         <Card className="bg-white border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Engajamento por Dia (Histórico Completo)</CardTitle>
-            <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-lg font-semibold">Engajamento por Dia</CardTitle>
+                <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={engagementFilter === '7d' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEngagementFilter('7d')}
+                >
+                  7 dias
+                </Button>
+                <Button
+                  variant={engagementFilter === '30d' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEngagementFilter('30d')}
+                >
+                  30 dias
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={analytics.dailyActivity}>
+              <LineChart data={getFilteredDailyActivity()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="date" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
