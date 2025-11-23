@@ -1440,7 +1440,21 @@ export type Database = {
         }[]
       }
       get_instance_api_key: { Args: { instance_id: string }; Returns: string }
+      get_profile_distribution: {
+        Args: { p_organization_id: string }
+        Returns: {
+          count: number
+          profile: string
+        }[]
+      }
       get_secret: { Args: { secret_name: string }; Returns: string }
+      get_sentiment_distribution: {
+        Args: { p_organization_id: string }
+        Returns: {
+          count: number
+          sentiment: string
+        }[]
+      }
       get_user_organization_id: { Args: { user_id?: string }; Returns: string }
       is_saas_admin: { Args: { user_id?: string }; Returns: boolean }
       map_existing_sentiments: { Args: never; Returns: undefined }
