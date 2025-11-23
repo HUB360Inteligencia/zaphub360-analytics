@@ -186,7 +186,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (session?.user) {
           // CORREÇÃO: Só chamar handleNewUser durante SIGNED_UP, não em SIGNED_IN
           // Isso previne a criação de organizações duplicadas em logins subsequentes
-          if (event === 'SIGNED_UP') {
+          if (event === 'SIGNED_IN') {
             // Usuário realmente novo, precisa de setup
             setTimeout(async () => {
               const { data: existingProfile } = await supabase
