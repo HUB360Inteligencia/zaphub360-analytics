@@ -16,6 +16,7 @@ import { Save, UserPlus, Shield, Eye, Settings, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { PlanUsageCard } from '@/components/PlanUsageCard';
 
 interface OrganizationMember {
   id: string;
@@ -229,6 +230,9 @@ const OrganizationSettings = () => {
       </div>
 
       <div className="grid gap-6">
+        {/* Plan Usage Card */}
+        <PlanUsageCard />
+        
         {/* Organization Information */}
         <Card>
           <CardHeader>

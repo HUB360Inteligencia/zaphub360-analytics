@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, Send, FileText, BarChart3, Settings, Bell, Search, Menu, X, MessageSquare, Zap, Target, Calendar, HelpCircle, LogOut, MessageCircle, Server, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, Send, FileText, BarChart3, Settings, Bell, Search, Menu, X, MessageSquare, Zap, Target, Calendar, HelpCircle, LogOut, MessageCircle, Server, Building2, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 interface LayoutProps {
   children: React.ReactNode;
@@ -55,6 +55,14 @@ const Layout = ({
     icon: BarChart3,
     current: location.pathname === '/reports'
   }];
+  
+  // Admin navigation
+  const adminNavigation = profile?.role === 'saas_admin' ? [{
+    name: 'Admin',
+    href: '/admin',
+    icon: Shield,
+    current: location.pathname.startsWith('/admin')
+  }] : [];
   const quickActions = [{
     name: 'Nova Campanha',
     icon: Zap,
@@ -104,6 +112,20 @@ const Layout = ({
                   {item.name}
                 </Link>;
           })}
+          
+          {/* Admin Navigation */}
+          {adminNavigation.length > 0 && (
+            <>
+              <div className="my-4 border-t border-slate-200" />
+              {adminNavigation.map(item => {
+                const IconComponent = item.icon;
+                return <Link key={item.name} to={item.href} className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${item.current ? 'bg-red-50 text-red-700 border-r-2 border-red-600' : 'text-slate-700 hover:bg-slate-100'}`}>
+                      <IconComponent className="w-5 h-5 mr-3" />
+                      {item.name}
+                    </Link>;
+              })}
+            </>
+          )}
           </nav>
 
           {/* Quick Actions */}
