@@ -1,9 +1,10 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,16 +14,49 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const [roleChecking, setRoleChecking] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    } else if (!loading && user && requiredRole && profile?.role !== requiredRole) {
-      navigate('/');
-    }
-  }, [user, loading, navigate, requiredRole, profile]);
+    const checkPermissions = async () => {
+      if (!loading && !user) {
+        navigate('/auth');
+        return;
+      }
 
-  if (loading) {
+      if (!loading && user && requiredRole) {
+        setRoleChecking(true);
+        
+        // Verificação server-side usando função SECURITY DEFINER
+        const { data, error } = await supabase
+          .rpc('has_role', { 
+            _user_id: user.id, 
+            _role: requiredRole 
+          });
+
+        if (error) {
+          console.error('Error checking role:', error);
+          setHasPermission(false);
+        } else {
+          setHasPermission(data === true);
+        }
+
+        setRoleChecking(false);
+
+        // Se não tiver permissão, redirecionar
+        if (data !== true) {
+          navigate('/');
+        }
+      } else if (!loading && user && !requiredRole) {
+        // Se não precisa de role específica, liberar acesso
+        setHasPermission(true);
+      }
+    };
+
+    checkPermissions();
+  }, [user, loading, navigate, requiredRole]);
+
+  if (loading || roleChecking) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -44,7 +78,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     );
   }
 
-  if (requiredRole && profile?.role !== requiredRole) {
+  if (requiredRole && hasPermission === false) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

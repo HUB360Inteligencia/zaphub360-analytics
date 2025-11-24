@@ -129,7 +129,7 @@ export const OrganizationFormModal = ({
         });
 
         // Se forneceu email do admin, enviar convite
-        if (data.admin_email && showAdminFields) {
+        if (data.admin_email && data.admin_name && showAdminFields) {
           // Buscar a organização recém-criada pelo slug
           const newOrg = organizations?.find(org => org.slug === data.slug);
           
@@ -137,7 +137,8 @@ export const OrganizationFormModal = ({
             await sendInvite.mutateAsync({
               email: data.admin_email,
               organization_id: newOrg.id,
-              role: 'client'
+              role: 'client',
+              full_name: data.admin_name
             });
           }
         }

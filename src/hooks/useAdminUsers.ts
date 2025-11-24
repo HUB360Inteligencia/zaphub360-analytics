@@ -63,14 +63,22 @@ export const useAdminUsers = () => {
       email: string;
       organization_id: string;
       role: string;
+      full_name?: string;
     }) => {
+      // Enviar convite via edge function
       const { error } = await supabase.functions.invoke('send-invite', {
-        body: data
+        body: {
+          email: data.email,
+          organization_id: data.organization_id,
+          role: data.role,
+          full_name: data.full_name
+        }
       });
 
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('Convite enviado com sucesso');
     },
     onError: (error) => {
