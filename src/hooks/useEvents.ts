@@ -5,11 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useErrorHandler } from './useErrorHandler';
+import { slugify } from '@/lib/slugify';
 
 export interface Event {
   id: string;
   name: string;
   event_id: string; // ID customizável pelo usuário
+  slug: string; // URL-friendly slug
   location?: string;
   event_date?: string;
   instance_ids?: string[];
@@ -82,15 +84,19 @@ export const useEvents = () => {
   }, [organization?.id, queryClient]);
 
   const createEvent = useMutation({
-    mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at' | 'slug'>) => {
       if (!validateRequired(eventData, ['name', 'event_id', 'message_text', 'organization_id'])) {
         throw new Error('Campos obrigatórios não preenchidos');
       }
+
+      // Generate slug from name
+      const slug = slugify(eventData.name);
 
       const sanitizedData = {
         ...eventData,
         name: eventData.name.trim(),
         event_id: eventData.event_id.trim(),
+        slug,
         location: eventData.location?.trim() || null,
         message_text: eventData.message_text.trim(),
         status: eventData.status || 'draft'
@@ -98,7 +104,7 @@ export const useEvents = () => {
 
       const { data, error } = await supabase
         .from('events')
-        .insert(sanitizedData)
+        .insert([sanitizedData])
         .select()
         .single();
 

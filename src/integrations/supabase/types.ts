@@ -602,6 +602,7 @@ export type Database = {
           mime_type: string | null
           name: string
           organization_id: string
+          slug: string
           status: string
           tempo_max: number | null
           tempo_min: number | null
@@ -623,6 +624,7 @@ export type Database = {
           mime_type?: string | null
           name: string
           organization_id: string
+          slug: string
           status?: string
           tempo_max?: number | null
           tempo_min?: number | null
@@ -644,6 +646,7 @@ export type Database = {
           mime_type?: string | null
           name?: string
           organization_id?: string
+          slug?: string
           status?: string
           tempo_max?: number | null
           tempo_min?: number | null
@@ -1429,6 +1432,21 @@ export type Database = {
           activity_date: string
           messages: number
           responses: number
+        }[]
+      }
+      get_event_by_slug: {
+        Args: { event_slug: string }
+        Returns: {
+          event_date: string
+          event_id: string
+          id: string
+          location: string
+          media_type: string
+          message_image: string
+          message_text: string
+          name: string
+          organization_id: string
+          status: string
         }[]
       }
       get_grouped_events: {

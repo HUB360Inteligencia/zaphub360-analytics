@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -89,6 +90,17 @@ const EventDetails = () => {
     const publicLink = `${window.location.origin}/public/event/${event?.event_id}`;
     navigator.clipboard.writeText(publicLink);
     toast.success('Link público copiado!');
+  };
+
+  const copyCheckinLink = () => {
+    const checkinUrl = `${window.location.origin}/checkin/${(event as any)?.slug}`;
+    navigator.clipboard.writeText(checkinUrl);
+    toast.success('Link de check-in copiado!');
+  };
+
+  const openCheckinLink = () => {
+    const checkinUrl = `${window.location.origin}/checkin/${(event as any)?.slug}`;
+    window.open(checkinUrl, '_blank');
   };
 
   const triggerN8NWebhook = async () => {
@@ -227,6 +239,37 @@ const EventDetails = () => {
           </Button>
         </div>
       </div>
+
+      {/* Check-in Link Card */}
+      {(event as any)?.slug && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ExternalLink className="w-5 h-5" />
+              Link Público de Check-in
+            </CardTitle>
+            <CardDescription>
+              Compartilhe este link para que as pessoas façam check-in no evento
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input 
+                value={`${window.location.origin}/checkin/${(event as any).slug}`}
+                readOnly 
+                className="font-mono text-sm"
+              />
+              <Button onClick={copyCheckinLink} variant="outline" size="sm">
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button onClick={openCheckinLink} variant="default" size="sm">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Abrir
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Event Info */}
       <Card className="bg-card border-border">
