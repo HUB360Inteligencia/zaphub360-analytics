@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PositionCombobox } from '@/components/events/PositionCombobox';
 import { useEvent } from '@/hooks/useEvents';
 import { useEventCheckin, CheckinFormData } from '@/hooks/useEventCheckin';
 import { format } from 'date-fns';
@@ -196,19 +197,22 @@ export default function EventCheckin() {
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="cargo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cargo/Função</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Cargo ou função" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="cargo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cargo/Função</FormLabel>
+                    <FormControl>
+                      <PositionCombobox 
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
                 <FormField
                   control={form.control}
