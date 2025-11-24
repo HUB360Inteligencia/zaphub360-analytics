@@ -1,5 +1,8 @@
-import { useAdminUsers } from '@/hooks/useAdminUsers';
+import { useState } from 'react';
+import { useAdminUsers, AdminUser } from '@/hooks/useAdminUsers';
 import { Button } from '@/components/ui/button';
+import { UserInviteModal } from '@/components/admin/UserInviteModal';
+import { UserEditModal } from '@/components/admin/UserEditModal';
 import {
   Table,
   TableBody,
@@ -16,6 +19,9 @@ import { ptBR } from 'date-fns/locale';
 
 const AdminUsers = () => {
   const { users, isLoading } = useAdminUsers();
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   if (isLoading) {
     return (
@@ -58,7 +64,7 @@ const AdminUsers = () => {
           <h1 className="text-3xl font-bold">Usuários</h1>
           <p className="text-muted-foreground">Gerencie todos os usuários da plataforma</p>
         </div>
-        <Button>
+        <Button onClick={() => setInviteModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Convidar Usuário
         </Button>
@@ -114,7 +120,14 @@ const AdminUsers = () => {
                     : 'Nunca'}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setEditModalOpen(true);
+                    }}
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -123,6 +136,14 @@ const AdminUsers = () => {
           </TableBody>
         </Table>
       </div>
+
+      <UserInviteModal open={inviteModalOpen} onOpenChange={setInviteModalOpen} />
+
+      <UserEditModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        user={selectedUser || undefined}
+      />
     </div>
   );
 };

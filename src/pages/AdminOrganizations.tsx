@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useAdminOrganizations } from '@/hooks/useAdminOrganizations';
+import { useAdminOrganizations, Organization } from '@/hooks/useAdminOrganizations';
 import { Button } from '@/components/ui/button';
+import { OrganizationFormModal } from '@/components/admin/OrganizationFormModal';
+import { PlanChangeModal } from '@/components/admin/PlanChangeModal';
 import {
   Table,
   TableBody,
@@ -29,6 +31,10 @@ const AdminOrganizations = () => {
   const { organizations, isLoading, deleteOrganization, updateOrganization } =
     useAdminOrganizations();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     updateOrganization.mutate({
@@ -53,7 +59,7 @@ const AdminOrganizations = () => {
           <h1 className="text-3xl font-bold">Organizações</h1>
           <p className="text-muted-foreground">Gerencie todas as organizações da plataforma</p>
         </div>
-        <Button>
+        <Button onClick={() => setCreateModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nova Organização
         </Button>
@@ -105,10 +111,24 @@ const AdminOrganizations = () => {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedOrg(org);
+                        setPlanModalOpen(true);
+                      }}
+                    >
                       <TrendingUp className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedOrg(org);
+                        setEditModalOpen(true);
+                      }}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
@@ -158,6 +178,25 @@ const AdminOrganizations = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <OrganizationFormModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        mode="create"
+      />
+
+      <OrganizationFormModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        organization={selectedOrg || undefined}
+        mode="edit"
+      />
+
+      <PlanChangeModal
+        open={planModalOpen}
+        onOpenChange={setPlanModalOpen}
+        organization={selectedOrg || undefined}
+      />
     </div>
   );
 };
