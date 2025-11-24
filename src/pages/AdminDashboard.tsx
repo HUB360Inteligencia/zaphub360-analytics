@@ -1,8 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAdminOrganizations } from '@/hooks/useAdminOrganizations';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
-import { Building2, Users, MessageSquare, TrendingUp } from 'lucide-react';
+import { Building2, Users, MessageSquare, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const { organizations, isLoading: loadingOrgs } = useAdminOrganizations();
@@ -62,6 +63,36 @@ const AdminDashboard = () => {
     );
   }
 
+  const quickLinks = [
+    {
+      title: 'Organizações',
+      description: 'Gerencie todas as organizações da plataforma',
+      href: '/admin/organizations',
+      icon: Building2,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      count: organizations?.length || 0
+    },
+    {
+      title: 'Usuários',
+      description: 'Administre usuários e permissões',
+      href: '/admin/users',
+      icon: Users,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      count: totalUsers
+    },
+    {
+      title: 'Planos',
+      description: 'Configure planos e preços',
+      href: '/admin/plans',
+      icon: CreditCard,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      count: '-'
+    }
+  ];
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div>
@@ -69,6 +100,32 @@ const AdminDashboard = () => {
         <p className="text-muted-foreground">
           Visão geral da plataforma e métricas gerais
         </p>
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {quickLinks.map((link) => {
+          const Icon = link.icon;
+          return (
+            <Link key={link.href} to={link.href}>
+              <Card className="hover:shadow-lg transition-all cursor-pointer group">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className={`p-3 rounded-lg ${link.bgColor}`}>
+                      <Icon className={`h-6 w-6 ${link.color}`} />
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  </div>
+                  <CardTitle className="mt-4">{link.title}</CardTitle>
+                  <CardDescription>{link.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{link.count}</div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

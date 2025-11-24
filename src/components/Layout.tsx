@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, Send, FileText, BarChart3, Settings, Bell, Search, Menu, X, MessageSquare, Zap, Target, Calendar, HelpCircle, LogOut, MessageCircle, Server, Building2, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Send, FileText, BarChart3, Settings, Bell, Search, Menu, X, MessageSquare, Zap, Target, Calendar, HelpCircle, LogOut, MessageCircle, Server, Building2, Shield, ChevronDown, ChevronRight, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +13,7 @@ const Layout = ({
   children
 }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const location = useLocation();
   const {
     profile,
@@ -57,12 +58,40 @@ const Layout = ({
   }];
   
   // Admin navigation
-  const adminNavigation = profile?.role === 'saas_admin' ? [{
-    name: 'Admin',
-    href: '/admin',
-    icon: Shield,
-    current: location.pathname.startsWith('/admin')
-  }] : [];
+  const adminNavigation = useMemo(() => {
+    if (profile?.role !== 'saas_admin') return [];
+    
+    return [
+      {
+        name: 'Dashboard Admin',
+        href: '/admin',
+        icon: Shield,
+        current: location.pathname === '/admin'
+      },
+      {
+        name: 'Organizações',
+        href: '/admin/organizations',
+        icon: Building2,
+        current: location.pathname === '/admin/organizations'
+      },
+      {
+        name: 'Usuários',
+        href: '/admin/users',
+        icon: Users,
+        current: location.pathname === '/admin/users'
+      },
+      {
+        name: 'Planos',
+        href: '/admin/plans',
+        icon: CreditCard,
+        current: location.pathname === '/admin/plans'
+      }
+    ];
+  }, [profile?.role, location.pathname]);
+
+  // Controlar abertura do menu admin baseado na rota atual
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const shouldAdminBeOpen = adminMenuOpen || isAdminRoute;
   const quickActions = [{
     name: 'Nova Campanha',
     icon: Zap,
@@ -117,13 +146,47 @@ const Layout = ({
           {adminNavigation.length > 0 && (
             <>
               <div className="my-4 border-t border-slate-200" />
-              {adminNavigation.map(item => {
-                const IconComponent = item.icon;
-                return <Link key={item.name} to={item.href} className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${item.current ? 'bg-red-50 text-red-700 border-r-2 border-red-600' : 'text-slate-700 hover:bg-slate-100'}`}>
-                      <IconComponent className="w-5 h-5 mr-3" />
-                      {item.name}
-                    </Link>;
-              })}
+              
+              {/* Admin Menu Header */}
+              <button
+                onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  isAdminRoute ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center">
+                  <Shield className="w-5 h-5 mr-3" />
+                  Admin
+                </div>
+                {shouldAdminBeOpen ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Admin Submenu */}
+              {shouldAdminBeOpen && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {adminNavigation.map(item => {
+                    const IconComponent = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          item.current
+                            ? 'bg-red-50 text-red-700 border-r-2 border-red-600'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4 mr-3" />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
           </nav>

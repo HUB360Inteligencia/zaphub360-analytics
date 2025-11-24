@@ -83,7 +83,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      setProfile(profileData);
+      // Buscar role de user_roles (tabela segura)
+      const { data: roleData } = await supabase
+        .rpc('get_user_global_role', { _user_id: userId });
+
+      // Atualizar profile com role da tabela user_roles
+      const profileWithRole = {
+        ...profileData,
+        role: roleData || profileData.role
+      };
+
+      setProfile(profileWithRole);
 
       // Fetch organization if user has one
       if (profileData.organization_id) {
