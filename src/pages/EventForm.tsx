@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/contexts/AuthContext';
 import { InstanceSelector } from '@/components/campaigns/InstanceSelector';
+import { PositionManager } from '@/components/events/PositionManager';
 import { toast } from 'sonner';
 
 const eventSchema = z.object({
@@ -39,6 +40,8 @@ const EventForm = () => {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInstances, setSelectedInstances] = useState<string[]>([]);
+  const [allowedPositions, setAllowedPositions] = useState<string[]>([]);
+  const [restrictPositions, setRestrictPositions] = useState(false);
 
   const currentEvent = isEditing ? events.find(e => e.id === id) : null;
 
@@ -68,6 +71,10 @@ const EventForm = () => {
       setValue('event_date', currentEvent.event_date ? format(new Date(currentEvent.event_date), "yyyy-MM-dd'T'HH:mm") : '');
       setValue('message_text', currentEvent.message_text);
       setValue('webhook_url', (currentEvent as any).webhook_url || '');
+      
+      // Load position settings
+      setAllowedPositions((currentEvent as any).allowed_positions || []);
+      setRestrictPositions((currentEvent as any).restrict_positions || false);
       
       if (currentEvent.message_image) {
         setImagePreview(currentEvent.message_image);
@@ -153,6 +160,8 @@ const EventForm = () => {
         mime_type: mimeType,
         media_type: mediaType,
         webhook_url: data.webhook_url || null,
+        allowed_positions: allowedPositions,
+        restrict_positions: restrictPositions,
         status: 'draft' as const,
       };
 
@@ -283,6 +292,23 @@ const EventForm = () => {
                 />
                 <p className="text-xs text-muted-foreground">
                   URL do webhook N8N que será disparado ao clicar no botão de trigger
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <PositionManager
+                  value={allowedPositions}
+                  restrictMode={restrictPositions}
+                  onChange={(positions, restrict) => {
+                    setAllowedPositions(positions);
+                    setRestrictPositions(restrict);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {restrictPositions 
+                    ? "🔒 Modo restrito: apenas cargos da lista serão aceitos no check-in."
+                    : "🔓 Modo flexível: permite criar novos cargos durante o check-in."
+                  }
                 </p>
               </div>
             </CardContent>

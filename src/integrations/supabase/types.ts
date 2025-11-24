@@ -591,6 +591,7 @@ export type Database = {
       }
       events: {
         Row: {
+          allowed_positions: Json | null
           created_at: string
           event_date: string | null
           event_id: string
@@ -605,6 +606,7 @@ export type Database = {
           mime_type: string | null
           name: string
           organization_id: string
+          restrict_positions: boolean | null
           slug: string
           status: string
           tempo_max: number | null
@@ -613,6 +615,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          allowed_positions?: Json | null
           created_at?: string
           event_date?: string | null
           event_id: string
@@ -627,6 +630,7 @@ export type Database = {
           mime_type?: string | null
           name: string
           organization_id: string
+          restrict_positions?: boolean | null
           slug: string
           status?: string
           tempo_max?: number | null
@@ -635,6 +639,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          allowed_positions?: Json | null
           created_at?: string
           event_date?: string | null
           event_id?: string
@@ -649,6 +654,7 @@ export type Database = {
           mime_type?: string | null
           name?: string
           organization_id?: string
+          restrict_positions?: boolean | null
           slug?: string
           status?: string
           tempo_max?: number | null
