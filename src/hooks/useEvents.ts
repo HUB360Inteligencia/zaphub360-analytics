@@ -20,6 +20,7 @@ export interface Event {
   image_filename?: string;
   mime_type?: string;
   media_type?: string;
+  webhook_url?: string;
   organization_id: string;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
   created_at: string;
