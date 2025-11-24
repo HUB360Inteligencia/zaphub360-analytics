@@ -27,6 +27,7 @@ import OrganizationSettings from "./pages/OrganizationSettings";
 import AccessRequest from "./pages/AccessRequest";
 import PauseResumeDebug from "./pages/PauseResumeDebug";
 import EventCheckin from "./pages/EventCheckin";
+import PublicEventCheckin from "./pages/PublicEventCheckin";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +42,8 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/request-access" element={<AccessRequest />} />
-            {/* Public Event Status Route - Must be before catch-all */}
+            {/* Public Routes - Must be before catch-all */}
+            <Route path="/checkin/:slug" element={<PublicEventCheckin />} />
             <Route path="/public/event/:eventId" element={<PublicEventStatus />} />
             <Route path="/public/campaign-status/:campaignId" element={<PublicCampaignStatus />} />
             <Route path="/" element={
