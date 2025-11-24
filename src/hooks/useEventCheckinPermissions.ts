@@ -15,7 +15,12 @@ export const useEventCheckinPermissions = (eventId: string) => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          user_roles!user_roles_user_id_fkey (
+            role
+          )
+        `)
         .eq('organization_id', organization.id)
         .order('full_name');
 

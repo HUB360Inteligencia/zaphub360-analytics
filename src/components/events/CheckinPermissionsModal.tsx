@@ -68,7 +68,8 @@ export function CheckinPermissionsModal({
             <div className="space-y-2">
               {users.map((user) => {
                 const hasPermission = !!getUserPermission(user.id);
-                const isAdmin = user.role && ['saas_admin', 'client', 'manager'].includes(user.role);
+                const userRole = user.user_roles?.[0]?.role;
+                const isAdmin = userRole && ['saas_admin', 'client', 'manager'].includes(userRole);
 
                 return (
                   <div
