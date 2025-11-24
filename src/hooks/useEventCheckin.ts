@@ -16,33 +16,7 @@ export const useEventCheckin = (eventId: string) => {
   const { organization, user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Check if user has permission to do check-in
-  const hasPermissionQuery = useQuery({
-    queryKey: ['checkin-permission', eventId, user?.id],
-    queryFn: async () => {
-      if (!user?.id || !eventId) return false;
-
-      // Check if user has explicit permission
-      const { data: permission } = await supabase
-        .from('event_checkin_permissions')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (permission) return true;
-
-      // Check if user is admin/client/manager
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      return profile?.role && ['saas_admin', 'client', 'manager'].includes(profile.role);
-    },
-    enabled: !!user?.id && !!eventId,
-  });
+  // Permission check removed - any organization user can check-in
 
   // Fetch check-ins for event
   const checkinsQuery = useQuery({
@@ -232,8 +206,8 @@ export const useEventCheckin = (eventId: string) => {
   });
 
   return {
-    hasPermission: hasPermissionQuery.data ?? false,
-    isLoadingPermission: hasPermissionQuery.isLoading,
+    hasPermission: true, // Any organization user can check-in
+    isLoadingPermission: false,
     checkins: checkinsQuery.data || [],
     isLoadingCheckins: checkinsQuery.isLoading,
     messagesQueue: messagesQueueQuery.data || [],

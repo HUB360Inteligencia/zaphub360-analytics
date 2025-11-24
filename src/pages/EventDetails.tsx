@@ -526,15 +526,8 @@ const EventDetails = () => {
           {/* Check-in Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Check-ins do Evento</h3>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsPermissionsModalOpen(true)}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Gerenciar Permissões
-              </Button>
+          <div className="flex gap-2">
+              {/* Permissions button removed - any organization user can check-in */}
               <Button
                 size="sm"
                 onClick={() => navigate(`/events/${event.id}/checkin`)}
