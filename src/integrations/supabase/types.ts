@@ -1634,6 +1634,7 @@ export type Database = {
           message_id: string
         }[]
       }
+      slugify_text: { Args: { text_input: string }; Returns: string }
       sync_event_contacts_to_main: { Args: never; Returns: undefined }
       sync_ultima_instancia_manual: {
         Args: never

@@ -48,11 +48,7 @@ export default function EventCheckin() {
     },
   });
 
-  useEffect(() => {
-    if (!isLoadingPermission && !hasPermission) {
-      navigate(`/events/${id}`);
-    }
-  }, [hasPermission, isLoadingPermission, navigate, id]);
+  // Permission redirect removed - any organization user can check-in
 
   const onSubmit = async (data: CheckinFormData) => {
     await performCheckin.mutateAsync(data);
