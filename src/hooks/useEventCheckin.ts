@@ -154,6 +154,36 @@ export const useEventCheckin = (eventId: string) => {
 
       if (checkinError) throw checkinError;
 
+      // Insert/Update contact in event contacts table with history
+      const { data: eventContactId, error: eventContactError } = await supabase
+        .rpc('upsert_new_contact_event_min', {
+          _name: formData.nome,
+          _celular: normalizedPhone,
+          _evento: event.name,
+          _sobrenome: '',
+          _organization_id: organization.id,
+          _perfil_contato: formData.cargo || '',
+        });
+
+      if (eventContactError) {
+        console.error('Erro ao atualizar contato do evento:', eventContactError);
+      }
+
+      // Update additional event contact fields
+      if (eventContactId) {
+        await supabase
+          .from('new_contact_event')
+          .update({
+            bairro: formData.bairro || null,
+            cidade: formData.cidade || null,
+            ultima_instancia: lastInstanceId,
+            responsavel_cadastro: user.email || user.id,
+            event_id: event.event_id ? parseInt(event.event_id) : null,
+          })
+          .eq('id_contact_event', eventContactId)
+          .eq('organization_id', organization.id);
+      }
+
       // Render message with placeholders
       let messageText = event.message_text;
       const placeholders: Record<string, string> = {
