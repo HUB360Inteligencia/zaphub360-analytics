@@ -235,6 +235,7 @@ export type Database = {
           cargo: string | null
           celular: string
           checked_in_by: string | null
+          checkin_messages: string | null
           cidade: string | null
           contact_id: string
           created_at: string
@@ -249,6 +250,7 @@ export type Database = {
           cargo?: string | null
           celular: string
           checked_in_by?: string | null
+          checkin_messages?: string | null
           cidade?: string | null
           contact_id: string
           created_at?: string
@@ -263,6 +265,7 @@ export type Database = {
           cargo?: string | null
           celular?: string
           checked_in_by?: string | null
+          checkin_messages?: string | null
           cidade?: string | null
           contact_id?: string
           created_at?: string
