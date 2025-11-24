@@ -207,6 +207,7 @@ export default function EventCheckin() {
                       <PositionCombobox 
                         value={field.value || ''}
                         onChange={field.onChange}
+                        eventId={id}
                       />
                     </FormControl>
                     <FormMessage />
