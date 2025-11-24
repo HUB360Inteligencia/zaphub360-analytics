@@ -140,6 +140,7 @@ const EventForm = () => {
         }
       }
 
+      // Preparar dados do evento (sem instance_ids que será sincronizado separadamente)
       const eventData = {
         name: data.name,
         event_id: data.event_id,
@@ -151,9 +152,8 @@ const EventForm = () => {
         image_filename: imageFilename || null,
         mime_type: mimeType,
         media_type: mediaType,
+        webhook_url: data.webhook_url || null,
         status: 'draft' as const,
-        instance_ids: selectedInstances,
-        webhook_url: data.webhook_url || null
       };
 
       let eventId: string;
@@ -161,6 +161,7 @@ const EventForm = () => {
         const updatedEvent = await updateEvent.mutateAsync({ id: id!, ...eventData });
         eventId = updatedEvent.id;
       } else {
+        // Criar evento sem instance_ids (será sincronizado após criação)
         const newEvent = await createEvent.mutateAsync(eventData);
         eventId = newEvent.id;
       }
