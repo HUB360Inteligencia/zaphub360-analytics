@@ -7,13 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, CheckCircle, Loader2, Calendar as CalendarIcon, Briefcase } from 'lucide-react';
+import { CheckCircle, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DDI_OPTIONS, combineDDIAndPhone, formatPhoneBR, formatBirthday, isValidBRPhone } from '@/lib/phoneUtils';
-import { filterPositions } from '@/lib/positions';
+import { PositionCombobox } from '@/components/events/PositionCombobox';
 
 const PublicEventCheckin = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -26,8 +24,6 @@ const PublicEventCheckin = () => {
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [cargo, setCargo] = useState('');
-  const [cargoSearch, setCargoSearch] = useState('');
-  const [cargoOpen, setCargoOpen] = useState(false);
   const [dataAniversario, setDataAniversario] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -48,11 +44,6 @@ const PublicEventCheckin = () => {
     },
     enabled: !!slug,
   });
-
-  // Filter positions based on search
-  const filteredPositions = useMemo(() => {
-    return filterPositions(cargoSearch || cargo);
-  }, [cargoSearch, cargo]);
 
   // Perform check-in mutation
   const checkinMutation = useMutation({
@@ -118,6 +109,36 @@ const PublicEventCheckin = () => {
         .single();
 
       if (checkinError) throw checkinError;
+
+      // Insert/Update contact in event contacts table with history
+      const { data: eventContactId, error: eventContactError } = await supabase
+        .rpc('upsert_new_contact_event_min', {
+          _name: nome,
+          _celular: fullPhone,
+          _evento: event.name,
+          _sobrenome: '',
+          _organization_id: event.organization_id,
+          _perfil_contato: cargo || '',
+        });
+
+      if (eventContactError) {
+        console.error('Erro ao atualizar contato do evento:', eventContactError);
+      }
+
+      // Update additional event contact fields
+      if (eventContactId) {
+        await supabase
+          .from('new_contact_event')
+          .update({
+            bairro: bairro || null,
+            cidade: cidade || null,
+            ultima_instancia: lastInstanceId,
+            responsavel_cadastro: 'check-in público',
+            event_id: event.event_id ? parseInt(event.event_id) : null,
+          })
+          .eq('id_contact_event', eventContactId)
+          .eq('organization_id', event.organization_id);
+      }
 
       // Render message with placeholders
       let messageText = event.message_text;
@@ -324,66 +345,14 @@ const PublicEventCheckin = () => {
             {/* Cargo com Autocomplete */}
             <div className="space-y-2">
               <Label htmlFor="cargo">Cargo/Função</Label>
-              <Popover open={cargoOpen} onOpenChange={setCargoOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={cargoOpen}
-                    className="w-full justify-between"
-                  >
-                    {cargo || "Selecione ou digite seu cargo..."}
-                    <Briefcase className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput 
-                      placeholder="Pesquisar cargo..." 
-                      value={cargoSearch}
-                      onValueChange={setCargoSearch}
-                    />
-                    <CommandEmpty>
-                      <div className="p-2 text-sm text-muted-foreground">
-                        Nenhum cargo encontrado. 
-                        {cargoSearch && (
-                          <Button
-                            variant="ghost"
-                            className="w-full mt-2"
-                            onClick={() => {
-                              setCargo(cargoSearch);
-                              setCargoOpen(false);
-                            }}
-                          >
-                            Usar "{cargoSearch}"
-                          </Button>
-                        )}
-                      </div>
-                    </CommandEmpty>
-                    <CommandGroup className="max-h-64 overflow-auto">
-                      {filteredPositions.slice(0, 50).map((position) => (
-                        <CommandItem
-                          key={position}
-                          value={position}
-                          onSelect={(currentValue) => {
-                            setCargo(currentValue);
-                            setCargoOpen(false);
-                            setCargoSearch('');
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              cargo === position ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {position}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <PositionCombobox 
+                value={cargo}
+                onChange={setCargo}
+                eventId={event?.id}
+              />
+              <p className="text-xs text-muted-foreground">
+                Selecione ou crie um cargo. Algumas opções podem estar restritas pelo organizador.
+              </p>
             </div>
 
             {/* Data de Aniversário */}
