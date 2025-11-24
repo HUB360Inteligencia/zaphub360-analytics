@@ -1122,9 +1122,13 @@ export type Database = {
           is_active: boolean | null
           logo_url: string | null
           name: string
+          plan_expires_at: string | null
+          plan_id: string | null
+          plan_started_at: string | null
           settings: Json | null
           slug: string
           updated_at: string | null
+          usage_stats: Json | null
         }
         Insert: {
           created_at?: string | null
@@ -1133,9 +1137,13 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name: string
+          plan_expires_at?: string | null
+          plan_id?: string | null
+          plan_started_at?: string | null
           settings?: Json | null
           slug: string
           updated_at?: string | null
+          usage_stats?: Json | null
         }
         Update: {
           created_at?: string | null
@@ -1144,11 +1152,23 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
+          plan_expires_at?: string | null
+          plan_id?: string | null
+          plan_started_at?: string | null
           settings?: Json | null
           slug?: string
           updated_at?: string | null
+          usage_stats?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       private_settings: {
         Row: {
@@ -1217,6 +1237,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string | null
+          display_name: string
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          max_contacts: number | null
+          max_events: number | null
+          max_instances: number | null
+          max_messages_per_month: number | null
+          max_storage_mb: number | null
+          max_users: number | null
+          name: string
+          price_monthly: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_name: string
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_contacts?: number | null
+          max_events?: number | null
+          max_instances?: number | null
+          max_messages_per_month?: number | null
+          max_storage_mb?: number | null
+          max_users?: number | null
+          name: string
+          price_monthly?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_contacts?: number | null
+          max_events?: number | null
+          max_instances?: number | null
+          max_messages_per_month?: number | null
+          max_storage_mb?: number | null
+          max_users?: number | null
+          name?: string
+          price_monthly?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       tags: {
         Row: {
@@ -1395,6 +1466,9 @@ export type Database = {
         Args: { p_token: string; p_user_id: string }
         Returns: Json
       }
+      can_create_contact: { Args: { org_id: string }; Returns: boolean }
+      can_create_event: { Args: { org_id: string }; Returns: boolean }
+      can_send_message: { Args: { org_id: string }; Returns: boolean }
       choose_best_value: {
         Args: { val1: string; val2: string }
         Returns: string

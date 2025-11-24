@@ -28,6 +28,10 @@ import AccessRequest from "./pages/AccessRequest";
 import PauseResumeDebug from "./pages/PauseResumeDebug";
 import EventCheckin from "./pages/EventCheckin";
 import PublicEventCheckin from "./pages/PublicEventCheckin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminOrganizations from "./pages/AdminOrganizations";
+import AdminUsers from "./pages/AdminUsers";
+import AdminPlans from "./pages/AdminPlans";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +159,35 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <OrganizationSettings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            {/* Admin Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminDashboard />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/organizations" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminOrganizations />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminUsers />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/plans" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminPlans />
                 </Layout>
               </ProtectedRoute>
             } />
