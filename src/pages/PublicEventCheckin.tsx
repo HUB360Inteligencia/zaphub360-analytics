@@ -79,17 +79,28 @@ const PublicEventCheckin = () => {
       if (contactError) throw contactError;
       if (!contact) throw new Error('Erro ao criar/atualizar contato');
 
-      // Get last used instance for this contact
-      const { data: lastMessage } = await supabase
-        .from('mensagens_enviadas')
-        .select('instancia_id')
+      // Get instance: first from new_contact_event, then from event instances
+      const { data: existingContact } = await supabase
+        .from('new_contact_event')
+        .select('ultima_instancia')
         .eq('celular', fullPhone)
         .eq('organization_id', event.organization_id)
-        .order('data_envio', { ascending: false, nullsFirst: false })
-        .limit(1)
         .maybeSingle();
 
-      const lastInstanceId = lastMessage?.instancia_id || null;
+      let instanceId = existingContact?.ultima_instancia || null;
+
+      // If no instance, get from event configuration
+      if (!instanceId) {
+        const { data: eventInstance } = await supabase
+          .from('campanha_instancia')
+          .select('id_instancia')
+          .eq('id_evento', event.id)
+          .order('prioridade')
+          .limit(1)
+          .maybeSingle();
+        
+        instanceId = eventInstance?.id_instancia || null;
+      }
 
       // Insert check-in
       const { data: checkin, error: checkinError } = await supabase
@@ -132,7 +143,7 @@ const PublicEventCheckin = () => {
           .update({
             bairro: bairro || null,
             cidade: cidade || null,
-            ultima_instancia: lastInstanceId,
+            ultima_instancia: instanceId,
             responsavel_cadastro: 'check-in público',
             event_id: event.event_id ? parseInt(event.event_id) : null,
           })
@@ -158,21 +169,31 @@ const PublicEventCheckin = () => {
         messageText = messageText.replace(new RegExp(key, 'g'), value);
       });
 
-      // Insert message in queue
+      // Calculate random delay between tempo_min and tempo_max
+      const tempoMin = event.tempo_min || 30;
+      const tempoMax = event.tempo_max || 60;
+      const delay = Math.floor(Math.random() * (tempoMax - tempoMin + 1)) + tempoMin;
+
+      // Insert message in mensagens_enviadas
       const { error: messageError } = await supabase
-        .from('mensagens_checkin_eventos')
+        .from('mensagens_enviadas')
         .insert({
           tipo_fluxo: 'evento',
-          event_id: event.id,
-          contact_id: contact.id,
-          checkin_id: checkin.id,
+          id_campanha: event.id,
           celular: fullPhone,
           mensagem: messageText,
-          url_midia: event.message_image || null,
-          tipo_midia: event.media_type || null,
-          instancia_id: lastInstanceId,
-          status: 'fila',
+          nome_contato: nome,
+          perfil_contato: cargo || null,
+          url_media: event.message_image || null,
+          media_type: event.media_type || null,
+          name_media: event.image_filename || null,
+          mime_type: event.mime_type || null,
+          caption_media: messageText,
+          instancia_id: instanceId,
+          status: 'pendente',
           organization_id: event.organization_id,
+          id_tipo_mensagem: event.id_tipo_mensagem || 1,
+          'tempo delay': delay,
         });
 
       if (messageError) throw messageError;
