@@ -13,6 +13,25 @@ import { cn } from '@/lib/utils';
 import { DDI_OPTIONS, combineDDIAndPhone, formatPhoneBR, formatBirthday, isValidBRPhone } from '@/lib/phoneUtils';
 import { PositionCombobox } from '@/components/events/PositionCombobox';
 
+// Extended event type with additional fields needed for check-in
+interface EventWithCheckinFields {
+  id: string;
+  event_id: string;
+  name: string;
+  event_date: string | null;
+  location: string | null;
+  message_text: string;
+  message_image: string | null;
+  media_type: string | null;
+  organization_id: string;
+  status: string;
+  tempo_min?: number | null;
+  tempo_max?: number | null;
+  image_filename?: string | null;
+  mime_type?: string | null;
+  id_tipo_mensagem?: number | null;
+}
+
 const PublicEventCheckin = () => {
   const { slug } = useParams<{ slug: string }>();
   const queryClient = useQueryClient();
@@ -28,7 +47,7 @@ const PublicEventCheckin = () => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Fetch event by slug
-  const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
+  const { data: event, isLoading: eventLoading, error: eventError } = useQuery<EventWithCheckinFields>({
     queryKey: ['public-event', slug],
     queryFn: async () => {
       if (!slug) throw new Error('Slug não fornecido');

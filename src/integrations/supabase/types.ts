@@ -1558,13 +1558,18 @@ export type Database = {
           event_date: string
           event_id: string
           id: string
+          id_tipo_mensagem: number
+          image_filename: string
           location: string
           media_type: string
           message_image: string
           message_text: string
+          mime_type: string
           name: string
           organization_id: string
           status: string
+          tempo_max: number
+          tempo_min: number
         }[]
       }
       get_grouped_events: {
