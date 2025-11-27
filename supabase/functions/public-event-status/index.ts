@@ -113,11 +113,11 @@ Deno.serve(async (req) => {
 
     console.log('Fetching event with ID:', eventId);
 
-    // Fetch event by event_id (string)
+    // Fetch event by UUID id (primary key)
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('id, event_id, name, event_date, location, message_text, message_image, status')
-      .eq('event_id', eventId)
+      .eq('id', eventId)
       .single();
 
     if (eventError) {
