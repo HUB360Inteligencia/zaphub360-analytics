@@ -45,18 +45,19 @@ export const useEventCheckin = (eventId: string) => {
     enabled: !!organization?.id && !!eventId,
   });
 
-  // Fetch message queue for event
+  // Fetch message queue for event from mensagens_enviadas
   const messagesQueueQuery = useQuery({
-    queryKey: ['checkin-messages-queue', eventId, organization?.id],
+    queryKey: ['event-messages-queue', eventId, organization?.id],
     queryFn: async () => {
       if (!organization?.id || !eventId) return [];
 
       const { data, error } = await supabase
-        .from('mensagens_checkin_eventos')
+        .from('mensagens_enviadas')
         .select('*')
-        .eq('event_id', eventId)
+        .eq('id_campanha', eventId)
+        .eq('tipo_fluxo', 'evento')
         .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -113,17 +114,28 @@ export const useEventCheckin = (eventId: string) => {
       if (contactError) throw contactError;
       if (!contact) throw new Error('Erro ao criar/atualizar contato');
 
-      // Get last used instance for this contact
-      const { data: lastMessage } = await supabase
-        .from('mensagens_enviadas')
-        .select('instancia_id')
+      // Get instance: first from new_contact_event, then from event instances
+      const { data: existingContact } = await supabase
+        .from('new_contact_event')
+        .select('ultima_instancia')
         .eq('celular', normalizedPhone)
         .eq('organization_id', organization.id)
-        .order('data_envio', { ascending: false, nullsFirst: false })
-        .limit(1)
         .maybeSingle();
 
-      const lastInstanceId = lastMessage?.instancia_id || null;
+      let instanceId = existingContact?.ultima_instancia || null;
+
+      // If no instance, get from event configuration
+      if (!instanceId) {
+        const { data: eventInstance } = await supabase
+          .from('campanha_instancia')
+          .select('id_instancia')
+          .eq('id_evento', eventId)
+          .order('prioridade')
+          .limit(1)
+          .maybeSingle();
+        
+        instanceId = eventInstance?.id_instancia || null;
+      }
 
       // Get event details
       const { data: event, error: eventError } = await supabase
@@ -176,7 +188,7 @@ export const useEventCheckin = (eventId: string) => {
           .update({
             bairro: formData.bairro || null,
             cidade: formData.cidade || null,
-            ultima_instancia: lastInstanceId,
+            ultima_instancia: instanceId,
             responsavel_cadastro: user.email || user.id,
             event_id: event.event_id ? parseInt(event.event_id) : null,
           })
@@ -202,22 +214,31 @@ export const useEventCheckin = (eventId: string) => {
         messageText = messageText.replace(new RegExp(key, 'g'), value);
       });
 
-      // Insert message in queue
+      // Calculate random delay between tempo_min and tempo_max
+      const tempoMin = event.tempo_min || 30;
+      const tempoMax = event.tempo_max || 60;
+      const delay = Math.floor(Math.random() * (tempoMax - tempoMin + 1)) + tempoMin;
+
+      // Insert message in mensagens_enviadas
       const { error: messageError } = await supabase
-        .from('mensagens_checkin_eventos')
+        .from('mensagens_enviadas')
         .insert({
           tipo_fluxo: 'evento',
-          event_id: eventId,
-          contact_id: contact.id,
-          checkin_id: checkin.id,
+          id_campanha: eventId,
           celular: normalizedPhone,
           mensagem: messageText,
-          url_midia: event.message_image || null,
-          tipo_midia: event.media_type || null,
-          nome_midia: event.image_filename || null,
-          instancia_id: lastInstanceId,
-          status: 'fila',
+          nome_contato: formData.nome,
+          perfil_contato: formData.cargo || null,
+          url_media: event.message_image || null,
+          media_type: event.media_type || null,
+          name_media: event.image_filename || null,
+          mime_type: event.mime_type || null,
+          caption_media: messageText,
+          instancia_id: instanceId,
+          status: 'pendente',
           organization_id: organization.id,
+          id_tipo_mensagem: event.id_tipo_mensagem || 1,
+          'tempo delay': delay,
         });
 
       if (messageError) throw messageError;
@@ -226,7 +247,7 @@ export const useEventCheckin = (eventId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checkins', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['checkin-messages-queue', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['event-messages-queue', eventId] });
       toast.success('Check-in realizado com sucesso!');
     },
     onError: (error: any) => {

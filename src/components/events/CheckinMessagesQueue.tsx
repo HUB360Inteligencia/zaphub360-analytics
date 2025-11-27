@@ -9,10 +9,13 @@ interface Message {
   id: string;
   celular: string;
   mensagem?: string;
+  caption_media?: string;
+  nome_contato?: string;
+  perfil_contato?: string;
   status: string;
-  created_at: string;
   data_envio?: string;
-  error_message?: string;
+  instancia_id?: string;
+  'tempo delay'?: number;
 }
 
 interface CheckinMessagesQueueProps {
@@ -21,8 +24,8 @@ interface CheckinMessagesQueueProps {
 }
 
 const statusConfig = {
-  fila: {
-    label: 'Na Fila',
+  pendente: {
+    label: 'Pendente',
     icon: Clock,
     variant: 'secondary' as const,
   },
@@ -75,8 +78,8 @@ export function CheckinMessagesQueue({ messages, isLoading }: CheckinMessagesQue
         <div className="space-y-4">
           {/* Status Summary */}
           <div className="flex flex-wrap gap-2">
-            {Object.entries(statusCounts).map(([status, count]) => {
-              const config = statusConfig[status] || statusConfig.fila;
+          {Object.entries(statusCounts).map(([status, count]) => {
+            const config = statusConfig[status] || statusConfig.pendente;
               const Icon = config.icon;
               return (
                 <Badge key={status} variant={config.variant} className="gap-1">
@@ -96,7 +99,7 @@ export function CheckinMessagesQueue({ messages, isLoading }: CheckinMessagesQue
             <ScrollArea className="h-[300px]">
               <div className="space-y-2">
                 {messages.map((message) => {
-                  const config = statusConfig[message.status] || statusConfig.fila;
+                  const config = statusConfig[message.status] || statusConfig.pendente;
                   const Icon = config.icon;
 
                   return (
@@ -106,8 +109,12 @@ export function CheckinMessagesQueue({ messages, isLoading }: CheckinMessagesQue
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-mono text-sm">{message.celular}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">{message.nome_contato || 'Sem nome'}</p>
+                            <p className="font-mono text-sm text-muted-foreground">{message.celular}</p>
+                            {message.perfil_contato && (
+                              <Badge variant="outline">{message.perfil_contato}</Badge>
+                            )}
                             <Badge variant={config.variant} className="gap-1">
                               <Icon className="h-3 w-3" />
                               {config.label}
@@ -118,20 +125,8 @@ export function CheckinMessagesQueue({ messages, isLoading }: CheckinMessagesQue
                               {message.mensagem}
                             </p>
                           )}
-                          {message.error_message && (
-                            <p className="text-sm text-destructive">
-                              Erro: {message.error_message}
-                            </p>
-                          )}
                         </div>
                         <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
-                          <p>
-                            {format(
-                              new Date(message.created_at),
-                              "dd/MM 'às' HH:mm",
-                              { locale: ptBR }
-                            )}
-                          </p>
                           {message.data_envio && (
                             <p className="text-green-600">
                               Enviado:{' '}
