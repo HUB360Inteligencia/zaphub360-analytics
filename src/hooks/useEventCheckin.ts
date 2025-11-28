@@ -5,7 +5,9 @@ import { toast } from 'sonner';
 
 export interface CheckinFormData {
   nome: string;
+  sobrenome?: string;
   celular: string;
+  estado?: string; // UF - apenas para UX, não salvo
   bairro?: string;
   cidade?: string;
   cargo?: string;
@@ -92,13 +94,18 @@ export const useEventCheckin = (eventId: string) => {
         throw new Error('Número de telefone inválido');
       }
 
+      // Concatenate nome + sobrenome for full name
+      const fullName = formData.sobrenome 
+        ? `${formData.nome} ${formData.sobrenome}`
+        : formData.nome;
+
       // Upsert contact
       const { data: contact, error: contactError } = await supabase
         .from('contacts')
         .upsert(
           {
             phone: normalizedPhone,
-            name: formData.nome,
+            name: fullName,
             organization_id: organization.id,
             origin: 'checkin_evento',
             status: 'active',
@@ -172,7 +179,7 @@ export const useEventCheckin = (eventId: string) => {
           _name: formData.nome,
           _celular: normalizedPhone,
           _evento: event.name,
-          _sobrenome: '',
+          _sobrenome: formData.sobrenome || '',
           _organization_id: organization.id,
           _perfil_contato: formData.cargo || '',
         });
