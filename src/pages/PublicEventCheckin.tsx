@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DDI_OPTIONS, combineDDIAndPhone, formatPhoneBR, formatBirthday, isValidBRPhone } from '@/lib/phoneUtils';
 import { PositionCombobox } from '@/components/events/PositionCombobox';
+import { CityCombobox } from '@/components/events/CityCombobox';
+import { BairroCombobox } from '@/components/events/BairroCombobox';
 
 // Extended event type with additional fields needed for check-in
 interface EventWithCheckinFields {
@@ -38,8 +40,10 @@ const PublicEventCheckin = () => {
   
   // Form state
   const [nome, setNome] = useState('');
+  const [sobrenome, setSobrenome] = useState('');
   const [ddi, setDdi] = useState('+55');
   const [celular, setCelular] = useState('');
+  const [estado, setEstado] = useState('PR');
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [cargo, setCargo] = useState('');
@@ -76,13 +80,16 @@ const PublicEventCheckin = () => {
       
       const fullPhone = combineDDIAndPhone(ddi, celular);
       
+      // Concatenate nome + sobrenome for full name
+      const fullName = sobrenome ? `${nome} ${sobrenome}` : nome;
+      
       // Upsert contact
       const { data: contact, error: contactError } = await supabase
         .from('contacts')
         .upsert(
           {
             phone: fullPhone,
-            name: nome,
+            name: fullName,
             organization_id: event.organization_id,
             origin: 'checkin_evento',
             status: 'active',
@@ -146,7 +153,7 @@ const PublicEventCheckin = () => {
           _name: nome,
           _celular: fullPhone,
           _evento: event.name,
-          _sobrenome: '',
+          _sobrenome: sobrenome || '',
           _organization_id: event.organization_id,
           _perfil_contato: cargo || '',
         });
@@ -224,7 +231,9 @@ const PublicEventCheckin = () => {
       toast.success('Check-in realizado com sucesso!');
       // Reset form
       setNome('');
+      setSobrenome('');
       setCelular('');
+      setEstado('PR');
       setBairro('');
       setCidade('');
       setCargo('');
@@ -321,16 +330,27 @@ const PublicEventCheckin = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Nome */}
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
-              <Input
-                id="nome"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Seu nome completo"
-                required
-              />
+            {/* Nome e Sobrenome */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome *</Label>
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Primeiro nome"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sobrenome">Sobrenome</Label>
+                <Input
+                  id="sobrenome"
+                  value={sobrenome}
+                  onChange={(e) => setSobrenome(e.target.value)}
+                  placeholder="Sobrenome"
+                />
+              </div>
             </div>
 
             {/* Telefone com DDI */}
@@ -360,26 +380,27 @@ const PublicEventCheckin = () => {
               </div>
             </div>
 
-            {/* Cidade e Bairro */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cidade">Cidade</Label>
-                <Input
-                  id="cidade"
-                  value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
-                  placeholder="Sua cidade"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bairro">Bairro</Label>
-                <Input
-                  id="bairro"
-                  value={bairro}
-                  onChange={(e) => setBairro(e.target.value)}
-                  placeholder="Seu bairro"
-                />
-              </div>
+            {/* Cidade com busca IBGE */}
+            <div className="space-y-2">
+              <Label htmlFor="cidade">Cidade</Label>
+              <CityCombobox
+                value={cidade}
+                onChange={setCidade}
+                stateUF={estado}
+                onStateChange={setEstado}
+                defaultState="PR"
+              />
+            </div>
+
+            {/* Bairro com busca histórica */}
+            <div className="space-y-2">
+              <Label htmlFor="bairro">Bairro</Label>
+              <BairroCombobox
+                value={bairro}
+                onChange={setBairro}
+                cidade={cidade}
+                organizationId={event.organization_id}
+              />
             </div>
 
             {/* Cargo com Autocomplete */}

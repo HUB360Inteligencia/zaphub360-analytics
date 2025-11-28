@@ -9,17 +9,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { PositionCombobox } from '@/components/events/PositionCombobox';
+import { CityCombobox } from '@/components/events/CityCombobox';
+import { BairroCombobox } from '@/components/events/BairroCombobox';
 import { useEvent } from '@/hooks/useEvents';
 import { useEventCheckin, CheckinFormData } from '@/hooks/useEventCheckin';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 const checkinSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório').max(100),
+  sobrenome: z.string().max(100).optional(),
   celular: z.string()
     .min(10, 'Celular deve ter no mínimo 10 dígitos')
     .max(15, 'Celular deve ter no máximo 15 dígitos')
     .regex(/^[0-9]+$/, 'Apenas números'),
+  estado: z.string().max(2).optional(),
   bairro: z.string().max(100).optional(),
   cidade: z.string().max(100).optional(),
   cargo: z.string().max(100).optional(),
@@ -33,6 +38,7 @@ export default function EventCheckin() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
+  const { organization } = useAuth();
 
   const { data: event, isLoading: isLoadingEvent } = useEvent(id!);
   const { hasPermission, isLoadingPermission, performCheckin } = useEventCheckin(id!);
@@ -41,7 +47,9 @@ export default function EventCheckin() {
     resolver: zodResolver(checkinSchema),
     defaultValues: {
       nome: '',
+      sobrenome: '',
       celular: '',
+      estado: 'PR',
       bairro: '',
       cidade: '',
       cargo: '',
@@ -132,19 +140,35 @@ export default function EventCheckin() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="nome"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nome completo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="nome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Primeiro nome" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sobrenome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sobrenome</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Sobrenome" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -167,35 +191,44 @@ export default function EventCheckin() {
                   )}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="bairro"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bairro</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bairro" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={form.control}
+                  name="cidade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cidade</FormLabel>
+                      <FormControl>
+                        <CityCombobox
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          stateUF={form.watch('estado') || 'PR'}
+                          onStateChange={(uf) => form.setValue('estado', uf)}
+                          defaultState="PR"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={form.control}
-                    name="cidade"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cidade</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Cidade" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="bairro"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bairro</FormLabel>
+                      <FormControl>
+                        <BairroCombobox
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          cidade={form.watch('cidade') || ''}
+                          organizationId={organization?.id || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
               <FormField
                 control={form.control}
