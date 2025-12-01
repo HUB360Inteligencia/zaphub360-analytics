@@ -182,54 +182,25 @@ export const useEvents = () => {
   };
 
   const getEventInstances = async (eventId: string) => {
-    // First try to find by id_evento (for events), then fallback to id_campanha (for campaigns)
-    let { data, error } = await supabase
-      .from('campanha_instancia')
-      .select('id_instancia')
-      .eq('id_evento', eventId);
-
-    // If no data found, try with id_campanha for backward compatibility
-    if (!data || data.length === 0) {
-      const result = await supabase
-        .from('campanha_instancia')
-        .select('id_instancia')
-        .eq('id_campanha', eventId);
-      
-      data = result.data;
-      error = result.error;
-    }
+    // Read directly from events.instance_ids column
+    const { data, error } = await supabase
+      .from('events')
+      .select('instance_ids')
+      .eq('id', eventId)
+      .single();
 
     if (error) throw error;
-    return (data || []).map(item => item.id_instancia);
+    return data?.instance_ids || [];
   };
 
   const syncEventInstances = async (eventId: string, instanceIds: string[]) => {
-    // Remove existing associations (check both id_evento and id_campanha for cleanup)
-    await supabase
-      .from('campanha_instancia')
-      .delete()
-      .eq('id_evento', eventId);
-    
-    // Also remove any legacy associations with id_campanha
-    await supabase
-      .from('campanha_instancia')
-      .delete()
-      .eq('id_campanha', eventId);
+    // Save directly to events.instance_ids column
+    const { error } = await supabase
+      .from('events')
+      .update({ instance_ids: instanceIds })
+      .eq('id', eventId);
 
-    // Add new associations using id_evento for events
-    if (instanceIds.length > 0) {
-      const associations = instanceIds.map((instanceId, index) => ({
-        id_evento: eventId,
-        id_instancia: instanceId,
-        prioridade: index
-      }));
-
-      const { error } = await supabase
-        .from('campanha_instancia')
-        .insert(associations);
-
-      if (error) throw error;
-    }
+    if (error) throw error;
   };
 
   return {

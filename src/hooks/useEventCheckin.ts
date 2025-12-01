@@ -121,7 +121,16 @@ export const useEventCheckin = (eventId: string) => {
       if (contactError) throw contactError;
       if (!contact) throw new Error('Erro ao criar/atualizar contato');
 
-      // Get instance: first from new_contact_event, then from event instances
+      // Get event details first
+      const { data: event, error: eventError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError) throw eventError;
+
+      // Get instance: first from new_contact_event, then from event's instance_ids
       const { data: existingContact } = await supabase
         .from('new_contact_event')
         .select('ultima_instancia')
@@ -131,27 +140,10 @@ export const useEventCheckin = (eventId: string) => {
 
       let instanceId = existingContact?.ultima_instancia || null;
 
-      // If no instance, get from event configuration
-      if (!instanceId) {
-        const { data: eventInstance } = await supabase
-          .from('campanha_instancia')
-          .select('id_instancia')
-          .eq('id_evento', eventId)
-          .order('prioridade')
-          .limit(1)
-          .maybeSingle();
-        
-        instanceId = eventInstance?.id_instancia || null;
+      // If no instance, get from event's instance_ids column
+      if (!instanceId && event.instance_ids && event.instance_ids.length > 0) {
+        instanceId = event.instance_ids[0];
       }
-
-      // Get event details
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
-
-      if (eventError) throw eventError;
 
       // Insert check-in
       const { data: checkin, error: checkinError } = await supabase
