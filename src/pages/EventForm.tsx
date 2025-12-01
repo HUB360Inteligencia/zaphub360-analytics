@@ -34,7 +34,7 @@ const EventForm = () => {
   const isEditing = !!id;
   
   const { organization } = useAuth();
-  const { events, createEvent, updateEvent, uploadEventImage, getEventInstances, syncEventInstances, isLoading: eventsLoading } = useEvents();
+  const { events, createEvent, updateEvent, uploadEventImage, syncEventInstances, isLoading: eventsLoading } = useEvents();
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
@@ -82,14 +82,12 @@ const EventForm = () => {
     }
   }, [currentEvent, setValue]);
 
-  // Separate effect for loading instances to avoid dependency issues
+  // Load instances directly from event's instance_ids column
   useEffect(() => {
-    if (currentEvent?.id) {
-      getEventInstances(currentEvent.id).then(instances => {
-        setSelectedInstances(instances);
-      });
+    if (currentEvent?.instance_ids && currentEvent.instance_ids.length > 0) {
+      setSelectedInstances(currentEvent.instance_ids);
     }
-  }, [currentEvent?.id]);
+  }, [currentEvent?.instance_ids]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
