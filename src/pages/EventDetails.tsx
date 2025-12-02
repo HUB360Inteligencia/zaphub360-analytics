@@ -86,8 +86,17 @@ const EventDetails = () => {
     );
   };
 
-  const copyPublicLink = () => {
-    const publicLink = `${window.location.origin}/public/event/${event?.event_id}`;
+  const copyPublicLink = async () => {
+    // Buscar slug da organização
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('slug')
+      .eq('id', event?.organization_id)
+      .single();
+    
+    const orgSlug = org?.slug || 'org';
+    const eventSlug = (event as any)?.slug || event?.event_id;
+    const publicLink = `${window.location.origin}/${orgSlug}/evento/${eventSlug}`;
     navigator.clipboard.writeText(publicLink);
     toast.success('Link público copiado!');
   };

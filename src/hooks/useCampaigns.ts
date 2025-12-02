@@ -8,6 +8,7 @@ import { useErrorHandler } from './useErrorHandler';
 export interface Campaign {
   id: string;
   name: string;
+  slug?: string;
   description?: string;
   status: 'draft' | 'scheduled' | 'active' | 'disparando' | 'paused' | 'completed' | 'cancelled';
   organization_id: string;
@@ -137,10 +138,18 @@ export const useCampaigns = () => {
         throw new Error('Campos obrigatórios não preenchidos');
       }
 
+      // Gerar slug usando a função do banco
+      const { data: slugData } = await supabase
+        .rpc('generate_campaign_slug', {
+          campaign_name: campaignData.name.trim(),
+          org_id: campaignData.organization_id
+        });
+
       // Sanitizar dados
       const sanitizedData = {
         ...campaignData,
         name: campaignData.name.trim(),
+        slug: slugData || campaignData.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         description: campaignData.description?.trim() || null,
         intervalo_minimo: campaignData.intervalo_minimo || 30,
         intervalo_maximo: campaignData.intervalo_maximo || 60,
