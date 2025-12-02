@@ -78,29 +78,43 @@ export const CampaignContactsImport = ({ campaignName, onContactsImported }: Cam
         phone = parts.slice(1).join(' - ').trim();
       } else if (trimmedLine.includes(',')) {
         const parts = trimmedLine.split(',');
-        // Verificar se a primeira parte parece um nome (não é apenas números)
-        const firstPart = parts[0].trim();
-        if (!/^\d+$/.test(firstPart.replace(/\D/g, '')) || firstPart.replace(/\D/g, '').length < 10) {
-          name = firstPart;
-          phone = parts.slice(1).join(',').trim();
-        } else {
-          // Parece ser números separados por vírgula
-          parts.forEach((p, pIndex) => {
-            const cleanedPhone = p.trim();
-            if (validatePhone(cleanedPhone)) {
-              contacts.push({
-                name: 'Contato Importado',
-                phone: formatPhone(cleanedPhone)
+        
+        if (parts.length >= 2) {
+          // SEMPRE: Coluna 1 = Nome, Coluna 2 = Telefone
+          const potentialName = parts[0].trim();
+          const potentialPhone = parts[1].trim();
+          
+          if (validatePhone(potentialPhone)) {
+            // Formato válido: Nome, Telefone
+            name = potentialName || 'Contato Importado';
+            phone = potentialPhone;
+          } else {
+            // Se coluna 2 não é telefone válido, verificar se são múltiplos telefones
+            const allParts = parts.map(p => p.trim());
+            const allValidPhones = allParts.every(p => validatePhone(p));
+            
+            if (allValidPhones) {
+              // Todos são telefones válidos - importar como lista
+              allParts.forEach((p) => {
+                contacts.push({
+                  name: 'Contato Importado',
+                  phone: formatPhone(p)
+                });
               });
-            } else if (cleanedPhone) {
+              return;
+            } else {
+              // Não é lista de telefones, tratar como Nome, Telefone inválido
               errors.push({
                 line: index + 1,
-                contact: cleanedPhone,
-                error: 'Telefone inválido (deve ter entre 10-13 dígitos)'
+                contact: trimmedLine,
+                error: `Telefone inválido: "${potentialPhone}" (deve ter entre 10-13 dígitos)`
               });
+              return;
             }
-          });
-          return;
+          }
+        } else {
+          phone = parts[0].trim();
+          name = 'Contato Importado';
         }
       } else {
         // Apenas telefone
@@ -203,12 +217,19 @@ export const CampaignContactsImport = ({ campaignName, onContactsImported }: Cam
           const eventos = existing.evento ? existing.evento.split(' . ') : [];
           const campaignLabel = campaignName || 'Campanha';
           
-          if (!eventos.includes(campaignLabel)) {
-            eventos.push(campaignLabel);
+          // Preparar update - também atualiza nome se estava vazio/genérico
+          const shouldUpdateName = (!existing.name || existing.name === 'Contato Importado') 
+            && contact.name && contact.name !== 'Contato Importado';
+          
+          if (!eventos.includes(campaignLabel) || shouldUpdateName) {
+            if (!eventos.includes(campaignLabel)) {
+              eventos.push(campaignLabel);
+            }
             await supabase
               .from('new_contact_event')
               .update({ 
                 evento: eventos.join(' . '),
+                ...(shouldUpdateName ? { name: contact.name } : {}),
                 updated_at: new Date().toISOString()
               })
               .eq('id_contact_event', existing.id_contact_event);
