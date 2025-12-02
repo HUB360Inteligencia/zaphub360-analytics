@@ -138,18 +138,32 @@ export const useCampaigns = () => {
         throw new Error('Campos obrigatórios não preenchidos');
       }
 
-      // Gerar slug usando a função do banco
-      const { data: slugData } = await supabase
+      // Gerar slug usando a função do banco com tratamento de erro
+      const { data: slugData, error: slugError } = await supabase
         .rpc('generate_campaign_slug', {
           campaign_name: campaignData.name.trim(),
           org_id: campaignData.organization_id
         });
 
+      if (slugError) {
+        console.error('Erro ao gerar slug:', slugError);
+      }
+
+      // Fallback robusto com tratamento de acentos
+      const generateFallbackSlug = (name: string): string => {
+        const slug = name
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, ''); // Remove hífens do início/fim
+        return slug || `campanha-${Date.now()}`;
+      };
+
       // Sanitizar dados
       const sanitizedData = {
         ...campaignData,
         name: campaignData.name.trim(),
-        slug: slugData || campaignData.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        slug: slugData || generateFallbackSlug(campaignData.name.trim()),
         description: campaignData.description?.trim() || null,
         intervalo_minimo: campaignData.intervalo_minimo || 30,
         intervalo_maximo: campaignData.intervalo_maximo || 60,
