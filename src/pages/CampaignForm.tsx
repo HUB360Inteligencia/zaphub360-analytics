@@ -16,6 +16,7 @@ import { InstanceSelector } from '@/components/campaigns/InstanceSelector';
 import { ContactWithDetails } from '@/hooks/useAdvancedContactFilter';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Users, MessageCircle, Settings, Send, Eye, Loader2 } from 'lucide-react';
+import { CampaignContactsImport, ImportedContact } from '@/components/campaigns/CampaignContactsImport';
 import { toast } from 'sonner';
 
 export default function CampaignForm() {
@@ -589,10 +590,28 @@ export default function CampaignForm() {
         {/* Seleção de Contatos */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Audiência da Campanha
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Audiência da Campanha
+              </CardTitle>
+              <CampaignContactsImport
+                campaignName={formData.name || 'Nova Campanha'}
+                onContactsImported={(importedContacts: ImportedContact[]) => {
+                  const existingPhones = new Set(selectedContacts.map(c => c.phone));
+                  const newContacts = importedContacts
+                    .filter(c => !existingPhones.has(c.phone))
+                    .map(c => ({
+                      id: c.id,
+                      name: c.name,
+                      phone: c.phone
+                    }));
+                  if (newContacts.length > 0) {
+                    setSelectedContacts([...selectedContacts, ...newContacts]);
+                  }
+                }}
+              />
+            </div>
           </CardHeader>
           <CardContent>
               <AdvancedContactSelector
