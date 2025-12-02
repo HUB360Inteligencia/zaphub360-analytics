@@ -23,12 +23,10 @@ function computeEventStatus(analytics: any): string {
     return 'draft';
   }
 
-  // Progress = total - queued (unified logic)
   if (analytics.queuedMessages > 0) {
     return 'sending';
   }
 
-  // Se todas as mensagens falharam e nenhuma foi entregue
   if (analytics.errorMessages > 0 && analytics.deliveredMessages === 0) {
     return 'failed';
   }
@@ -40,10 +38,10 @@ function normalizeStatus(status: string): string {
   const statusMapping: Record<string, string> = {
     'fila': 'fila',
     'queued': 'fila',
-    'pendente': 'fila', // Normalize pendente to fila
-    'processando': 'fila', // Normalize processando to fila
-    'pending': 'fila', // Normalize pending to fila
-    'processing': 'fila', // Normalize processing to fila
+    'pendente': 'fila',
+    'processando': 'fila',
+    'pending': 'fila',
+    'processing': 'fila',
     'true': 'enviado',
     'READ': 'lido',
     'delivered': 'enviado',
@@ -84,6 +82,8 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     let eventId = url.searchParams.get('eventId');
     let selectedDate = url.searchParams.get('selectedDate');
+    let orgSlug = url.searchParams.get('orgSlug');
+    let eventSlug = url.searchParams.get('eventSlug');
 
     // If not in query params, try to get from request body
     if (req.method === 'POST') {
@@ -91,19 +91,11 @@ Deno.serve(async (req) => {
         const body = await req.json();
         eventId = body.eventId || eventId;
         selectedDate = body.selectedDate || selectedDate;
+        orgSlug = body.orgSlug || orgSlug;
+        eventSlug = body.eventSlug || eventSlug;
       } catch (e) {
         // Ignore JSON parse errors
       }
-    }
-
-    if (!eventId) {
-      return new Response(
-        JSON.stringify({ error: 'Event ID is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
     }
 
     const supabase = createClient(
@@ -111,76 +103,122 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Fetching event with ID:', eventId);
+    let event: any = null;
 
-    // Fetch event by UUID id (primary key)
-    const { data: event, error: eventError } = await supabase
-      .from('events')
-      .select('id, event_id, name, event_date, location, message_text, message_image, status')
-      .eq('id', eventId)
-      .single();
+    // Try to find event by orgSlug + eventSlug first
+    if (orgSlug && eventSlug) {
+      console.log('Finding event by orgSlug:', orgSlug, 'eventSlug:', eventSlug);
+      
+      // Get organization by slug
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('slug', orgSlug)
+        .single();
 
-    if (eventError) {
-      console.error('Error fetching event:', eventError);
-      return new Response(
-        JSON.stringify({ error: 'Event not found' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      if (orgError || !org) {
+        console.error('Organization not found:', orgError);
+        return new Response(
+          JSON.stringify({ error: 'Organization not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get event by organization_id and slug
+      const { data: eventBySlug, error: eventSlugError } = await supabase
+        .from('events')
+        .select('id, event_id, name, event_date, location, message_text, message_image, status, organization_id, slug')
+        .eq('organization_id', org.id)
+        .eq('slug', eventSlug)
+        .single();
+
+      if (eventSlugError || !eventBySlug) {
+        console.error('Event not found by slug:', eventSlugError);
+        return new Response(
+          JSON.stringify({ error: 'Event not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      event = eventBySlug;
+    } else if (eventId) {
+      // Fallback: Fetch event by UUID id (primary key) or event_id
+      console.log('Fetching event with ID:', eventId);
+
+      // Try UUID first
+      let { data: eventById, error: eventError } = await supabase
+        .from('events')
+        .select('id, event_id, name, event_date, location, message_text, message_image, status, organization_id, slug')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError) {
+        // Try event_id (legacy)
+        const { data: eventByEventId, error: eventIdError } = await supabase
+          .from('events')
+          .select('id, event_id, name, event_date, location, message_text, message_image, status, organization_id, slug')
+          .eq('event_id', eventId)
+          .single();
+
+        if (eventIdError) {
+          console.error('Event not found:', eventIdError);
+          return new Response(
+            JSON.stringify({ error: 'Event not found' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
+        event = eventByEventId;
+      } else {
+        event = eventById;
+      }
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'Event ID or slugs required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Event found:', event.name);
 
-    // -------------------------------------------------------------
-    // Filtro de data em BRT (America/Sao_Paulo) aplicado no banco
-    // -------------------------------------------------------------
+    // Date filter setup
     let startOfDayISO: string | undefined;
     let endOfDayISO: string | undefined;
 
     if (selectedDate) {
-      // selectedDate deve representar a meia-noite local que você quer comparar (BRT)
       const startOfDay = new Date(selectedDate);
       const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
       startOfDayISO = startOfDay.toISOString();
       endOfDayISO = endOfDay.toISOString();
     }
 
-    // Fetch messages data for analytics - try multiple tables
+    // Fetch messages data for analytics
     let messagesData: any[] = [];
     
-    // First try mensagens_enviadas table
     let query1 = supabase
       .from('mensagens_enviadas')
       .select('status, data_envio, data_leitura, data_resposta, sentimento, perfil_contato')
       .eq('id_campanha', event.id);
 
     if (startOfDayISO && endOfDayISO) {
-      query1 = query1
-        .gte('data_envio', startOfDayISO)
-        .lt('data_envio', endOfDayISO);
+      query1 = query1.gte('data_envio', startOfDayISO).lt('data_envio', endOfDayISO);
     }
 
-    const { data: messages1, error: messagesError1 } = await query1;
+    const { data: messages1 } = await query1;
 
     if (messages1 && messages1.length > 0) {
       messagesData = messages1;
       console.log('Found messages in mensagens_enviadas:', messages1.length);
     } else {
-      // Try event_messages table if no messages in mensagens_enviadas
       let query2 = supabase
         .from('event_messages')
         .select('status, sent_at as data_envio, read_at as data_leitura, responded_at as data_resposta, sentiment as sentimento, contact_profile as perfil_contato')
         .eq('event_id', event.id);
 
       if (startOfDayISO && endOfDayISO) {
-        query2 = query2
-          .gte('sent_at', startOfDayISO)
-          .lt('sent_at', endOfDayISO);
+        query2 = query2.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
       }
 
-      const { data: messages2, error: messagesError2 } = await query2;
+      const { data: messages2 } = await query2;
 
       if (messages2 && messages2.length > 0) {
         messagesData = messages2.map(msg => ({
@@ -192,50 +230,27 @@ Deno.serve(async (req) => {
           perfil_contato: msg.perfil_contato
         }));
         console.log('Found messages in event_messages:', messages2.length);
-      } else {
-        // Also try new_contact_event table for contact count
-        const { data: contacts, error: contactsError } = await supabase
-          .from('new_contact_event')
-          .select('celular, sentimento, status_envio')
-          .eq('event_id', event.event_id);
-
-        if (contacts && contacts.length > 0) {
-          messagesData = contacts.map(contact => ({
-            status: contact.status_envio || 'fila',
-            data_envio: null,
-            data_leitura: null,
-            data_resposta: null,
-            sentimento: contact.sentimento,
-            perfil_contato: null
-          }));
-          console.log('Found contacts in new_contact_event:', contacts.length);
-        }
       }
     }
     
-    // Normalize messages data to match private page logic
     const normalizedMessages = messagesData.map(msg => ({
       ...msg,
       status: normalizeStatus(msg.status || 'fila'),
       sentimento: normalizeSentiment(msg.sentimento),
     }));
 
-    // Calculate analytics with server-side accurate counts to avoid 1000-row cap
+    // Calculate analytics with server-side accurate counts
     let totalMessages = normalizedMessages.length;
     let queuedMessages = normalizedMessages.filter(m => m.status === 'fila').length;
     let readMessages = normalizedMessages.filter(m => m.status === 'lido').length;
-    // Improved response counting: status 'respondido' OR data_resposta exists
     let responseMessages = normalizedMessages.filter(m => 
       m.status === 'respondido' || m.data_resposta != null
     ).length;
     let errorMessages = normalizedMessages.filter(m => m.status === 'erro').length;
-    
-    // Enviados: "enviado" + "erro" statuses
     let deliveredMessages = normalizedMessages.filter(m => m.status === 'enviado').length;
     let sentMessages = deliveredMessages + errorMessages;
 
     try {
-      // Primeiro: contar exatamente em mensagens_enviadas (tabela primária de campanha)
       const applyMeFilters = (q: any) => {
         let qq = q.eq('id_campanha', event.id);
         if (startOfDayISO && endOfDayISO) {
@@ -244,14 +259,7 @@ Deno.serve(async (req) => {
         return qq;
       };
 
-      const [
-        meTotal,
-        meQueued,
-        meRead,
-        meResponded,
-        meError,
-        meDelivered
-      ] = await Promise.all([
+      const [meTotal, meQueued, meRead, meResponded, meError, meDelivered] = await Promise.all([
         applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })),
         applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).in('status', ['fila','pendente','processando']),
         applyMeFilters(supabase.from('mensagens_enviadas').select('id', { count: 'exact', head: true })).eq('status', 'lido'),
@@ -268,106 +276,30 @@ Deno.serve(async (req) => {
         errorMessages = meError.count || errorMessages;
         deliveredMessages = meDelivered.count || deliveredMessages;
         sentMessages = deliveredMessages + errorMessages;
-      } else {
-        // Fallback: contar exatamente em event_messages
-        let totalQ = supabase
-          .from('event_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', event.id);
-
-        let queuedQ = supabase
-          .from('event_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', event.id)
-          .in('status', ['queued', 'pending', 'processing']);
-
-        let readQ = supabase
-          .from('event_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', event.id)
-          .not('read_at', 'is', null);
-
-        let respondedQ = supabase
-          .from('event_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', event.id)
-          .not('responded_at', 'is', null);
-
-        let errorQ = supabase
-          .from('event_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', event.id)
-          .eq('status', 'failed');
-
-        let deliveredQ = supabase
-          .from('event_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', event.id)
-          .in('status', ['sent', 'delivered']);
-
-        if (startOfDayISO && endOfDayISO) {
-          totalQ = totalQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
-          queuedQ = queuedQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
-          readQ = readQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
-          respondedQ = respondedQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
-          errorQ = errorQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
-          deliveredQ = deliveredQ.gte('sent_at', startOfDayISO).lt('sent_at', endOfDayISO);
-        }
-
-        const [
-          totalRes,
-          queuedRes,
-          readRes,
-          respondedRes,
-          errorRes,
-          deliveredRes
-        ] = await Promise.all([
-          totalQ,
-          queuedQ,
-          readQ,
-          respondedQ,
-          errorQ,
-          deliveredQ
-        ]);
-
-        totalMessages = totalRes.count || totalMessages;
-        queuedMessages = queuedRes.count || queuedMessages;
-        readMessages = readRes.count || readMessages;
-        responseMessages = respondedRes.count || responseMessages;
-        errorMessages = errorRes.count || errorMessages;
-        deliveredMessages = deliveredRes.count || deliveredMessages;
-        sentMessages = deliveredMessages + errorMessages;
       }
     } catch (e) {
       console.warn('Public analytics: falling back to client-side counts due to error:', e);
     }
 
-    // Progress = total - queued
     const progressMessages = totalMessages - queuedMessages;
     const progressRate = totalMessages > 0 ? (progressMessages / totalMessages) * 100 : 0;
-    
     const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
     const readRate = deliveredMessages > 0 ? (readMessages / deliveredMessages) * 100 : 0;
-    // Improved response rate: fallback to total if no reads
     const responseRate = readMessages > 0 ? (responseMessages / readMessages) * 100 : 
                         (totalMessages > 0 ? (responseMessages / totalMessages) * 100 : 0);
     
-    // Log analytics for debugging
-    console.log('Public analytics calculated (server-accurate counts):', {
+    console.log('Public analytics calculated:', {
       totalMessages, queuedMessages, deliveredMessages, readMessages, 
       responseMessages, errorMessages, deliveryRate, readRate, responseRate, progressRate
     });
 
-    // Process hourly activity - format for new chart (enviados, respondidos)
+    // Process hourly activity
     const hourlyData: Record<string, { enviados: number; respondidos: number }> = {};
-
-    // Como o filtro por data já foi aplicado no banco, usamos todas as mensagens normalizadas
     const filteredMessages = normalizedMessages;
     
     filteredMessages.forEach(message => {
       if (!message.data_envio) return;
 
-      // Extrai a hora em America/Sao_Paulo (BRT), igual ao que você vê no banco
       const hourStr = new Intl.DateTimeFormat('pt-BR', {
         hour: '2-digit',
         hour12: false,
@@ -381,7 +313,6 @@ Deno.serve(async (req) => {
         hourlyData[hourKey] = { enviados: 0, respondidos: 0 };
       }
       
-      // Enviados: toda mensagem com tentativa (status diferente de pendente/fila)
       if (!['pendente', 'fila'].includes(message.status)) {
         hourlyData[hourKey].enviados++;
       }
@@ -400,7 +331,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Calculate status distribution with exact colors from private page
+    // Status distribution
     const statusCounts = new Map<string, number>();
     normalizedMessages.forEach(message => {
       const status = message.status || 'fila';
@@ -413,18 +344,7 @@ Deno.serve(async (req) => {
       'lido': '#8B5CF6',
       'respondido': '#10B981',
       'erro': '#EF4444',
-      'pendente': '#F59E0B', // Different from 'fila'
-      // Legacy mappings
-      'enviada': '#3B82F6',
-      'entregue': '#10B981', 
-      'respondida': '#10B981',
-      'failed': '#EF4444',
-      'pending': '#F59E0B',
-      'delivered': '#10B981',
-      'read': '#8B5CF6',
-      'responded': '#10B981',
-      'error': '#EF4444',
-      'queued': '#6B7280',
+      'pendente': '#F59E0B',
     };
 
     const statusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({
@@ -433,7 +353,7 @@ Deno.serve(async (req) => {
       color: statusColors[status] || '#9CA3AF'
     }));
 
-    // Calculate sentiment analysis with exact format from private page
+    // Sentiment analysis
     const sentimentCounts = {
       'super_engajado': normalizedMessages.filter(m => m.sentimento === 'super engajado').length,
       'positivo': normalizedMessages.filter(m => m.sentimento === 'positivo').length,
@@ -445,129 +365,83 @@ Deno.serve(async (req) => {
     const sentimentTotal = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
 
     const sentimentDistribution = [
-      {
-        sentiment: 'Super Engajado',
-        count: sentimentCounts.super_engajado,
-        percentage: sentimentTotal > 0 ? (sentimentCounts.super_engajado / sentimentTotal) * 100 : 0,
-        color: '#FF6B35',
-        emoji: '🔥'
-      },
-      {
-        sentiment: 'Positivo',
-        count: sentimentCounts.positivo,
-        percentage: sentimentTotal > 0 ? (sentimentCounts.positivo / sentimentTotal) * 100 : 0,
-        color: '#10B981',
-        emoji: '😊'
-      },
-      {
-        sentiment: 'Neutro',
-        count: sentimentCounts.neutro,
-        percentage: sentimentTotal > 0 ? (sentimentCounts.neutro / sentimentTotal) * 100 : 0,
-        color: '#6B7280',
-        emoji: '😐'
-      },
-      {
-        sentiment: 'Negativo',
-        count: sentimentCounts.negativo,
-        percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0,
-        color: '#EF4444',
-        emoji: '😞'
-      },
-      {
-        sentiment: 'Sem Classificação',
-        count: sentimentCounts.sem_classificacao,
-        percentage: sentimentTotal > 0 ? (sentimentCounts.sem_classificacao / sentimentTotal) * 100 : 0,
-        color: '#D1D5DB',
-        emoji: '⚪'
-      }
+      { sentiment: 'Super Engajado', count: sentimentCounts.super_engajado, percentage: sentimentTotal > 0 ? (sentimentCounts.super_engajado / sentimentTotal) * 100 : 0, color: '#FF6B35', emoji: '🔥' },
+      { sentiment: 'Positivo', count: sentimentCounts.positivo, percentage: sentimentTotal > 0 ? (sentimentCounts.positivo / sentimentTotal) * 100 : 0, color: '#10B981', emoji: '😊' },
+      { sentiment: 'Neutro', count: sentimentCounts.neutro, percentage: sentimentTotal > 0 ? (sentimentCounts.neutro / sentimentTotal) * 100 : 0, color: '#6B7280', emoji: '😐' },
+      { sentiment: 'Negativo', count: sentimentCounts.negativo, percentage: sentimentTotal > 0 ? (sentimentCounts.negativo / sentimentTotal) * 100 : 0, color: '#EF4444', emoji: '😞' },
+      { sentiment: 'Sem Classificação', count: sentimentCounts.sem_classificacao, percentage: sentimentTotal > 0 ? (sentimentCounts.sem_classificacao / sentimentTotal) * 100 : 0, color: '#D1D5DB', emoji: '⚪' }
     ];
 
-    const sentimentAnalysis = {
-      superEngajado: sentimentCounts.super_engajado,
-      positivo: sentimentCounts.positivo,
-      neutro: sentimentCounts.neutro,
-      negativo: sentimentCounts.negativo,
-      semClassificacao: sentimentCounts.sem_classificacao,
-      distribution: sentimentDistribution
-    };
-
-    // Calculate profile analysis with exact format from private page
-    const profileCounts: Record<string, number> = {};
-    normalizedMessages.forEach(msg => {
-      const profile = msg.perfil_contato || 'Sem classificação';
-      profileCounts[profile] = (profileCounts[profile] || 0) + 1;
+    // Profile analysis
+    const profileCounts = new Map<string, number>();
+    normalizedMessages.forEach(message => {
+      if (message.perfil_contato) {
+        profileCounts.set(message.perfil_contato, (profileCounts.get(message.perfil_contato) || 0) + 1);
+      }
     });
 
-    const profileTotal = Object.values(profileCounts).reduce((a, b) => a + b, 0);
-    const profileList = Object.keys(profileCounts);
-    
-    // Generate deterministic colors
-    const generateDeterministicColor = (index: number, total: number): string => {
-      const hue = (index * 360) / total;
-      const saturation = 65 + (index % 3) * 10;
-      const lightness = 50 + (index % 2) * 10;
-      return `hsl(${Math.round(hue)}, ${saturation}%, ${lightness}%)`;
-    };
-
-    const profileColorMap: Record<string, string> = {};
-    profileList.forEach((profile, index) => {
-      profileColorMap[profile] = generateDeterministicColor(index, profileList.length);
-    });
-    
-    const profileDistribution = Object.entries(profileCounts).map(([profile, count]) => ({
-      profile,
-      count,
-      percentage: profileTotal > 0 ? (count / profileTotal) * 100 : 0,
-      color: profileColorMap[profile]
-    }));
-
-    const profileAnalysis = {
-      distribution: profileDistribution
-    };
+    const profileColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+    const profileDistribution = Array.from(profileCounts.entries())
+      .map(([profile, count], index) => ({
+        profile,
+        count,
+        percentage: totalMessages > 0 ? (count / totalMessages) * 100 : 0,
+        color: profileColors[index % profileColors.length]
+      }))
+      .sort((a, b) => b.count - a.count);
 
     const analytics = {
       totalMessages,
+      queuedMessages,
       sentMessages,
       deliveredMessages,
       readMessages,
       responseMessages,
-      queuedMessages,
       errorMessages,
+      progressRate,
       deliveryRate,
       readRate,
       responseRate,
-      progressRate,
       hourlyActivity,
       statusDistribution,
-      sentimentAnalysis,
-      profileAnalysis
+      sentimentAnalysis: {
+        superEngajado: sentimentCounts.super_engajado,
+        positivo: sentimentCounts.positivo,
+        neutro: sentimentCounts.neutro,
+        negativo: sentimentCounts.negativo,
+        semClassificacao: sentimentCounts.sem_classificacao,
+        distribution: sentimentDistribution
+      },
+      profileAnalysis: {
+        distribution: profileDistribution
+      }
     };
 
     const computedStatus = computeEventStatus(analytics);
 
-    const result: EventWithAnalytics = {
-      ...event,
+    const responseData: EventWithAnalytics = {
+      id: event.id,
+      event_id: event.event_id,
+      name: event.name,
+      event_date: event.event_date,
+      location: event.location,
+      message_text: event.message_text,
+      message_image: event.message_image,
+      status: event.status,
       computedStatus,
-      analytics,
+      analytics
     };
 
-    console.log('Returning event data with computed status:', computedStatus);
-
     return new Response(
-      JSON.stringify(result),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify(responseData),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
     console.error('Error in public-event-status function:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

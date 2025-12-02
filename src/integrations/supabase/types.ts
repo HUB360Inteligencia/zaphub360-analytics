@@ -106,6 +106,7 @@ export type Database = {
           name_media: string | null
           organization_id: string
           scheduled_at: string | null
+          slug: string
           started_at: string | null
           status: string
           target_contacts: Json | null
@@ -137,6 +138,7 @@ export type Database = {
           name_media?: string | null
           organization_id: string
           scheduled_at?: string | null
+          slug: string
           started_at?: string | null
           status?: string
           target_contacts?: Json | null
@@ -168,6 +170,7 @@ export type Database = {
           name_media?: string | null
           organization_id?: string
           scheduled_at?: string | null
+          slug?: string
           started_at?: string | null
           status?: string
           target_contacts?: Json | null
@@ -1518,6 +1521,10 @@ export type Database = {
         Returns: string
       }
       expire_old_invitations: { Args: never; Returns: undefined }
+      generate_campaign_slug: {
+        Args: { campaign_name: string; org_id: string }
+        Returns: string
+      }
       generate_invite_token: { Args: never; Returns: string }
       get_campaign_contacts_ordered: {
         Args: {

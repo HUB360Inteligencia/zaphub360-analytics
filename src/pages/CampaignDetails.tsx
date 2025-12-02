@@ -445,8 +445,10 @@ const { data: campaignMessages, isLoading: messagesLoading, error: messagesError
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[220px] p-2 space-y-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in data-[state=closed]:fade-out data-[side=bottom]:slide-in-from-top data-[side=top]:slide-in-from-bottom">
               <DropdownMenuItem
-                onClick={() => {
-                  const publicUrl = `${window.location.origin}/public/campaign-status/${campaign.id}`;
+                onClick={async () => {
+                  const orgSlug = organization?.slug || 'org';
+                  const campaignSlug = (campaign as any)?.slug || campaign.id;
+                  const publicUrl = `${window.location.origin}/${orgSlug}/campanha/${campaignSlug}`;
                   navigator.clipboard.writeText(publicUrl);
                   toast.success('Link público copiado!');
                 }}

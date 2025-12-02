@@ -48,6 +48,10 @@ const App = () => (
             <Route path="/request-access" element={<AccessRequest />} />
             {/* Public Routes - Must be before catch-all */}
             <Route path="/checkin/:slug" element={<PublicEventCheckin />} />
+            {/* New friendly URLs with org slug */}
+            <Route path="/:orgSlug/evento/:eventSlug" element={<PublicEventStatus />} />
+            <Route path="/:orgSlug/campanha/:campaignSlug" element={<PublicCampaignStatus />} />
+            {/* Legacy routes for backwards compatibility */}
             <Route path="/public/event/:eventId" element={<PublicEventStatus />} />
             <Route path="/public/campaign-status/:campaignId" element={<PublicCampaignStatus />} />
             <Route path="/" element={
