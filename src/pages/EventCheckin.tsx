@@ -38,6 +38,7 @@ export default function EventCheckin() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [municipioId, setMunicipioId] = useState<number | null>(null);
   const { organization } = useAuth();
 
   const { data: event, isLoading: isLoadingEvent } = useEvent(id!);
@@ -63,7 +64,14 @@ export default function EventCheckin() {
     await performCheckin.mutateAsync(data);
     setShowSuccess(true);
     form.reset();
+    setMunicipioId(null);
     setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const handleCityChange = (cidadeNome: string, cidadeId?: number) => {
+    form.setValue('cidade', cidadeNome);
+    setMunicipioId(cidadeId || null);
+    form.setValue('bairro', ''); // Reset bairro when city changes
   };
 
   if (isLoadingEvent || isLoadingPermission) {
@@ -129,11 +137,11 @@ export default function EventCheckin() {
 
           <CardContent>
             {showSuccess && (
-              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <div>
-                  <p className="font-medium text-green-900">Check-in realizado com sucesso!</p>
-                  <p className="text-sm text-green-700">O contato receberá uma mensagem em breve.</p>
+                  <p className="font-medium text-green-900 dark:text-green-100">Check-in realizado com sucesso!</p>
+                  <p className="text-sm text-green-700 dark:text-green-300">O contato receberá uma mensagem em breve.</p>
                 </div>
               </div>
             )}
@@ -200,7 +208,7 @@ export default function EventCheckin() {
                       <FormControl>
                         <CityCombobox
                           value={field.value || ''}
-                          onChange={field.onChange}
+                          onChange={handleCityChange}
                           stateUF={form.watch('estado') || 'PR'}
                           onStateChange={(uf) => form.setValue('estado', uf)}
                           defaultState="PR"
@@ -223,6 +231,7 @@ export default function EventCheckin() {
                           onChange={field.onChange}
                           cidade={form.watch('cidade') || ''}
                           organizationId={organization?.id || ''}
+                          municipioId={municipioId}
                         />
                       </FormControl>
                       <FormMessage />

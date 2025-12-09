@@ -6,125 +6,73 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LayoutDashboard, Users, Send, FileText, BarChart3, Settings, Bell, Search, Menu, X, MessageSquare, Zap, Target, Calendar, HelpCircle, LogOut, MessageCircle, Server, Building2, Shield, ChevronDown, ChevronRight, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+
 interface LayoutProps {
   children: React.ReactNode;
 }
-const Layout = ({
-  children
-}: LayoutProps) => {
+
+const Layout = ({ children }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const location = useLocation();
-  const {
-    profile,
-    organization,
-    signOut
-  } = useAuth();
-  const navigation = [{
-    name: 'Dashboard',
-    href: '/',
-    icon: LayoutDashboard,
-    current: location.pathname === '/'
-  }, {
-    name: 'Contatos',
-    href: '/contacts',
-    icon: Users,
-    current: location.pathname === '/contacts'
-  }, {
-    name: 'Campanhas',
-    href: '/campaigns',
-    icon: Send,
-    current: location.pathname === '/campaigns'
-  }, {
-    name: 'Conteúdo de Mensagem',
-    href: '/message-content',
-    icon: MessageCircle,
-    current: location.pathname === '/message-content'
-  }, {
-    name: 'Eventos',
-    href: '/events',
-    icon: Calendar,
-    current: location.pathname.startsWith('/events')
-  }, {
-    name: 'Instâncias',
-    href: '/instances',
-    icon: Server,
-    current: location.pathname === '/instances'
-  }, {
-    name: 'Relatórios',
-    href: '/reports',
-    icon: BarChart3,
-    current: location.pathname === '/reports'
-  }];
-  
+  const { profile, organization, signOut } = useAuth();
+
+  const navigation = [
+    { name: 'Dashboard', href: '/', icon: LayoutDashboard, current: location.pathname === '/' },
+    { name: 'Contatos', href: '/contacts', icon: Users, current: location.pathname === '/contacts' },
+    { name: 'Campanhas', href: '/campaigns', icon: Send, current: location.pathname === '/campaigns' },
+    { name: 'Conteúdo de Mensagem', href: '/message-content', icon: MessageCircle, current: location.pathname === '/message-content' },
+    { name: 'Eventos', href: '/events', icon: Calendar, current: location.pathname.startsWith('/events') },
+    { name: 'Instâncias', href: '/instances', icon: Server, current: location.pathname === '/instances' },
+    { name: 'Relatórios', href: '/reports', icon: BarChart3, current: location.pathname === '/reports' },
+  ];
+
   // Admin navigation
   const adminNavigation = useMemo(() => {
     if (profile?.role !== 'saas_admin') return [];
-    
+
     return [
-      {
-        name: 'Dashboard Admin',
-        href: '/admin',
-        icon: Shield,
-        current: location.pathname === '/admin'
-      },
-      {
-        name: 'Organizações',
-        href: '/admin/organizations',
-        icon: Building2,
-        current: location.pathname === '/admin/organizations'
-      },
-      {
-        name: 'Usuários',
-        href: '/admin/users',
-        icon: Users,
-        current: location.pathname === '/admin/users'
-      },
-      {
-        name: 'Planos',
-        href: '/admin/plans',
-        icon: CreditCard,
-        current: location.pathname === '/admin/plans'
-      }
+      { name: 'Dashboard Admin', href: '/admin', icon: Shield, current: location.pathname === '/admin' },
+      { name: 'Organizações', href: '/admin/organizations', icon: Building2, current: location.pathname === '/admin/organizations' },
+      { name: 'Usuários', href: '/admin/users', icon: Users, current: location.pathname === '/admin/users' },
+      { name: 'Planos', href: '/admin/plans', icon: CreditCard, current: location.pathname === '/admin/plans' },
     ];
   }, [profile?.role, location.pathname]);
 
   // Controlar abertura do menu admin baseado na rota atual
   const isAdminRoute = location.pathname.startsWith('/admin');
   const shouldAdminBeOpen = adminMenuOpen || isAdminRoute;
-  const quickActions = [{
-    name: 'Nova Campanha',
-    icon: Zap,
-    color: 'bg-blue-600'
-  }, {
-    name: 'Novo Contato',
-    icon: Users,
-    color: 'bg-green-600'
-  }, {
-    name: 'Novo Template',
-    icon: FileText,
-    color: 'bg-purple-600'
-  }];
+
+  const quickActions = [
+    { name: 'Nova Campanha', icon: Zap, color: 'bg-blue-600' },
+    { name: 'Novo Contato', icon: Users, color: 'bg-green-600' },
+    { name: 'Novo Template', icon: FileText, color: 'bg-purple-600' },
+  ];
+
   const getInitials = (name: string | null) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
+
   const handleLogout = async () => {
     await signOut();
   };
-  return <div className="min-h-screen bg-slate-50">
+
+  return (
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg overflow-hidden">
                 <img src="/logo.png" alt="ZapHub360 Logo" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">ZapHub360</h1>
-                <p className="text-xs text-slate-500">{organization?.name || 'CRM & Automação'}</p>
+                <h1 className="text-xl font-bold text-foreground">ZapHub360</h1>
+                <p className="text-xs text-muted-foreground">{organization?.name || 'CRM & Automação'}</p>
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)} className="lg:hidden">
@@ -135,94 +83,106 @@ const Layout = ({
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
             {navigation.map(item => {
-            const IconComponent = item.icon;
-            return <Link key={item.name} to={item.href} className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${item.current ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : 'text-slate-700 hover:bg-slate-100'}`}>
+              const IconComponent = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    item.current
+                      ? 'bg-primary/10 text-primary border-r-2 border-primary'
+                      : 'text-foreground hover:bg-accent'
+                  }`}
+                >
                   <IconComponent className="w-5 h-5 mr-3" />
                   {item.name}
-                </Link>;
-          })}
-          
-          {/* Admin Navigation */}
-          {adminNavigation.length > 0 && (
-            <>
-              <div className="my-4 border-t border-slate-200" />
-              
-              {/* Admin Menu Header */}
-              <button
-                onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  isAdminRoute ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center">
-                  <Shield className="w-5 h-5 mr-3" />
-                  Admin
-                </div>
-                {shouldAdminBeOpen ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-              </button>
+                </Link>
+              );
+            })}
 
-              {/* Admin Submenu */}
-              {shouldAdminBeOpen && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {adminNavigation.map(item => {
-                    const IconComponent = item.icon;
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          item.current
-                            ? 'bg-red-50 text-red-700 border-r-2 border-red-600'
-                            : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        <IconComponent className="w-4 h-4 mr-3" />
-                        {item.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+            {/* Admin Navigation */}
+            {adminNavigation.length > 0 && (
+              <>
+                <div className="my-4 border-t border-border" />
+
+                {/* Admin Menu Header */}
+                <button
+                  onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isAdminRoute ? 'bg-destructive/10 text-destructive' : 'text-foreground hover:bg-accent'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Shield className="w-5 h-5 mr-3" />
+                    Admin
+                  </div>
+                  {shouldAdminBeOpen ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Admin Submenu */}
+                {shouldAdminBeOpen && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {adminNavigation.map(item => {
+                      const IconComponent = item.icon;
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            item.current
+                              ? 'bg-destructive/10 text-destructive border-r-2 border-destructive'
+                              : 'text-muted-foreground hover:bg-accent'
+                          }`}
+                        >
+                          <IconComponent className="w-4 h-4 mr-3" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </nav>
 
           {/* Quick Actions */}
-          <div className="px-4 py-4 border-t">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+          <div className="px-4 py-4 border-t border-border">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Ações Rápidas
             </h3>
             <div className="space-y-2">
               {quickActions.map(action => {
-              const IconComponent = action.icon;
-              return <Button key={action.name} variant="outline" size="sm" className="w-full justify-start text-xs">
+                const IconComponent = action.icon;
+                return (
+                  <Button key={action.name} variant="outline" size="sm" className="w-full justify-start text-xs">
                     <div className={`w-4 h-4 rounded mr-2 flex items-center justify-center ${action.color}`}>
                       <IconComponent className="w-3 h-3 text-white" />
                     </div>
                     {action.name}
-                  </Button>;
-            })}
+                  </Button>
+                );
+              })}
             </div>
           </div>
 
           {/* User Profile */}
-          <div className="px-4 py-4 border-t">
+          <div className="px-4 py-4 border-t border-border">
             <div className="flex items-center gap-3">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={profile?.avatar_url || ''} />
-                <AvatarFallback className="bg-blue-600 text-white text-xs">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   {getInitials(profile?.full_name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {profile?.full_name || 'Usuário'}
                 </p>
-                <p className="text-xs text-slate-500 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {profile?.role === 'saas_admin' ? 'Administrador' :
                    profile?.role === 'client' ? 'Cliente' :
                    profile?.role === 'manager' ? 'Gerente' :
@@ -233,12 +193,12 @@ const Layout = ({
               <div className="flex gap-2">
                 <Link to="/me" title="Configurações do Usuário">
                   <Button variant="ghost" size="sm">
-                    <Settings className="w-4 h-4 text-slate-400" />
+                    <Settings className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </Link>
                 <Link to="/org" title="Configurações da Organização">
                   <Button variant="ghost" size="sm">
-                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <Building2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </Link>
               </div>
@@ -250,30 +210,37 @@ const Layout = ({
       {/* Main Content */}
       <div className={`${sidebarOpen ? 'lg:ml-64' : ''} transition-all duration-300`}>
         {/* Top Header */}
-        <header className="bg-white border-b border-slate-200">
+        <header className="bg-card border-b border-border">
           <div className="mx-auto max-w-screen-2xl flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-600">
+              <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-muted-foreground">
                 <Menu className="w-5 h-5" />
               </Button>
-              
+
               {/* Search */}
               <div className="hidden md:block relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <input type="text" placeholder="Buscar contatos, campanhas..." className="pl-10 pr-4 py-2 w-80 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Buscar contatos, campanhas..."
+                  className="pl-10 pr-4 py-2 w-80 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
               {/* Notifications */}
               <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5 text-slate-600" />
-                <Badge className="absolute -top-1 -right-1 w-2 h-2 p-0 bg-red-500"></Badge>
+                <Bell className="w-5 h-5 text-muted-foreground" />
+                <Badge className="absolute -top-1 -right-1 w-2 h-2 p-0 bg-destructive"></Badge>
               </Button>
 
               {/* Help */}
               <Button variant="ghost" size="sm">
-                <HelpCircle className="w-5 h-5 text-slate-600" />
+                <HelpCircle className="w-5 h-5 text-muted-foreground" />
               </Button>
 
               {/* User Menu */}
@@ -282,13 +249,13 @@ const Layout = ({
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={profile?.avatar_url || ''} />
-                      <AvatarFallback className="bg-blue-600 text-white">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
                         {getInitials(profile?.full_name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuContent className="w-56 bg-popover" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -328,7 +295,14 @@ const Layout = ({
       </div>
 
       {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-    </div>;
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+    </div>
+  );
 };
+
 export default Layout;
