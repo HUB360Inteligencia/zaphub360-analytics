@@ -46,6 +46,7 @@ const PublicEventCheckin = () => {
   const [estado, setEstado] = useState('PR');
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
+  const [municipioId, setMunicipioId] = useState<number | null>(null);
   const [cargo, setCargo] = useState('');
   const [dataAniversario, setDataAniversario] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -236,6 +237,7 @@ const PublicEventCheckin = () => {
       setEstado('PR');
       setBairro('');
       setCidade('');
+      setMunicipioId(null);
       setCargo('');
       setDataAniversario('');
     },
@@ -253,6 +255,12 @@ const PublicEventCheckin = () => {
   const handleBirthdayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatBirthday(e.target.value);
     setDataAniversario(formatted);
+  };
+
+  const handleCityChange = (cidadeNome: string, cidadeId?: number) => {
+    setCidade(cidadeNome);
+    setMunicipioId(cidadeId || null);
+    setBairro(''); // Reset bairro when city changes
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -291,8 +299,8 @@ const PublicEventCheckin = () => {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="mx-auto mb-4 w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
             <CardTitle className="text-2xl">Check-in Confirmado!</CardTitle>
             <CardDescription>
@@ -361,7 +369,7 @@ const PublicEventCheckin = () => {
                   <SelectTrigger className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-popover">
                     {DDI_OPTIONS.map((option) => (
                       <SelectItem key={option.code} value={option.code}>
                         {option.flag} {option.code}
@@ -385,14 +393,14 @@ const PublicEventCheckin = () => {
               <Label htmlFor="cidade">Cidade</Label>
               <CityCombobox
                 value={cidade}
-                onChange={setCidade}
+                onChange={handleCityChange}
                 stateUF={estado}
                 onStateChange={setEstado}
                 defaultState="PR"
               />
             </div>
 
-            {/* Bairro com busca histórica */}
+            {/* Bairro com busca IBGE + histórica */}
             <div className="space-y-2">
               <Label htmlFor="bairro">Bairro</Label>
               <BairroCombobox
@@ -400,6 +408,7 @@ const PublicEventCheckin = () => {
                 onChange={setBairro}
                 cidade={cidade}
                 organizationId={event.organization_id}
+                municipioId={municipioId}
               />
             </div>
 

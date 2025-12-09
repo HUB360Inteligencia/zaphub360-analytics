@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -15,13 +15,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useBairros } from '@/hooks/useIBGELocations';
+import { useBairros, useDistritos, useSubdistritos } from '@/hooks/useIBGELocations';
 
 interface BairroComboboxProps {
   value: string;
   onChange: (value: string) => void;
   cidade: string;
   organizationId: string;
+  municipioId?: number | null;
 }
 
 export function BairroCombobox({
@@ -29,23 +30,82 @@ export function BairroCombobox({
   onChange,
   cidade,
   organizationId,
+  municipioId = null,
 }: BairroComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
 
-  const { data: bairros = [], isLoading } = useBairros(cidade, organizationId);
+  // Historical data from organization
+  const { data: bairrosHistoricos = [], isLoading: isLoadingHistoricos } = useBairros(cidade, organizationId);
 
-  const filteredBairros = bairros.filter((bairro) =>
-    bairro.toLowerCase().includes(searchInput.toLowerCase())
-  );
+  // IBGE official data (distritos and subdistritos)
+  const { data: distritos = [], isLoading: isLoadingDistritos } = useDistritos(municipioId, searchInput);
+  const { data: subdistritos = [], isLoading: isLoadingSubdistritos } = useSubdistritos(municipioId, searchInput);
+
+  const isLoading = isLoadingHistoricos || isLoadingDistritos || isLoadingSubdistritos;
+
+  // Combine all sources, removing duplicates and prioritizing IBGE
+  const combinedBairros = useMemo(() => {
+    const allNames = new Set<string>();
+    const ibgeItems: string[] = [];
+    const historicItems: string[] = [];
+
+    // Add IBGE distritos first (official)
+    distritos.forEach((d) => {
+      const normalized = d.nome.trim();
+      if (normalized && !allNames.has(normalized.toLowerCase())) {
+        allNames.add(normalized.toLowerCase());
+        ibgeItems.push(normalized);
+      }
+    });
+
+    // Add IBGE subdistritos (official)
+    subdistritos.forEach((s) => {
+      const normalized = s.nome.trim();
+      if (normalized && !allNames.has(normalized.toLowerCase())) {
+        allNames.add(normalized.toLowerCase());
+        ibgeItems.push(normalized);
+      }
+    });
+
+    // Add historical data from organization
+    bairrosHistoricos.forEach((b) => {
+      const normalized = b.trim();
+      if (normalized && !allNames.has(normalized.toLowerCase())) {
+        allNames.add(normalized.toLowerCase());
+        historicItems.push(normalized);
+      }
+    });
+
+    return { ibgeItems, historicItems };
+  }, [distritos, subdistritos, bairrosHistoricos]);
+
+  // Filter by search input
+  const filteredBairros = useMemo(() => {
+    const { ibgeItems, historicItems } = combinedBairros;
+
+    if (!searchInput) {
+      return { ibge: ibgeItems, historico: historicItems };
+    }
+
+    const searchLower = searchInput.toLowerCase();
+    return {
+      ibge: ibgeItems.filter((b) => b.toLowerCase().includes(searchLower)),
+      historico: historicItems.filter((b) => b.toLowerCase().includes(searchLower)),
+    };
+  }, [combinedBairros, searchInput]);
 
   const handleSelect = (bairro: string) => {
     onChange(bairro);
     setOpen(false);
   };
 
-  const showCreateOption = searchInput.length > 0 && 
-    !filteredBairros.some(b => b.toLowerCase() === searchInput.toLowerCase());
+  const showCreateOption =
+    searchInput.length > 0 &&
+    !filteredBairros.ibge.some((b) => b.toLowerCase() === searchInput.toLowerCase()) &&
+    !filteredBairros.historico.some((b) => b.toLowerCase() === searchInput.toLowerCase());
+
+  const hasResults = filteredBairros.ibge.length > 0 || filteredBairros.historico.length > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -61,7 +121,7 @@ export function BairroCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-full p-0 bg-popover" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={cidade ? 'Buscar ou criar bairro...' : 'Selecione uma cidade primeiro'}
@@ -75,7 +135,9 @@ export function BairroCombobox({
                 ? 'Selecione uma cidade primeiro'
                 : isLoading
                 ? 'Carregando bairros...'
-                : 'Nenhum bairro encontrado'}
+                : !hasResults && !showCreateOption
+                ? 'Nenhum bairro encontrado'
+                : null}
             </CommandEmpty>
 
             {showCreateOption && (
@@ -91,11 +153,31 @@ export function BairroCombobox({
               </CommandGroup>
             )}
 
-            {filteredBairros.length > 0 && (
-              <CommandGroup heading="Bairros da região">
-                {filteredBairros.map((bairro) => (
+            {filteredBairros.ibge.length > 0 && (
+              <CommandGroup heading="Dados oficiais (IBGE)">
+                {filteredBairros.ibge.map((bairro) => (
                   <CommandItem
-                    key={bairro}
+                    key={`ibge-${bairro}`}
+                    value={bairro}
+                    onSelect={() => handleSelect(bairro)}
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value === bairro ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    {bairro}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {filteredBairros.historico.length > 0 && (
+              <CommandGroup heading="Dados históricos">
+                {filteredBairros.historico.map((bairro) => (
+                  <CommandItem
+                    key={`hist-${bairro}`}
                     value={bairro}
                     onSelect={() => handleSelect(bairro)}
                   >

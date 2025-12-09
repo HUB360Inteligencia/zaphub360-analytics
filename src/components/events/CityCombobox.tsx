@@ -26,7 +26,7 @@ import { useEstados, useCidades } from '@/hooks/useIBGELocations';
 
 interface CityComboboxProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, municipioId?: number) => void;
   stateUF: string;
   onStateChange: (uf: string) => void;
   defaultState?: string;
@@ -52,8 +52,8 @@ export function CityCombobox({
     }
   }, [stateUF, defaultState, onStateChange]);
 
-  const handleSelect = (cidadeNome: string) => {
-    onChange(cidadeNome);
+  const handleSelect = (cidadeNome: string, cidadeId: number) => {
+    onChange(cidadeNome, cidadeId);
     setOpen(false);
     setSearchTerm('');
   };
@@ -65,7 +65,7 @@ export function CityCombobox({
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             {loadingEstados ? (
               <SelectItem value="loading" disabled>
                 Carregando...
@@ -93,7 +93,7 @@ export function CityCombobox({
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[400px] p-0" align="start">
+          <PopoverContent className="w-[400px] p-0 bg-popover" align="start">
             <Command shouldFilter={false}>
               <CommandInput
                 placeholder="Digite no mínimo 3 letras..."
@@ -114,7 +114,7 @@ export function CityCombobox({
                       <CommandItem
                         key={cidade.id}
                         value={cidade.nome}
-                        onSelect={() => handleSelect(cidade.nome)}
+                        onSelect={() => handleSelect(cidade.nome, cidade.id)}
                       >
                         <Check
                           className={cn(
