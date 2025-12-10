@@ -1066,6 +1066,7 @@ export type Database = {
           responsavel_cadastro: string | null
           sentimento: string | null
           sentimento_rp: string | null
+          sexo: string | null
           sobrenome: string | null
           status_envio: string | null
           tag: string | null
@@ -1092,6 +1093,7 @@ export type Database = {
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
+          sexo?: string | null
           sobrenome?: string | null
           status_envio?: string | null
           tag?: string | null
@@ -1118,6 +1120,7 @@ export type Database = {
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
+          sexo?: string | null
           sobrenome?: string | null
           status_envio?: string | null
           tag?: string | null

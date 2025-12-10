@@ -18,6 +18,8 @@ export interface FilterOptions {
   excludeCampaigns: string[];
   includeTags: string[];
   excludeTags: string[];
+  includeGeneros: string[];
+  excludeGeneros: string[];
 }
 
 export interface ContactWithDetails {
@@ -32,6 +34,7 @@ export interface ContactWithDetails {
   ultima_instancia?: string;
   evento?: string; // Campo evento da tabela
   profile?: string | null;
+  genero?: string; // 'F' ou 'M'
   campaignParticipations?: string[];
   tags?: Array<{ id: string; name: string; color: string }>;
 }
@@ -94,6 +97,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
           ultima_instancia: contact.ultima_instancia,
           evento: contact.evento, // Adicionar campo evento
           profile: contact.perfil_contato || contact.perfil || null,
+          genero: contact.sexo || null, // 'F' ou 'M'
           tags: []
         }));
     },
@@ -199,7 +203,16 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     });
     const profiles = Array.from(perfisSet).sort();
 
-    return { sentiments, cidades, bairros, profiles };
+    // Gêneros únicos ('F' ou 'M')
+    const generosSet = new Set<string>();
+    allContacts?.forEach(contact => {
+      if (contact.genero) {
+        generosSet.add(contact.genero);
+      }
+    });
+    const generos = Array.from(generosSet).sort();
+
+    return { sentiments, cidades, bairros, profiles, generos };
   }, [allContacts]);
 
   // Participações em campanhas
@@ -263,6 +276,20 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       // Filtro por perfil do contato
       if (filters.profiles.length > 0) {
         if (!contact.profile || !filters.profiles.includes(contact.profile)) {
+          return false;
+        }
+      }
+
+      // Filtro por gênero - incluir
+      if (filters.includeGeneros.length > 0) {
+        if (!contact.genero || !filters.includeGeneros.includes(contact.genero)) {
+          return false;
+        }
+      }
+
+      // Filtro por gênero - excluir
+      if (filters.excludeGeneros.length > 0) {
+        if (contact.genero && filters.excludeGeneros.includes(contact.genero)) {
           return false;
         }
       }

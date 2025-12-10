@@ -28,6 +28,8 @@ const initialFilters: FilterOptions = {
   excludeCampaigns: [],
   includeTags: [],
   excludeTags: [],
+  includeGeneros: [],
+  excludeGeneros: [],
 };
 
 export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = ({
