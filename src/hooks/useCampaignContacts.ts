@@ -100,7 +100,7 @@ export const useCampaignContacts = (params: CampaignContactsParams) => {
         
         // A função RPC retorna os dados diretamente com total_count
         const rows = rpcData || [];
-        const total = rows.length > 0 ? rows[0].total_count : 0;
+        const total = rows.length > 0 ? (rows[0] as any).total_count : 0;
         
         return {
           rows: rows.map(row => ({

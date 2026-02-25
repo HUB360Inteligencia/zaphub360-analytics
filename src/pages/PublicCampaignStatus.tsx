@@ -17,26 +17,40 @@ import CampaignSentimentAnalysisCard from '@/components/campaigns/CampaignSentim
 import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
 
 const PublicCampaignStatus = () => {
-  const { campaignId } = useParams<{ campaignId: string }>();
+  // Support both legacy route (/public/campaign-status/:campaignId) and new route (/:orgSlug/campanha/:campaignSlug)
+  const { campaignId, orgSlug, campaignSlug } = useParams<{ 
+    campaignId?: string;
+    orgSlug?: string;
+    campaignSlug?: string;
+  }>();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
   // Use the public edge function for campaign data with real-time updates
   const { data: campaignData, isLoading } = useQuery({
-    queryKey: ['public-campaign-status', campaignId, selectedDate],
+    queryKey: ['public-campaign-status', campaignId, orgSlug, campaignSlug, selectedDate],
     queryFn: async () => {
-      if (!campaignId) return null;
+      // Build request body based on available params
+      const body: Record<string, any> = {
+        selectedDate: selectedDate ? selectedDate.toISOString() : undefined
+      };
+      
+      if (orgSlug && campaignSlug) {
+        body.orgSlug = orgSlug;
+        body.campaignSlug = campaignSlug;
+      } else if (campaignId) {
+        body.campaignId = campaignId;
+      } else {
+        return null;
+      }
       
       const { data, error } = await supabase.functions.invoke('public-campaign-status', {
-        body: { 
-          campaignId,
-          selectedDate: selectedDate ? selectedDate.toISOString() : undefined
-        }
+        body
       });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!campaignId,
+    enabled: !!(campaignId || (orgSlug && campaignSlug)),
     retry: 3,
     refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
   });

@@ -450,6 +450,7 @@ const CampaignContactsList = ({ campaignId }: CampaignContactsListProps) => {
           isOpen={!!profileModalContact}
           onClose={() => setProfileModalContact(null)}
           contact={profileModalContact}
+          mode="view"
         />
       </Card>
     </div>

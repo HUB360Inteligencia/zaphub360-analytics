@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -25,6 +26,10 @@ import { supabase } from '@/integrations/supabase/client';
 import EventContactsList from '@/components/events/EventContactsList';
 import SentimentAnalysisCard from '@/components/events/SentimentAnalysisCard';
 import ProfileAnalysisCard from '@/components/events/ProfileAnalysisCard';
+import { CheckinsTable } from '@/components/events/CheckinsTable';
+import { CheckinMessagesQueue } from '@/components/events/CheckinMessagesQueue';
+import { CheckinPermissionsModal } from '@/components/events/CheckinPermissionsModal';
+import { useEventCheckin } from '@/hooks/useEventCheckin';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -41,19 +46,23 @@ const EventDetails = () => {
   // N8N Webhook state
   const [isWebhookLoading, setIsWebhookLoading] = useState(false);
   const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
+  
+  // Check-in state
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const { checkins, isLoadingCheckins, messagesQueue, isLoadingMessages } = useEventCheckin(id || '');
 
   // Real-time status updates
   const { data: publicEventData } = useQuery({
-    queryKey: ['public-event-status-sync', event?.event_id],
+    queryKey: ['public-event-status-sync', event?.id],
     queryFn: async () => {
-      if (!event?.event_id) return null;
+      if (!event?.id) return null;
       const { data, error } = await supabase.functions.invoke('public-event-status', {
-        body: { eventId: event.event_id }
+        body: { eventId: event.id }
       });
       if (error) throw error;
       return data;
     },
-    enabled: !!event?.event_id,
+    enabled: !!event?.id,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -77,10 +86,30 @@ const EventDetails = () => {
     );
   };
 
-  const copyPublicLink = () => {
-    const publicLink = `${window.location.origin}/public/event/${event?.event_id}`;
+  const copyPublicLink = async () => {
+    // Buscar slug da organização
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('slug')
+      .eq('id', event?.organization_id)
+      .single();
+    
+    const orgSlug = org?.slug || 'org';
+    const eventSlug = (event as any)?.slug || event?.event_id;
+    const publicLink = `${window.location.origin}/${orgSlug}/evento/${eventSlug}`;
     navigator.clipboard.writeText(publicLink);
     toast.success('Link público copiado!');
+  };
+
+  const copyCheckinLink = () => {
+    const checkinUrl = `${window.location.origin}/checkin/${(event as any)?.slug}`;
+    navigator.clipboard.writeText(checkinUrl);
+    toast.success('Link de check-in copiado!');
+  };
+
+  const openCheckinLink = () => {
+    const checkinUrl = `${window.location.origin}/checkin/${(event as any)?.slug}`;
+    window.open(checkinUrl, '_blank');
   };
 
   const triggerN8NWebhook = async () => {
@@ -219,6 +248,37 @@ const EventDetails = () => {
           </Button>
         </div>
       </div>
+
+      {/* Check-in Link Card */}
+      {(event as any)?.slug && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ExternalLink className="w-5 h-5" />
+              Link Público de Check-in
+            </CardTitle>
+            <CardDescription>
+              Compartilhe este link para que as pessoas façam check-in no evento
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input 
+                value={`${window.location.origin}/checkin/${(event as any).slug}`}
+                readOnly 
+                className="font-mono text-sm"
+              />
+              <Button onClick={copyCheckinLink} variant="outline" size="sm">
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button onClick={openCheckinLink} variant="default" size="sm">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Abrir
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Event Info */}
       <Card className="bg-card border-border">
@@ -379,12 +439,13 @@ const EventDetails = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="analytics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="contacts">
             <Users className="w-4 h-4 mr-2" />
             Contatos
           </TabsTrigger>
+          <TabsTrigger value="checkins">Check-ins</TabsTrigger>
           <TabsTrigger value="message">Mensagem</TabsTrigger>
         </TabsList>
 
@@ -470,6 +531,29 @@ const EventDetails = () => {
           <EventContactsList eventId={event.id} eventName={event.name} />
         </TabsContent>
 
+        <TabsContent value="checkins" className="space-y-6">
+          {/* Check-in Actions */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Check-ins do Evento</h3>
+          <div className="flex gap-2">
+              {/* Permissions button removed - any organization user can check-in */}
+              <Button
+                size="sm"
+                onClick={() => navigate(`/events/${event.id}/checkin`)}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Fazer Check-in
+              </Button>
+            </div>
+          </div>
+
+          {/* Check-ins Table */}
+          <CheckinsTable checkins={checkins} isLoading={isLoadingCheckins} />
+
+          {/* Messages Queue */}
+          <CheckinMessagesQueue messages={messagesQueue} isLoading={isLoadingMessages} />
+        </TabsContent>
+
         <TabsContent value="message">
           {/* Message Preview */}
           <Card className="bg-card border-border">
@@ -495,6 +579,13 @@ const EventDetails = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Permissions Modal */}
+      <CheckinPermissionsModal
+        eventId={id || ''}
+        open={isPermissionsModalOpen}
+        onOpenChange={setIsPermissionsModalOpen}
+      />
     </div>
   );
 };

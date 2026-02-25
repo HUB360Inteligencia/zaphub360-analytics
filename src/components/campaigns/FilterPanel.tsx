@@ -18,6 +18,7 @@ interface FilterPanelProps {
     cidades: string[];
     bairros: string[];
     profiles: string[];
+    generos: string[];
   };
   events: Event[];
   campaigns: Campaign[];
@@ -75,7 +76,35 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       excludeCampaigns: [],
       includeTags: [],
       excludeTags: [],
+      includeGeneros: [],
+      excludeGeneros: [],
     });
+  };
+
+  const getGeneroLabel = (genero: string) => {
+    switch (genero) {
+      case 'F': return 'Feminino';
+      case 'M': return 'Masculino';
+      default: return genero;
+    }
+  };
+
+  const handleIncludeGenero = (genero: string, checked: boolean) => {
+    const newInclude = checked
+      ? [...filters.includeGeneros, genero]
+      : filters.includeGeneros.filter(g => g !== genero);
+    const newExclude = filters.excludeGeneros.filter(g => g !== genero);
+    onFiltersChange({ ...filters, includeGeneros: newInclude, excludeGeneros: newExclude });
+  };
+
+  const handleExcludeGenero = (genero: string, checked: boolean) => {
+    const newExclude = checked
+      ? [...filters.excludeGeneros, genero]
+      : filters.excludeGeneros.filter(g => g !== genero);
+    const newInclude = checked
+      ? filters.includeGeneros.filter(g => g !== genero)
+      : filters.includeGeneros;
+    onFiltersChange({ ...filters, includeGeneros: newInclude, excludeGeneros: newExclude });
   };
 
   const hasActiveFilters = Object.values(filters).some(arr => arr.length > 0);
@@ -169,6 +198,60 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Contatos com os sentimentos selecionados acima serão removidos do público alvo, mesmo que estejam incluídos por outros filtros.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Filtros por Gênero */}
+        {filterData.generos.length > 0 && (
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Incluir Gênero</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {filterData.generos.map((genero) => (
+                  <div key={`include-genero-${genero}`} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`genero-include-${genero}`}
+                      checked={filters.includeGeneros.includes(genero)}
+                      onChange={(e) => handleIncludeGenero(genero, e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
+                    />
+                    <Label
+                      htmlFor={`genero-include-${genero}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {getGeneroLabel(genero)}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Excluir Gênero</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {filterData.generos.map((genero) => (
+                  <div key={`exclude-genero-${genero}`} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`genero-exclude-${genero}`}
+                      checked={filters.excludeGeneros.includes(genero)}
+                      onChange={(e) => handleExcludeGenero(genero, e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-primary"
+                    />
+                    <Label
+                      htmlFor={`genero-exclude-${genero}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {getGeneroLabel(genero)}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Contatos com os gêneros selecionados acima serão removidos do público alvo.
               </p>
             </div>
           </div>

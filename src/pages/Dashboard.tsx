@@ -5,11 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Users, Heart, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle, Loader2, MessageSquare } from 'lucide-react';
+import { Users, Heart, TrendingUp, Clock, Send, Eye, CheckCircle, AlertCircle, Loader2, MessageSquare, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { computeCampaignStatus, getCampaignStatusBadgeConfig } from '@/lib/campaignStatus';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Gera pares de cores para gradiente a partir de uma cor base em HSL
 const deriveGradientColors = (base: string): { start: string; end: string } => {
@@ -30,6 +32,8 @@ const deriveGradientColors = (base: string): { start: string; end: string } => {
 };
 
 const Dashboard = () => {
+  const queryClient = useQueryClient();
+  const [engagementFilter, setEngagementFilter] = useState<'7d' | '30d'>('30d');
   const {
     analytics,
     isLoading: analyticsLoading
@@ -38,6 +42,13 @@ const Dashboard = () => {
     campaigns,
     isLoading: campaignsLoading
   } = useCampaigns();
+
+  const handleRefreshData = async () => {
+    toast.info('Atualizando dados...');
+    await queryClient.invalidateQueries({ queryKey: ['analytics-v2'] });
+    await queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    toast.success('Dados atualizados com sucesso!');
+  };
   if (analyticsLoading || campaignsLoading) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -47,6 +58,21 @@ const Dashboard = () => {
       </div>;
   }
   if (!analytics) return null;
+
+  // Filtrar dados de engajamento diário por período selecionado
+  const getFilteredDailyActivity = () => {
+    if (!analytics?.dailyActivity) return [];
+    
+    const now = new Date();
+    const daysToShow = engagementFilter === '7d' ? 7 : 30;
+    const cutoffDate = new Date(now.getTime() - (daysToShow * 24 * 60 * 60 * 1000));
+    
+    return analytics.dailyActivity.filter(day => {
+      const [dayPart, monthPart, yearPart] = day.date.split('/').map(Number);
+      const dayDate = new Date(yearPart, monthPart - 1, dayPart);
+      return dayDate >= cutoffDate;
+    });
+  };
 
   // Preparar dados das campanhas recentes para exibição
   const recentCampaigns = campaigns.slice(0, 4).map(campaign => {
@@ -78,6 +104,14 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleRefreshData}
+            className="border-blue-200 hover:bg-blue-50"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar
+          </Button>
           <Link to="/campaigns">
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Send className="w-4 h-4 mr-2" />
@@ -324,12 +358,32 @@ const Dashboard = () => {
         {/* Engajamento por Dia (ao lado da Performance) */}
         <Card className="bg-white border-0 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Engajamento por Dia (Histórico Completo)</CardTitle>
-            <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-lg font-semibold">Engajamento por Dia</CardTitle>
+                <CardDescription>Mensagens Enviadas vs Respondidas</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={engagementFilter === '7d' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEngagementFilter('7d')}
+                >
+                  7 dias
+                </Button>
+                <Button
+                  variant={engagementFilter === '30d' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEngagementFilter('30d')}
+                >
+                  30 dias
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={analytics.dailyActivity}>
+              <LineChart data={getFilteredDailyActivity()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="date" stroke="#64748b" />
                 <YAxis stroke="#64748b" />

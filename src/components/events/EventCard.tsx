@@ -4,16 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Calendar, MapPin, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Send } from 'lucide-react';
+import { Calendar, MapPin, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Send, Copy, UserPlus } from 'lucide-react';
 import { useEventContacts } from '@/hooks/useEventContacts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getStatusBadgeConfig, computeEventStatus } from '@/lib/eventStatus';
+import { toast } from 'sonner';
 
 interface Event {
   id: string;
   event_id: string;
   name: string;
+  slug: string;
   status: string;
   event_date: string | null;
   location: string | null;
@@ -65,6 +67,12 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
     }
   };
 
+  const copyCheckinLink = () => {
+    const checkinUrl = `${window.location.origin}/checkin/${event.slug}`;
+    navigator.clipboard.writeText(checkinUrl);
+    toast.success('Link de check-in copiado!');
+  };
+
   return (
     <Card className="bg-card border-border hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -96,9 +104,15 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
                   Editar
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Link de Disparo
+              <DropdownMenuItem onClick={copyCheckinLink}>
+                <Copy className="w-4 h-4 mr-2" />
+                Copiar Link Check-in
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to={`/checkin/${event.slug}`} target="_blank">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Abrir Check-in
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="text-destructive"
@@ -165,17 +179,23 @@ const EventCard = ({ event, onDelete }: EventCardProps) => {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild className="flex-1">
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" asChild>
             <Link to={`/events/${event.id}`}>
               <Eye className="w-4 h-4 mr-1" />
               Ver
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild className="flex-1">
+          <Button variant="outline" size="sm" asChild>
             <Link to={`/events/${event.id}/edit`}>
               <Edit className="w-4 h-4 mr-1" />
               Editar
+            </Link>
+          </Button>
+          <Button variant="secondary" size="sm" asChild className="col-span-2">
+            <Link to={`/checkin/${event.slug}`} target="_blank">
+              <UserPlus className="w-4 h-4 mr-1" />
+              Link Check-in
             </Link>
           </Button>
         </div>

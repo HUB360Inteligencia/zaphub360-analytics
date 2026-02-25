@@ -17,23 +17,40 @@ import { supabase } from '@/integrations/supabase/client';
 import { getStatusBadgeConfig } from '@/lib/eventStatus';
 
 const PublicEventStatus = () => {
-  const { eventId } = useParams<{ eventId: string }>();
+  // Support both legacy route (/public/event/:eventId) and new route (/:orgSlug/evento/:eventSlug)
+  const { eventId, orgSlug, eventSlug } = useParams<{ 
+    eventId?: string; 
+    orgSlug?: string; 
+    eventSlug?: string; 
+  }>();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   
   // Use the public edge function for event data with real-time updates
   const { data: eventData, isLoading } = useQuery({
-    queryKey: ['public-event-status', eventId, selectedDate],
+    queryKey: ['public-event-status', eventId, orgSlug, eventSlug, selectedDate],
     queryFn: async () => {
-      if (!eventId) return null;
+      // Build request body based on available params
+      const body: Record<string, any> = {
+        selectedDate: selectedDate?.toISOString()
+      };
+      
+      if (orgSlug && eventSlug) {
+        body.orgSlug = orgSlug;
+        body.eventSlug = eventSlug;
+      } else if (eventId) {
+        body.eventId = eventId;
+      } else {
+        return null;
+      }
       
       const { data, error } = await supabase.functions.invoke('public-event-status', {
-        body: { eventId, selectedDate: selectedDate?.toISOString() }
+        body
       });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!eventId,
+    enabled: !!(eventId || (orgSlug && eventSlug)),
     retry: 3,
     refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
   });
@@ -221,8 +238,6 @@ const PublicEventStatus = () => {
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
           />
-
-
         </div>
 
         {/* Analytics Grid */}

@@ -59,7 +59,7 @@ const Reports = () => {
   const segmentationChartRef = useRef<HTMLDivElement>(null);
   
   const { organization } = useAuth();
-  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics(timeRange);
+  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics(timeRange as import('@/hooks/useAnalytics').TimeRange);
   const { templates, isLoading: templatesLoading } = useTemplates();
 
   const handleExport = async (format: 'pdf-standard' | 'pdf-ai' | 'excel' | 'json') => {
@@ -640,7 +640,7 @@ const Reports = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis dataKey="name" stroke="#64748b" />
                         <YAxis stroke="#64748b" />
-                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                        <Tooltip />
                         <Bar dataKey="sent" fill="url(#reportsBarSent)" name="Enviadas" />
                         <Bar dataKey="delivered" fill="url(#reportsBarDelivered)" name="Entregues" />
                         <Bar dataKey="read" fill="url(#reportsBarRead)" name="Lidas" />

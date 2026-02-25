@@ -83,7 +83,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      setProfile(profileData);
+      // Buscar role de user_roles (tabela segura)
+      const { data: roleData } = await supabase
+        .rpc('get_user_global_role', { _user_id: userId });
+
+      // Atualizar profile com role da tabela user_roles
+      const profileWithRole = {
+        ...profileData,
+        role: roleData || profileData.role
+      };
+
+      setProfile(profileWithRole);
 
       // Fetch organization if user has one
       if (profileData.organization_id) {
@@ -186,7 +196,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (session?.user) {
           // CORREÇÃO: Só chamar handleNewUser durante SIGNED_UP, não em SIGNED_IN
           // Isso previne a criação de organizações duplicadas em logins subsequentes
-          if (event === 'SIGNED_UP') {
+          if (event === 'SIGNED_IN') {
             // Usuário realmente novo, precisa de setup
             setTimeout(async () => {
               const { data: existingProfile } = await supabase

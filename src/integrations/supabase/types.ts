@@ -14,39 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      access_requests: {
+      _csv_upload: {
         Row: {
-          id: string
-          email: string
-          full_name: string
-          organization_name: string | null
-          message: string | null
-          status: string
-          requested_by: string | null
-          created_at: string
-          updated_at: string
+          celular: string | null
+          cidade: string | null
+          name: string | null
+          organization_id: string | null
+          perfil_contato: string | null
+          sobrenome: string | null
         }
         Insert: {
-          id?: string
-          email: string
-          full_name: string
-          organization_name?: string | null
-          message?: string | null
-          status?: string
-          requested_by?: string | null
-          created_at?: string
-          updated_at?: string
+          celular?: string | null
+          cidade?: string | null
+          name?: string | null
+          organization_id?: string | null
+          perfil_contato?: string | null
+          sobrenome?: string | null
         }
         Update: {
+          celular?: string | null
+          cidade?: string | null
+          name?: string | null
+          organization_id?: string | null
+          perfil_contato?: string | null
+          sobrenome?: string | null
+        }
+        Relationships: []
+      }
+      campaign_message_audits: {
+        Row: {
+          batch_id: string
+          campaign_id: string | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          new_status: string | null
+          operation: string
+          organization_id: string
+          performed_at: string
+          performed_by: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          batch_id: string
+          campaign_id?: string | null
           id?: string
-          email?: string
-          full_name?: string
-          organization_name?: string | null
-          message?: string | null
-          status?: string
-          requested_by?: string | null
-          created_at?: string
-          updated_at?: string
+          message_id?: string | null
+          metadata?: Json | null
+          new_status?: string | null
+          operation: string
+          organization_id: string
+          performed_at?: string
+          performed_by?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          batch_id?: string
+          campaign_id?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          new_status?: string | null
+          operation?: string
+          organization_id?: string
+          performed_at?: string
+          performed_by?: string | null
+          previous_status?: string | null
         }
         Relationships: []
       }
@@ -73,6 +106,7 @@ export type Database = {
           name_media: string | null
           organization_id: string
           scheduled_at: string | null
+          slug: string
           started_at: string | null
           status: string
           target_contacts: Json | null
@@ -104,6 +138,7 @@ export type Database = {
           name_media?: string | null
           organization_id: string
           scheduled_at?: string | null
+          slug: string
           started_at?: string | null
           status?: string
           target_contacts?: Json | null
@@ -135,6 +170,7 @@ export type Database = {
           name_media?: string | null
           organization_id?: string
           scheduled_at?: string | null
+          slug?: string
           started_at?: string | null
           status?: string
           target_contacts?: Json | null
@@ -196,6 +232,144 @@ export type Database = {
           },
         ]
       }
+      checkins_evento: {
+        Row: {
+          bairro: string | null
+          cargo: string | null
+          celular: string
+          checked_in_by: string | null
+          checkin_messages: string | null
+          cidade: string | null
+          contact_id: string
+          created_at: string
+          data_aniversario_text: string | null
+          event_id: string
+          id: string
+          nome: string
+          organization_id: string
+        }
+        Insert: {
+          bairro?: string | null
+          cargo?: string | null
+          celular: string
+          checked_in_by?: string | null
+          checkin_messages?: string | null
+          cidade?: string | null
+          contact_id: string
+          created_at?: string
+          data_aniversario_text?: string | null
+          event_id: string
+          id?: string
+          nome: string
+          organization_id: string
+        }
+        Update: {
+          bairro?: string | null
+          cargo?: string | null
+          celular?: string
+          checked_in_by?: string | null
+          checkin_messages?: string | null
+          cidade?: string | null
+          contact_id?: string
+          created_at?: string
+          data_aniversario_text?: string | null
+          event_id?: string
+          id?: string
+          nome?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkins_evento_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkins_evento_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkins_evento_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_import_audits: {
+        Row: {
+          created_at: string
+          filename: string
+          id: number
+          ignored_rows: number
+          inserted_rows: number
+          organization_id: string
+          total_rows: number
+          valid_rows: number
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: number
+          ignored_rows?: number
+          inserted_rows?: number
+          organization_id: string
+          total_rows?: number
+          valid_rows?: number
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: number
+          ignored_rows?: number
+          inserted_rows?: number
+          organization_id?: string
+          total_rows?: number
+          valid_rows?: number
+        }
+        Relationships: []
+      }
+      contact_import_ignored: {
+        Row: {
+          audit_id: number
+          celular: string
+          created_at: string
+          id: number
+          original_row: Json | null
+          reason: string
+        }
+        Insert: {
+          audit_id: number
+          celular: string
+          created_at?: string
+          id?: number
+          original_row?: Json | null
+          reason: string
+        }
+        Update: {
+          audit_id?: number
+          celular?: string
+          created_at?: string
+          id?: number
+          original_row?: Json | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_import_ignored_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "contact_import_audits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           caption_media: string | null
@@ -248,7 +422,29 @@ export type Database = {
           sentiment?: string | null
           url_media?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contact_messages_inst_fk"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_messages_inst_fk"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_messages_org_fk"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {
@@ -288,6 +484,48 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      event_checkin_permissions: {
+        Row: {
+          created_at: string
+          event_id: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_checkin_permissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_checkin_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_messages: {
         Row: {
@@ -356,6 +594,7 @@ export type Database = {
       }
       events: {
         Row: {
+          allowed_positions: Json | null
           created_at: string
           event_date: string | null
           event_id: string
@@ -370,6 +609,8 @@ export type Database = {
           mime_type: string | null
           name: string
           organization_id: string
+          restrict_positions: boolean | null
+          slug: string
           status: string
           tempo_max: number | null
           tempo_min: number | null
@@ -377,6 +618,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          allowed_positions?: Json | null
           created_at?: string
           event_date?: string | null
           event_id: string
@@ -391,6 +633,8 @@ export type Database = {
           mime_type?: string | null
           name: string
           organization_id: string
+          restrict_positions?: boolean | null
+          slug: string
           status?: string
           tempo_max?: number | null
           tempo_min?: number | null
@@ -398,6 +642,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          allowed_positions?: Json | null
           created_at?: string
           event_date?: string | null
           event_id?: string
@@ -412,6 +657,8 @@ export type Database = {
           mime_type?: string | null
           name?: string
           organization_id?: string
+          restrict_positions?: boolean | null
+          slug?: string
           status?: string
           tempo_max?: number | null
           tempo_min?: number | null
@@ -499,6 +746,125 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mensagens_checkin_eventos: {
+        Row: {
+          caption: string | null
+          celular: string
+          checkin_id: string
+          contact_id: string
+          created_at: string
+          data_envio: string | null
+          delay_mensagem: number | null
+          error_message: string | null
+          event_id: string
+          id: string
+          instancia_id: string | null
+          mensagem: string | null
+          nome_midia: string | null
+          organization_id: string
+          status: string
+          template_id: string | null
+          tipo_fluxo: string
+          tipo_midia: string | null
+          updated_at: string
+          url_midia: string | null
+        }
+        Insert: {
+          caption?: string | null
+          celular: string
+          checkin_id: string
+          contact_id: string
+          created_at?: string
+          data_envio?: string | null
+          delay_mensagem?: number | null
+          error_message?: string | null
+          event_id: string
+          id?: string
+          instancia_id?: string | null
+          mensagem?: string | null
+          nome_midia?: string | null
+          organization_id: string
+          status?: string
+          template_id?: string | null
+          tipo_fluxo?: string
+          tipo_midia?: string | null
+          updated_at?: string
+          url_midia?: string | null
+        }
+        Update: {
+          caption?: string | null
+          celular?: string
+          checkin_id?: string
+          contact_id?: string
+          created_at?: string
+          data_envio?: string | null
+          delay_mensagem?: number | null
+          error_message?: string | null
+          event_id?: string
+          id?: string
+          instancia_id?: string | null
+          mensagem?: string | null
+          nome_midia?: string | null
+          organization_id?: string
+          status?: string
+          template_id?: string | null
+          tipo_fluxo?: string
+          tipo_midia?: string | null
+          updated_at?: string
+          url_midia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensagens_checkin_eventos_checkin_id_fkey"
+            columns: ["checkin_id"]
+            isOneToOne: false
+            referencedRelation: "checkins_evento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "instances_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_checkin_eventos_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -700,6 +1066,7 @@ export type Database = {
           responsavel_cadastro: string | null
           sentimento: string | null
           sentimento_rp: string | null
+          sexo: string | null
           sobrenome: string | null
           status_envio: string | null
           tag: string | null
@@ -726,6 +1093,7 @@ export type Database = {
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
+          sexo?: string | null
           sobrenome?: string | null
           status_envio?: string | null
           tag?: string | null
@@ -752,6 +1120,7 @@ export type Database = {
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
+          sexo?: string | null
           sobrenome?: string | null
           status_envio?: string | null
           tag?: string | null
@@ -768,9 +1137,13 @@ export type Database = {
           is_active: boolean | null
           logo_url: string | null
           name: string
+          plan_expires_at: string | null
+          plan_id: string | null
+          plan_started_at: string | null
           settings: Json | null
           slug: string
           updated_at: string | null
+          usage_stats: Json | null
         }
         Insert: {
           created_at?: string | null
@@ -779,9 +1152,13 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name: string
+          plan_expires_at?: string | null
+          plan_id?: string | null
+          plan_started_at?: string | null
           settings?: Json | null
           slug: string
           updated_at?: string | null
+          usage_stats?: Json | null
         }
         Update: {
           created_at?: string | null
@@ -790,9 +1167,39 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
+          plan_expires_at?: string | null
+          plan_id?: string | null
+          plan_started_at?: string | null
           settings?: Json | null
           slug?: string
           updated_at?: string | null
+          usage_stats?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_settings: {
+        Row: {
+          inserted_at: string | null
+          key: string
+          value: string
+        }
+        Insert: {
+          inserted_at?: string | null
+          key: string
+          value: string
+        }
+        Update: {
+          inserted_at?: string | null
+          key?: string
+          value?: string
         }
         Relationships: []
       }
@@ -845,6 +1252,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string | null
+          display_name: string
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          max_contacts: number | null
+          max_events: number | null
+          max_instances: number | null
+          max_messages_per_month: number | null
+          max_storage_mb: number | null
+          max_users: number | null
+          name: string
+          price_monthly: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_name: string
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_contacts?: number | null
+          max_events?: number | null
+          max_instances?: number | null
+          max_messages_per_month?: number | null
+          max_storage_mb?: number | null
+          max_users?: number | null
+          name: string
+          price_monthly?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_contacts?: number | null
+          max_events?: number | null
+          max_instances?: number | null
+          max_messages_per_month?: number | null
+          max_storage_mb?: number | null
+          max_users?: number | null
+          name?: string
+          price_monthly?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       tags: {
         Row: {
@@ -906,6 +1364,41 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1019,30 +1512,75 @@ export type Database = {
       }
     }
     Functions: {
-      get_invitation_by_token: {
-        Args: { p_token: string }
-        Returns: {
-          email: string
-          role: string
-          token: string
-          organization_name: string
-        }[]
-      }
       accept_invitation: {
         Args: { p_token: string; p_user_id: string }
         Returns: Json
       }
+      can_create_contact: { Args: { org_id: string }; Returns: boolean }
+      can_create_event: { Args: { org_id: string }; Returns: boolean }
+      can_send_message: { Args: { org_id: string }; Returns: boolean }
       choose_best_value: {
         Args: { val1: string; val2: string }
         Returns: string
       }
-      expire_old_invitations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_invite_token: {
-        Args: Record<PropertyKey, never>
+      expire_old_invitations: { Args: never; Returns: undefined }
+      generate_campaign_slug: {
+        Args: { campaign_name: string; org_id: string }
         Returns: string
+      }
+      generate_invite_token: { Args: never; Returns: string }
+      get_campaign_contacts_ordered: {
+        Args: {
+          p_campaign_id: string
+          p_offset?: number
+          p_organization_id: string
+          p_page_size?: number
+          p_search?: string
+          p_sort_by?: string
+          p_sort_direction?: string
+          p_statuses?: string[]
+        }
+        Returns: {
+          celular: string
+          id: string
+          nome_contato: string
+          perfil_contato: string
+          sentimento: string
+          status: string
+          total_count: number
+        }[]
+      }
+      get_daily_activity: {
+        Args: {
+          p_end_date?: string
+          p_organization_id: string
+          p_start_date?: string
+        }
+        Returns: {
+          activity_date: string
+          messages: number
+          responses: number
+        }[]
+      }
+      get_event_by_slug: {
+        Args: { event_slug: string }
+        Returns: {
+          event_date: string
+          event_id: string
+          id: string
+          id_tipo_mensagem: number
+          image_filename: string
+          location: string
+          media_type: string
+          message_image: string
+          message_text: string
+          mime_type: string
+          name: string
+          organization_id: string
+          status: string
+          tempo_max: number
+          tempo_min: number
+        }[]
       }
       get_grouped_events: {
         Args: { contact_phone: string; org_id: string }
@@ -1052,39 +1590,86 @@ export type Database = {
         Args: { contact_phone: string; org_id: string }
         Returns: string
       }
-      get_instance_api_key: {
-        Args: { instance_id: string }
-        Returns: string
+      get_hourly_activity: {
+        Args: {
+          p_end_date: string
+          p_organization_id: string
+          p_start_date: string
+        }
+        Returns: {
+          hour: number
+          messages: number
+          responses: number
+        }[]
       }
-      get_user_organization_id: {
-        Args: { user_id?: string }
-        Returns: string
+      get_instance_api_key: { Args: { instance_id: string }; Returns: string }
+      get_profile_distribution: {
+        Args: { p_organization_id: string }
+        Returns: {
+          count: number
+          profile: string
+        }[]
       }
-      is_saas_admin: {
-        Args: { user_id?: string }
+      get_secret: { Args: { secret_name: string }; Returns: string }
+      get_sentiment_distribution: {
+        Args: { p_organization_id: string }
+        Returns: {
+          count: number
+          sentiment: string
+        }[]
+      }
+      get_user_global_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_user_organization_id: { Args: { user_id?: string }; Returns: string }
+      get_user_role: {
+        Args: { _organization_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
         Returns: boolean
       }
-      map_existing_sentiments: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      is_saas_admin: { Args: { user_id?: string }; Returns: boolean }
+      map_existing_sentiments: { Args: never; Returns: undefined }
       refresh_event_instance_ids: {
         Args: { target_event_id: string }
         Returns: undefined
       }
-      sync_event_contacts_to_main: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      rpc_pause_campaign_messages: {
+        Args: { campaign_id: string; org_id: string; performed_by?: string }
+        Returns: {
+          batch_id: string
+          message_id: string
+        }[]
       }
+      rpc_resume_campaign_messages: {
+        Args: {
+          campaign_id: string
+          org_id: string
+          performed_by?: string
+          target_batch_id: string
+        }
+        Returns: {
+          message_id: string
+        }[]
+      }
+      slugify_text: { Args: { text_input: string }; Returns: string }
+      sync_event_contacts_to_main: { Args: never; Returns: undefined }
       sync_ultima_instancia_manual: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           updated_contacts: number
         }[]
       }
-      update_contact_ultima_instancia: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      update_contact_ultima_instancia: { Args: never; Returns: undefined }
+      update_new_contact_event_if_empty_batch: {
+        Args: { p_org_id: string; records: Json }
+        Returns: number
       }
       upsert_new_contact_event_min: {
         Args: {

@@ -26,6 +26,12 @@ import UserSettings from "./pages/UserSettings";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import AccessRequest from "./pages/AccessRequest";
 import PauseResumeDebug from "./pages/PauseResumeDebug";
+import EventCheckin from "./pages/EventCheckin";
+import PublicEventCheckin from "./pages/PublicEventCheckin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminOrganizations from "./pages/AdminOrganizations";
+import AdminUsers from "./pages/AdminUsers";
+import AdminPlans from "./pages/AdminPlans";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +46,12 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/request-access" element={<AccessRequest />} />
-            {/* Public Event Status Route - Must be before catch-all */}
+            {/* Public Routes - Must be before catch-all */}
+            <Route path="/checkin/:slug" element={<PublicEventCheckin />} />
+            {/* New friendly URLs with org slug */}
+            <Route path="/:orgSlug/evento/:eventSlug" element={<PublicEventStatus />} />
+            <Route path="/:orgSlug/campanha/:campaignSlug" element={<PublicCampaignStatus />} />
+            {/* Legacy routes for backwards compatibility */}
             <Route path="/public/event/:eventId" element={<PublicEventStatus />} />
             <Route path="/public/campaign-status/:campaignId" element={<PublicCampaignStatus />} />
             <Route path="/" element={
@@ -120,6 +131,13 @@ const App = () => (
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/events/:id/checkin" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EventCheckin />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/reports" element={
               <ProtectedRoute>
                 <Layout>
@@ -145,6 +163,35 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <OrganizationSettings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            {/* Admin Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminDashboard />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/organizations" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminOrganizations />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminUsers />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/plans" element={
+              <ProtectedRoute requiredRole="saas_admin">
+                <Layout>
+                  <AdminPlans />
                 </Layout>
               </ProtectedRoute>
             } />

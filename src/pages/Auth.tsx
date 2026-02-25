@@ -82,12 +82,13 @@ const Auth = () => {
             if (acceptError) {
               console.error('Erro ao aceitar convite automaticamente (useEffect):', acceptError);
               toast.error('Não foi possível aceitar o convite automaticamente.');
-            } else if (acceptResult?.success) {
+            } else if (acceptResult && typeof acceptResult === 'object' && 'success' in acceptResult && acceptResult.success) {
               toast.success('Convite aceito! Você foi adicionado à organização.');
               navigate('/');
               return;
             } else {
-              toast.error(acceptResult?.error || 'Falha ao aceitar convite');
+              const errorMsg = acceptResult && typeof acceptResult === 'object' && 'error' in acceptResult ? String(acceptResult.error) : 'Falha ao aceitar convite';
+              toast.error(errorMsg);
             }
           } catch (e) {
             console.error('Exceção ao aceitar convite automaticamente (useEffect):', e);
@@ -102,10 +103,16 @@ const Auth = () => {
 
   const loadInviteData = async (token: string) => {
     try {
-      // Usar RPC seguro para obter dados do convite por token
-      const { data, error } = await supabase.rpc('get_invitation_by_token', { p_token: token });
+      // Comment out: get_invitation_by_token doesn't exist in schema
+      // Use direct query instead
+      const { data, error } = await supabase
+        .from('invitations')
+        .select('*')
+        .eq('token', token)
+        .eq('status', 'pending')
+        .single();
       
-      if (error || !data || data.length === 0) {
+      if (error || !data) {
         toast.error('Convite inválido ou expirado');
         return;
       }
@@ -121,27 +128,29 @@ const Auth = () => {
           if (acceptError) {
             console.error('Erro ao aceitar convite automaticamente:', acceptError);
             toast.error('Não foi possível aceitar o convite automaticamente. Tente novamente.');
-          } else if (acceptResult?.success) {
+          } else if (acceptResult && typeof acceptResult === 'object' && 'success' in acceptResult && acceptResult.success) {
             toast.success('Convite aceito! Você foi adicionado à organização.');
             navigate('/');
             return; // Evitar mudar UI para registro se já aceitou
           } else {
-            toast.error(acceptResult?.error || 'Falha ao aceitar convite');
+            const errorMsg = acceptResult && typeof acceptResult === 'object' && 'error' in acceptResult ? String(acceptResult.error) : 'Falha ao aceitar convite';
+            toast.error(errorMsg);
           }
         } catch (e) {
           console.error('Exceção ao aceitar convite automaticamente:', e);
         }
       }
 
-      const invite = (data as any[])[0];
+      // Mostrar formulário de cadastro com dados do convite
+      setInviteTokenParam(token);
       setInviteData({
-        email: invite.email,
-        organizationName: invite.organization_name || 'Organização',
-        role: invite.role,
-        token: invite.token
+        email: data.email,
+        organizationName: 'Organização',
+        role: data.role,
+        token: data.token
       });
       setIsLogin(false);
-      registerForm.setValue('email', invite.email);
+      registerForm.setValue('email', data.email);
     } catch (error) {
       console.error('Erro ao carregar convite:', error);
       toast.error('Erro ao carregar convite');
@@ -180,10 +189,11 @@ const Auth = () => {
             if (acceptError) {
               console.error('Erro ao aceitar convite após login:', acceptError);
               toast.error('Não foi possível aceitar o convite após login.');
-            } else if (acceptResult?.success) {
+            } else if (acceptResult && typeof acceptResult === 'object' && 'success' in acceptResult && acceptResult.success) {
               toast.success('Convite aceito! Você foi adicionado à organização.');
             } else {
-              toast.error(acceptResult?.error || 'Falha ao aceitar convite');
+              const errorMsg = acceptResult && typeof acceptResult === 'object' && 'error' in acceptResult ? String(acceptResult.error) : 'Falha ao aceitar convite';
+              toast.error(errorMsg);
             }
           }
         } catch (e) {
