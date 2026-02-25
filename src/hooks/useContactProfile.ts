@@ -114,28 +114,6 @@ export const useContactProfile = (contactPhone: string) => {
         `${(mensagensEnviadas[0] as any).nome_contato || ''} ${(mensagensEnviadas[0] as any).sobrenome_contato || ''}`.trim() || null 
         : null;
 
-      // Buscar mensagens do contato na tabela event_messages também
-      const { data: messages, error: messagesError } = await supabase
-        .from('event_messages')
-        .select(`
-          id,
-          message_content,
-          status,
-          sentiment,
-          sent_at,
-          read_at,
-          responded_at,
-          created_at,
-          events!inner(name)
-        `)
-        .eq('contact_phone', contactPhone)
-        .eq('organization_id', organization.id)
-        .order('created_at', { ascending: false });
-
-      if (messagesError) {
-        console.error('Error fetching contact messages:', messagesError);
-      }
-
       // Buscar eventos únicos onde o contato participou
       const { data: eventMessages } = await supabase
         .from('event_messages')
@@ -164,7 +142,7 @@ export const useContactProfile = (contactPhone: string) => {
         }
       });
 
-      // Buscar mensagens do contato na tabela contact_messages (histórico principal)
+      // Histórico de mensagens: apenas contact_messages (fonte única, sem duplicatas)
       const { data: contactMessages, error: cmError } = await supabase
         .from('contact_messages')
         .select('id, mensagem, sentiment, direction, data_mensagem')
@@ -176,81 +154,28 @@ export const useContactProfile = (contactPhone: string) => {
         console.error('Error fetching contact_messages:', cmError);
       }
 
-      // Combinar mensagens de todas as fontes
-      const allMessages: ContactMessage[] = [];
-      
-      // Adicionar mensagens do event_messages
-      (messages || []).forEach(msg => {
-        allMessages.push({
-          id: msg.id,
-          message_content: msg.message_content,
-          status: msg.status,
-          sentiment: msg.sentiment,
-          sent_at: msg.sent_at,
-          read_at: msg.read_at,
-          responded_at: msg.responded_at,
-          event_name: (msg as any).events?.name || 'Evento não encontrado',
-          created_at: msg.created_at,
-          direction: 'sent',
-        });
-      });
-
-      // Adicionar mensagens do mensagens_enviadas
-      (mensagensEnviadas || []).forEach(msg => {
-        const msgAny = msg as any;
-        // Mensagem enviada (saída)
-        if (msgAny.mensagem) {
-          allMessages.push({
-            id: `me_sent_${msgAny.data_envio || Math.random()}`,
-            message_content: msgAny.mensagem,
-            status: msgAny.status,
-            sentiment: msgAny.sentimento,
-            sent_at: msgAny.data_envio,
-            read_at: msgAny.data_leitura,
-            responded_at: msgAny.data_resposta,
-            event_name: 'Evento',
-            created_at: msgAny.data_envio || new Date().toISOString(),
-            direction: 'sent',
-          });
-        }
-
-        // Mensagem recebida (entrada) se houver resposta do usuário
-        if (msgAny.resposta_usuario && msgAny.data_resposta) {
-          allMessages.push({
-            id: `me_received_${msgAny.data_resposta || Math.random()}`,
-            message_content: msgAny.resposta_usuario,
-            status: 'received',
-            sentiment: null,
-            sent_at: null,
-            read_at: null,
-            responded_at: msgAny.data_resposta,
-            event_name: 'Evento',
-            created_at: msgAny.data_resposta,
-            direction: 'received',
-          });
-        }
-      });
-
-      // Adicionar mensagens do contact_messages
-      (contactMessages || []).forEach(cm => {
-        const dir = String(cm.direction || '').toLowerCase();
+      const allMessages: ContactMessage[] = (contactMessages || []).map((cm) => {
+        const dir = String((cm as any).direction || '').toLowerCase();
         const normalizedDir: 'sent' | 'received' = dir === 'enviada' ? 'sent' : 'received';
-        allMessages.push({
+        const dataMsg = (cm as any).data_mensagem;
+        return {
           id: cm.id,
           message_content: (cm as any).mensagem || '',
-          status: normalizedDir, // não há status explícito, usa direção
+          status: normalizedDir,
           sentiment: (cm as any).sentiment || null,
-          sent_at: normalizedDir === 'sent' ? (cm as any).data_mensagem : null,
+          sent_at: normalizedDir === 'sent' ? dataMsg : null,
           read_at: null,
-          responded_at: normalizedDir === 'received' ? (cm as any).data_mensagem : null,
+          responded_at: normalizedDir === 'received' ? dataMsg : null,
           event_name: 'Histórico',
-          created_at: (cm as any).data_mensagem,
+          created_at: dataMsg,
           direction: normalizedDir,
-        });
+        };
       });
 
-      // Ordenar por data de criação
       allMessages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Excluir apenas mensagens vazias
+      const messagesWithTextOnly = allMessages.filter((m) => (m.message_content || '').trim().length > 0);
 
       // Contagens exatas no banco para remover limite padrão de 1000
       const [
@@ -322,19 +247,19 @@ export const useContactProfile = (contactPhone: string) => {
 
       const stats = {
         totalEvents: uniqueEvents.length,
-        // Total exato de bolhas: event_messages + mensagens (saída) + respostas (entrada) + contact_messages
-        totalMessages: (eventMsgCount || 0) + (meSentCount || 0) + (meRespBubbleCount || 0) + (cmCount || 0),
+        // Total de mensagens exibidas (apenas as que têm texto, sem duplicata com prefixo de data)
+        totalMessages: messagesWithTextOnly.length,
         // Lidas exatas somando ambas fontes (contact_messages não tem campo de leitura)
         readMessages: (emReadCount || 0) + (meReadCount || 0),
         // Respondidas exatas somando ambas fontes (contact_messages não tem responded_at)
         respondedMessages: (emRespCount || 0) + (meRespCount || 0),
-        // Mantém contagem de sentimentos baseada nas mensagens carregadas atualmente
+        // Mantém contagem de sentimentos baseada nas mensagens exibidas (com texto apenas)
         sentimentCounts: {
-          superEngajado: allMessages.filter(m => m.sentiment === 'super engajado' || m.sentiment === 'super_engajado').length,
-          positivo: allMessages.filter(m => m.sentiment === 'positivo').length,
-          neutro: allMessages.filter(m => m.sentiment === 'neutro').length,
-          negativo: allMessages.filter(m => m.sentiment === 'negativo').length,
-          semClassificacao: allMessages.filter(m => m.sentiment === null).length,
+          superEngajado: messagesWithTextOnly.filter(m => m.sentiment === 'super engajado' || m.sentiment === 'super_engajado').length,
+          positivo: messagesWithTextOnly.filter(m => m.sentiment === 'positivo').length,
+          neutro: messagesWithTextOnly.filter(m => m.sentiment === 'neutro').length,
+          negativo: messagesWithTextOnly.filter(m => m.sentiment === 'negativo').length,
+          semClassificacao: messagesWithTextOnly.filter(m => m.sentiment === null).length,
         },
       };
 
@@ -342,7 +267,7 @@ export const useContactProfile = (contactPhone: string) => {
         contact,
         fullName,
         events: uniqueEvents,
-        messages: allMessages,
+        messages: messagesWithTextOnly,
         stats,
       };
     },
