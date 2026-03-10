@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,9 +33,13 @@ import { exportToExcel } from '@/lib/excelExport';
 import { exportAdvancedReportToPDF } from '@/lib/advancedPdfExport';
 import { generateAIAnalysis } from '@/lib/openaiAnalysis';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 
 const Reports = () => {
   const [timeRange, setTimeRange] = useState('30d');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [customRange, setCustomRange] = useState<{ startDate: string; endDate: string } | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [showComparison, setShowComparison] = useState(true);
   const [reportFilters, setReportFilters] = useState<ReportFilters>({
@@ -59,7 +63,31 @@ const Reports = () => {
   const segmentationChartRef = useRef<HTMLDivElement>(null);
   
   const { organization } = useAuth();
-  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics(timeRange as import('@/hooks/useAnalytics').TimeRange);
+  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics(
+    timeRange as import('@/hooks/useAnalytics').TimeRange,
+    timeRange === 'custom' && customRange ? customRange : undefined
+  );
+
+  useEffect(() => {
+    if (timeRange !== 'custom') {
+      return;
+    }
+
+    if (customStartDate && customEndDate) {
+      const start = new Date(customStartDate);
+      const end = new Date(customEndDate);
+
+      const normalizedEnd = new Date(end);
+      normalizedEnd.setHours(23, 59, 59, 999);
+
+      setCustomRange({
+        startDate: start.toISOString(),
+        endDate: normalizedEnd.toISOString(),
+      });
+    } else {
+      setCustomRange(null);
+    }
+  }, [timeRange, customStartDate, customEndDate]);
   const { templates, isLoading: templatesLoading } = useTemplates();
 
   const handleExport = async (format: 'pdf-standard' | 'pdf-ai' | 'excel' | 'json') => {
@@ -296,17 +324,49 @@ const Reports = () => {
           <p className="text-slate-600">Acompanhe a performance das suas campanhas</p>
         </div>
         <div className="flex gap-3">
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select
+            value={timeRange}
+            onValueChange={(value) => {
+              setTimeRange(value);
+              if (value !== 'custom') {
+                setCustomRange(null);
+              }
+            }}
+          >
             <SelectTrigger className="w-[180px] bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7d">Últimos 7 dias</SelectItem>
               <SelectItem value="30d">Últimos 30 dias</SelectItem>
+              <SelectItem value="60d">Últimos 60 dias</SelectItem>
               <SelectItem value="90d">Últimos 90 dias</SelectItem>
               <SelectItem value="1y">Último ano</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
+          {timeRange === 'custom' && (
+            <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-md border">
+              <div className="flex flex-col">
+                <span className="text-xs text-slate-500">Data inicial</span>
+                <Input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-slate-500">Data final</span>
+                <Input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+            </div>
+          )}
           <Button variant="outline" className="bg-white" onClick={() => setIsFilterModalOpen(true)}>
             <Filter className="w-4 h-4 mr-2" />
             Filtros

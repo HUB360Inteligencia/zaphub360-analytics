@@ -85,7 +85,9 @@ export interface AnalyticsData {
   }[];
 }
 
-export type TimeRange = '7d' | '30d' | '90d' | 'all';
+export type TimeRange = '7d' | '30d' | '60d' | '90d' | '1y' | 'all' | 'custom';
+
+type CustomDateRange = { startDate: string; endDate: string };
 
 const emptyAnalyticsData: AnalyticsData = {
   totalContacts: 0,
@@ -121,9 +123,22 @@ const emptyAnalyticsData: AnalyticsData = {
 };
 
 // Helper function to get date range based on timeRange
-const getDateRange = (timeRange: TimeRange): { startDate: string | null; endDate: string | null } => {
+const getDateRange = (
+  timeRange: TimeRange,
+  customRange?: CustomDateRange
+): { startDate: string | null; endDate: string | null } => {
   if (timeRange === 'all') {
     return { startDate: null, endDate: null };
+  }
+
+  if (timeRange === 'custom') {
+    if (!customRange) {
+      return { startDate: null, endDate: null };
+    }
+    return {
+      startDate: customRange.startDate,
+      endDate: customRange.endDate,
+    };
   }
   
   const now = new Date();
@@ -136,8 +151,14 @@ const getDateRange = (timeRange: TimeRange): { startDate: string | null; endDate
     case '30d':
       startDate.setDate(now.getDate() - 30);
       break;
+    case '60d':
+      startDate.setDate(now.getDate() - 60);
+      break;
     case '90d':
       startDate.setDate(now.getDate() - 90);
+      break;
+    case '1y':
+      startDate.setDate(now.getDate() - 365);
       break;
   }
   
@@ -302,6 +323,38 @@ const fetchProfilesData = async (orgId: string) => {
   }));
 };
 
+// Fetch hourly activity (agregação por hora do dia no período)
+const fetchHourlyActivity = async (
+  orgId: string,
+  startDate: string | null,
+  endDate: string | null
+): Promise<{ hour: string; messages: number; responses: number }[]> => {
+  const { data, error } = await supabase.rpc('get_hourly_activity', {
+    p_organization_id: orgId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+  });
+
+  if (error) {
+    console.error('[Analytics] Error fetching hourly activity:', error);
+    return [];
+  }
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return Array.from({ length: 24 }, (_, i) => ({
+      hour: `${i.toString().padStart(2, '0')}:00`,
+      messages: 0,
+      responses: 0,
+    }));
+  }
+
+  return data.map((row: { hour: number; messages: number; responses: number }) => ({
+    hour: `${Number(row.hour).toString().padStart(2, '0')}:00`,
+    messages: Number(row.messages ?? 0),
+    responses: Number(row.responses ?? 0),
+  }));
+};
+
 // Fetch daily activity
 const fetchDailyActivity = async (orgId: string, startDate: string | null, endDate: string | null) => {
   const { data: dailyData, error } = await supabase
@@ -335,7 +388,7 @@ const fetchDailyActivity = async (orgId: string, startDate: string | null, endDa
   }));
 };
 
-// Fetch campaign performance
+// Fetch campaign performance using server-side counts (sem limite de 1000 registros)
 const fetchCampaignPerformance = async (orgId: string) => {
   const { data: campaigns } = await supabase
     .from('campaigns')
@@ -350,18 +403,37 @@ const fetchCampaignPerformance = async (orgId: string) => {
 
   const performance = await Promise.all(
     campaigns.map(async (campaign) => {
-      const { data: messages } = await supabase
-        .from('mensagens_enviadas')
-        .select('status, data_resposta')
-        .eq('id_campanha', campaign.id)
-        .range(0, 49999);
-      
-      console.log(`[Analytics] Campaign ${campaign.name}: ${messages?.length || 0} messages`);
-      
-      const sent = messages?.length || 0;
-      const delivered = messages?.filter(m => m.status === 'enviado').length || 0;
-      const errors = messages?.filter(m => m.status === 'erro').length || 0;
-      const responded = messages?.filter(m => m.data_resposta !== null).length || 0;
+      // Usa contagens exatas no banco para evitar limite padrão de 1000 registros
+      const [totalResult, deliveredResult, errorResult, respondedResult] = await Promise.all([
+        supabase
+          .from('mensagens_enviadas')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_campanha', campaign.id),
+        supabase
+          .from('mensagens_enviadas')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_campanha', campaign.id)
+          .eq('status', 'enviado'),
+        supabase
+          .from('mensagens_enviadas')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_campanha', campaign.id)
+          .eq('status', 'erro'),
+        supabase
+          .from('mensagens_enviadas')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_campanha', campaign.id)
+          .not('data_resposta', 'is', null),
+      ]);
+
+      const sent = totalResult.count || 0;
+      const delivered = deliveredResult.count || 0;
+      const errors = errorResult.count || 0;
+      const responded = respondedResult.count || 0;
+
+      console.log(
+        `[Analytics] Campaign ${campaign.name}: ${sent} sent, ${delivered} delivered, ${errors} errors, ${responded} responded`
+      );
 
       return {
         name: campaign.name,
@@ -377,18 +449,18 @@ const fetchCampaignPerformance = async (orgId: string) => {
   return performance;
 };
 
-export const useAnalytics = (timeRange: TimeRange = '30d') => {
+export const useAnalytics = (timeRange: TimeRange = '30d', customRange?: CustomDateRange) => {
   const { organization } = useAuth();
 
   const analyticsQuery = useQuery({
-    queryKey: ['analytics-v2', organization?.id, timeRange],
+    queryKey: ['analytics-v2', organization?.id, timeRange, customRange?.startDate, customRange?.endDate],
     queryFn: async (): Promise<AnalyticsData> => {
       if (!organization?.id) {
         return emptyAnalyticsData;
       }
 
       try {
-        const { startDate, endDate } = getDateRange(timeRange);
+        const { startDate, endDate } = getDateRange(timeRange, customRange);
 
         // Fetch all data in parallel
         const [
@@ -397,6 +469,7 @@ export const useAnalytics = (timeRange: TimeRange = '30d') => {
           messagesData,
           contactsByProfile,
           dailyActivity,
+          hourlyActivity,
           campaignPerformance
         ] = await Promise.all([
           fetchTotalContacts(organization.id),
@@ -404,6 +477,7 @@ export const useAnalytics = (timeRange: TimeRange = '30d') => {
           fetchMessagesData(organization.id, startDate, endDate),
           fetchProfilesData(organization.id),
           fetchDailyActivity(organization.id, startDate, endDate),
+          fetchHourlyActivity(organization.id, startDate, endDate),
           fetchCampaignPerformance(organization.id)
         ]);
 
@@ -435,7 +509,7 @@ export const useAnalytics = (timeRange: TimeRange = '30d') => {
           campaignPerformance,
           templatePerformance: [], // Not available
           dailyActivity,
-          hourlyActivity: [], // Can implement if needed
+          hourlyActivity,
           globalSentiment,
           sentProcessedCount: globalSentiment.totalClassified,
           responsesCount: messagesData.responsesCount,
