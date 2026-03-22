@@ -11,6 +11,7 @@ export interface FilterOptions {
   sentimentsExclude: string[];
   cidades: string[];
   bairros: string[];
+  regionais: string[];
   profiles: string[];
   includeEvents: string[];
   excludeEvents: string[];
@@ -31,12 +32,65 @@ export interface ContactWithDetails {
   sentiment?: string;
   cidade?: string;
   bairro?: string;
+  regional?: string | null;
   ultima_instancia?: string;
   evento?: string; // Campo evento da tabela
   profile?: string | null;
   genero?: string; // 'F' ou 'M'
   campaignParticipations?: string[];
   tags?: Array<{ id: string; name: string; color: string }>;
+}
+
+const PAGE_SIZE = 1000;
+
+/** Valores distintos de regional em new_contact_event e new_contact_message (para o painel de filtros). */
+async function fetchDistinctRegionalsFromTables(orgId: string): Promise<string[]> {
+  const set = new Set<string>();
+
+  const ingestPage = (rows: { regional: string | null }[] | null) => {
+    rows?.forEach((row) => {
+      const v = (row.regional || '').trim();
+      if (v) set.add(v);
+    });
+  };
+
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from('new_contact_event')
+      .select('regional')
+      .eq('organization_id', orgId)
+      .not('regional', 'is', null)
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.warn('[AdvancedContactFilter] distinct regional (new_contact_event):', error.message);
+      break;
+    }
+    if (!data?.length) break;
+    ingestPage(data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from('new_contact_message')
+      .select('regional')
+      .eq('organization_id', orgId)
+      .not('regional', 'is', null)
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.warn('[AdvancedContactFilter] distinct regional (new_contact_message):', error.message);
+      break;
+    }
+    if (!data?.length) break;
+    ingestPage(data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 export const useAdvancedContactFilter = (filters: FilterOptions) => {
@@ -94,6 +148,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
           sentiment: normalizeSentiment(contact.sentimento),
           cidade: contact.cidade?.trim() || null, // Normalizar cidade com trim
           bairro: contact.bairro?.trim() || null, // Normalizar bairro com trim
+          regional: contact.regional?.trim() || null,
           ultima_instancia: contact.ultima_instancia,
           evento: contact.evento, // Adicionar campo evento
           profile: contact.perfil_contato || contact.perfil || null,
@@ -101,6 +156,76 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
           tags: []
         }));
     },
+    enabled: !!organization?.id,
+  });
+
+  /** Regional vindo de new_contact_message (último registro por celular, quando possível) */
+  const { data: regionalByPhone, isLoading: regionalLoading } = useQuery({
+    queryKey: ['new-contact-message-regionals', organization?.id],
+    queryFn: async (): Promise<Map<string, string>> => {
+      if (!organization?.id) return new Map();
+
+      const map = new Map<string, string>();
+      const pageSize = 1000;
+      let from = 0;
+
+      const fetchPage = async (withCreatedOrder: boolean) => {
+        let q = supabase
+          .from('new_contact_message')
+          .select('celular, regional')
+          .eq('organization_id', organization.id)
+          .not('regional', 'is', null)
+          .range(from, from + pageSize - 1);
+        if (withCreatedOrder) {
+          q = q.order('created_at', { ascending: false });
+        }
+        return q;
+      };
+
+      let useOrder = true;
+      for (;;) {
+        const { data, error } = await fetchPage(useOrder);
+        if (error) {
+          if (useOrder) {
+            useOrder = false;
+            from = 0;
+            map.clear();
+            continue;
+          }
+          console.warn('[AdvancedContactFilter] new_contact_message (regional):', error.message);
+          return new Map();
+        }
+        if (!data?.length) break;
+        for (const row of data) {
+          const phone = (row.celular || '').trim();
+          const reg = (row.regional || '').trim();
+          if (phone && reg && !map.has(phone)) map.set(phone, reg);
+        }
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return map;
+    },
+    enabled: !!organization?.id,
+  });
+
+  /** Contatos com regional: prioridade new_contact_event; fallback new_contact_message por celular */
+  const contactsWithRegional = useMemo(() => {
+    if (!allContacts) return [];
+    const fromMessages = regionalByPhone ?? new Map<string, string>();
+    return allContacts.map((c) => {
+      const fromEvent = c.regional?.trim() || null;
+      const fromMsg = fromMessages.get(c.phone) || null;
+      return {
+        ...c,
+        regional: fromEvent || fromMsg || null,
+      };
+    });
+  }, [allContacts, regionalByPhone]);
+
+  const { data: distinctRegionalsFromDb = [], isLoading: distinctRegionalsLoading } = useQuery({
+    queryKey: ['distinct-regionals-tables', organization?.id],
+    queryFn: () => fetchDistinctRegionalsFromTables(organization!.id),
     enabled: !!organization?.id,
   });
 
@@ -157,7 +282,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
   // Dados para filtros
   const filterData = useMemo(() => {
     const sentimentsSet = new Set<string>();
-    allContacts?.forEach(contact => {
+    contactsWithRegional.forEach(contact => {
       const normalized = normalizeSentiment(contact.sentiment);
       if (normalized) {
         sentimentsSet.add(normalized);
@@ -175,7 +300,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     
     // Cidades únicas e ordenadas (normalizar para evitar duplicatas)
     const cidadesSet = new Set<string>();
-    allContacts?.forEach(contact => {
+    contactsWithRegional.forEach(contact => {
       if (contact.cidade) {
         const normalized = (contact.cidade || '').trim();
         if (normalized) cidadesSet.add(normalized);
@@ -185,7 +310,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     
     // Bairros únicos e ordenados (normalizar para evitar duplicatas)
     const bairrosSet = new Set<string>();
-    allContacts?.forEach(contact => {
+    contactsWithRegional.forEach(contact => {
       if (contact.bairro) {
         const normalized = (contact.bairro || '').trim();
         if (normalized) bairrosSet.add(normalized);
@@ -193,9 +318,19 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     });
     const bairros = Array.from(bairrosSet).sort();
 
+    const regionaisSet = new Set<string>();
+    contactsWithRegional.forEach(contact => {
+      if (contact.regional) {
+        const normalized = (contact.regional || '').trim();
+        if (normalized) regionaisSet.add(normalized);
+      }
+    });
+    distinctRegionalsFromDb.forEach((r) => regionaisSet.add(r));
+    const regionais = Array.from(regionaisSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
     // Perfis únicos
     const perfisSet = new Set<string>();
-    allContacts?.forEach(contact => {
+    contactsWithRegional.forEach(contact => {
       if (contact.profile) {
         const normalized = (contact.profile || '').trim();
         if (normalized) perfisSet.add(normalized);
@@ -205,15 +340,15 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
 
     // Gêneros únicos ('F' ou 'M')
     const generosSet = new Set<string>();
-    allContacts?.forEach(contact => {
+    contactsWithRegional.forEach(contact => {
       if (contact.genero) {
         generosSet.add(contact.genero);
       }
     });
     const generos = Array.from(generosSet).sort();
 
-    return { sentiments, cidades, bairros, profiles, generos };
-  }, [allContacts]);
+    return { sentiments, cidades, bairros, regionais, profiles, generos };
+  }, [contactsWithRegional, distinctRegionalsFromDb]);
 
   // Participações em campanhas
   const { data: campaignParticipations } = useQuery({
@@ -231,7 +366,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
 
   // Contatos filtrados
   const filteredContacts = useMemo(() => {
-    if (!allContacts) return [];
+    if (!contactsWithRegional.length) return [];
 
     // Criar mapa de participações em campanhas
     const campaignParticipationMap = new Map();
@@ -241,7 +376,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       campaignParticipationMap.set(participation.celular, existing);
     });
 
-    return allContacts.filter(contact => {
+    return contactsWithRegional.filter(contact => {
       const campaignIds = campaignParticipationMap.get(contact.phone) || [];
       const contactTagIds = contact.tags?.map(tag => tag.id) || [];
 
@@ -269,6 +404,13 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       // Filtro por bairro
       if (filters.bairros.length > 0) {
         if (!contact.bairro || !filters.bairros.includes(contact.bairro)) {
+          return false;
+        }
+      }
+
+      // Filtro por regional (new_contact_event e/ou new_contact_message)
+      if (filters.regionais.length > 0) {
+        if (!contact.regional || !filters.regionais.includes(contact.regional)) {
           return false;
         }
       }
@@ -365,7 +507,7 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
       ...contact,
       campaignParticipations: campaignParticipationMap.get(contact.phone) || [],
     }));
-  }, [allContacts, campaignParticipations, JSON.stringify(filters)]);
+  }, [contactsWithRegional, campaignParticipations, JSON.stringify(filters)]);
 
   return {
     filteredContacts,
@@ -373,8 +515,9 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     events: uniqueEvents || [], // Usar eventos da coluna 'evento'
     campaigns,
     tags,
-    totalContacts: allContacts?.length || 0,
+    totalContacts: contactsWithRegional.length,
     filteredCount: filteredContacts.length,
-    isLoading: contactsLoading,
+    isLoading: contactsLoading || regionalLoading || distinctRegionalsLoading,
+    regionalsOptionsLoading: distinctRegionalsLoading,
   };
 };

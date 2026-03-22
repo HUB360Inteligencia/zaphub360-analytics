@@ -33,6 +33,11 @@ import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+/** PostgREST pode falhar com "Failed to fetch" se `.in('celular', ...)` tiver milhares de valores. */
+const CSV_IMPORT_IN_CHUNK = 150;
+/** RPC `update_new_contact_event_if_empty_batch`: corpo JSON muito grande estoura limite. */
+const CSV_IMPORT_RPC_CHUNK = 300;
+
 const Contacts = () => {
   const { organization } = useAuth();
   const { tags, isLoading: tagsLoading } = useTags();
@@ -337,6 +342,8 @@ const Contacts = () => {
     if (['sentimento', 'sentiment'].includes(h)) return 'sentimento';
     if (['evento', 'event'].includes(h)) return 'evento';
     if (['perfil_contato', 'perfil', 'perfil contato', 'profile'].includes(h)) return 'perfil_contato';
+    if (['sexo', 'genero', 'gênero', 'gender'].includes(h)) return 'sexo';
+    if (['regional', 'região', 'regiao'].includes(h)) return 'regional';
     return h;
   }
 
@@ -403,6 +410,8 @@ const Contacts = () => {
       const idxSentimento = idx('sentimento');
       const idxEvento = idx('evento');
       const idxPerfil = idx('perfil_contato');
+      const idxSexo = idx('sexo');
+      const idxRegional = idx('regional');
 
       if (idxPhone === -1) {
         throw new Error('Coluna de telefone não encontrada (ex.: celular/telefone/phone)');
@@ -417,6 +426,16 @@ const Contacts = () => {
         const sentimento = idxSentimento !== -1 ? cells[idxSentimento] : null;
         const evento = idxEvento !== -1 ? cells[idxEvento] : 'Import CSV';
         const perfil_contato = idxPerfil !== -1 ? cells[idxPerfil] : null;
+        const sexoRaw = idxSexo !== -1 ? (cells[idxSexo] || '').trim().toUpperCase() : '';
+        const sexo =
+          sexoRaw === 'F' || sexoRaw === 'FEMININO' || sexoRaw === 'FEMALE'
+            ? 'F'
+            : sexoRaw === 'M' || sexoRaw === 'MASCULINO' || sexoRaw === 'MALE'
+              ? 'M'
+              : sexoRaw
+                ? sexoRaw.slice(0, 1)
+                : null;
+        const regional = idxRegional !== -1 ? cells[idxRegional] : null;
         return {
           phone,
           name,
@@ -426,6 +445,8 @@ const Contacts = () => {
           sentimento,
           evento,
           perfil_contato,
+          sexo,
+          regional,
           rowIndex: index + 2,
           originalRow: {
             headers,
@@ -474,17 +495,22 @@ const Contacts = () => {
         }
       }
 
-      // Consultar existentes na base para este lote
+      // Consultar existentes na base (em lotes — .in() com ~8000 celulares quebra rede/PostgREST)
       const uniquePhones = Array.from(new Set(valid.map(r => r.phone)));
-      let existingSet = new Set<string>();
+      const existingSet = new Set<string>();
       if (uniquePhones.length > 0) {
-        const { data: existingRows, error: existingErr } = await supabase
-          .from('new_contact_event')
-          .select('celular')
-          .eq('organization_id', organization.id)
-          .in('celular', uniquePhones);
-        if (existingErr) throw existingErr;
-        existingSet = new Set((existingRows || []).map(r => r.celular));
+        for (let i = 0; i < uniquePhones.length; i += CSV_IMPORT_IN_CHUNK) {
+          const slice = uniquePhones.slice(i, i + CSV_IMPORT_IN_CHUNK);
+          const { data: existingRows, error: existingErr } = await supabase
+            .from('new_contact_event')
+            .select('celular')
+            .eq('organization_id', organization.id)
+            .in('celular', slice);
+          if (existingErr) throw existingErr;
+          (existingRows || []).forEach((r) => {
+            if (r.celular) existingSet.add(r.celular);
+          });
+        }
       }
 
       // Separar duplicados e novos para inserção
@@ -522,17 +548,22 @@ const Contacts = () => {
           sentimento: normalizeCsvValue(r.sentimento),
           evento: normalizeCsvValue(r.evento),
           tag: null,
+          sexo: normalizeCsvValue(r.sexo),
+          regional: normalizeCsvValue(r.regional),
         }));
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('update_new_contact_event_if_empty_batch', {
-            records: batch,
-            p_org_id: organization.id,
-          });
-        if (rpcError) {
-          console.error('Erro ao atualizar duplicados:', rpcError);
-          toast.error('Falha ao atualizar contatos duplicados.');
-        } else {
-          updatedCount = rpcData ?? 0;
+        for (let i = 0; i < batch.length; i += CSV_IMPORT_RPC_CHUNK) {
+          const slice = batch.slice(i, i + CSV_IMPORT_RPC_CHUNK);
+          const { data: rpcData, error: rpcError } = await supabase
+            .rpc('update_new_contact_event_if_empty_batch', {
+              records: slice,
+              p_org_id: organization.id,
+            });
+          if (rpcError) {
+            console.error('Erro ao atualizar duplicados:', rpcError);
+            toast.error('Falha ao atualizar contatos duplicados.');
+            break;
+          }
+          updatedCount += Number(rpcData ?? 0);
         }
       }
       const duplicatesLeft = duplicateRecords.length - (updatedCount || 0);
@@ -547,6 +578,8 @@ const Contacts = () => {
         sentimento: normalizeCsvValue(r.sentimento),
         evento: normalizeCsvValue(r.evento) ?? 'Import CSV',
         perfil_contato: normalizeCsvValue(r.perfil_contato),
+        sexo: normalizeCsvValue(r.sexo),
+        regional: normalizeCsvValue(r.regional),
         organization_id: organization.id,
         responsavel_cadastro: 'Importador',
       }));
@@ -581,8 +614,13 @@ const Contacts = () => {
       await refetch();
     } catch (err: any) {
       console.error('Erro na importação:', err);
-      setImportError(err?.message || 'Erro ao importar CSV');
-      toast.error(err?.message || 'Erro ao importar CSV');
+      const msg = err?.message || 'Erro ao importar CSV';
+      const hint =
+        msg.includes('Failed to fetch') || msg.includes('NetworkError')
+          ? ' (rede/timeout ou requisição muito grande — tente de novo; importações grandes foram otimizadas em lotes.)'
+          : '';
+      setImportError(msg + hint);
+      toast.error(msg + hint);
     } finally {
       setImporting(false);
     }
@@ -620,7 +658,9 @@ const Contacts = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <p className="text-sm text-slate-600">
-                  Faça upload de um arquivo CSV com os dados dos contatos
+                  Faça upload de um arquivo CSV com os dados dos contatos. É obrigatório ter coluna de telefone
+                  (celular, telefone, phone, etc.). Opcionais: nome, sobrenome, cidade, bairro, sentimento, evento,
+                  perfil, <strong>sexo</strong> (F/M ou Feminino/Masculino) e <strong>regional</strong>.
                 </p>
                 <Input type="file" accept=".csv" onChange={handleFileChange} />
                 {importError && (

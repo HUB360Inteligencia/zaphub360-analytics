@@ -1063,6 +1063,7 @@ export type Database = {
           organization_id: string | null
           perfil: string | null
           perfil_contato: string | null
+          regional: string | null
           responsavel_cadastro: string | null
           sentimento: string | null
           sentimento_rp: string | null
@@ -1090,6 +1091,7 @@ export type Database = {
           organization_id?: string | null
           perfil?: string | null
           perfil_contato?: string | null
+          regional?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
@@ -1117,6 +1119,7 @@ export type Database = {
           organization_id?: string | null
           perfil?: string | null
           perfil_contato?: string | null
+          regional?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
@@ -1128,6 +1131,38 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      new_contact_message: {
+        Row: {
+          celular: string
+          created_at: string | null
+          id: string
+          organization_id: string
+          regional: string | null
+        }
+        Insert: {
+          celular: string
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          regional?: string | null
+        }
+        Update: {
+          celular?: string
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          regional?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_contact_message_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organizations: {
         Row: {

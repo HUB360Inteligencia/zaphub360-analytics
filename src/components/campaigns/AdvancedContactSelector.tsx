@@ -21,6 +21,7 @@ const initialFilters: FilterOptions = {
   sentimentsExclude: [],
   cidades: [],
   bairros: [],
+  regionais: [],
   profiles: [],
   includeEvents: [],
   excludeEvents: [],
@@ -48,6 +49,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
     tags,
     totalContacts,
     filteredCount,
+    regionalsOptionsLoading,
   } = useAdvancedContactFilter(filters);
 
   // Cast para resolver problemas de tipo com status
@@ -163,6 +165,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
           totalContacts={totalContacts}
           selectedInFilter={selectedInFilter}
           totalSelected={selectedContacts.length}
+          regionalsOptionsLoading={regionalsOptionsLoading}
         />
       </div>
 

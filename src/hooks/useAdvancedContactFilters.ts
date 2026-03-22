@@ -84,6 +84,7 @@ export const useAdvancedContactFilters = (
           })) : [],
           cidade: contact.cidade?.trim() || null,
           bairro: contact.bairro?.trim() || null,
+          regional: contact.regional?.trim() || null,
           sentimento: normalizeSentiment(contact.sentimento),
           evento: contact.evento,
           sobrenome: contact.sobrenome,

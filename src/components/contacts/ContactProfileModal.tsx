@@ -58,6 +58,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
       normalize(current.sobrenome) !== normalize(base.sobrenome) ||
       normalize(current.cidade) !== normalize(base.cidade) ||
       normalize(current.bairro) !== normalize(base.bairro) ||
+      normalize(current.regional) !== normalize(base.regional) ||
       normalize(current.evento) !== normalize(base.evento) ||
       normalize(current.sentimento) !== normalize(base.sentimento)
     );
@@ -100,6 +101,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
           sobrenome: contact.sobrenome || '',
           cidade: contact.cidade || '',
           bairro: contact.bairro || '',
+          regional: contact.regional || '',
           evento: contact.evento || '',
           sentimento: contact.sentimento || '',
         });
@@ -109,6 +111,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
           sobrenome: contact.sobrenome || '',
           cidade: contact.cidade || '',
           bairro: contact.bairro || '',
+          regional: contact.regional || '',
           evento: contact.evento || '',
           sentimento: contact.sentimento || '',
         }));
@@ -144,6 +147,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
       sobrenome: contact.sobrenome || '',
       cidade: contact.cidade || '',
       bairro: contact.bairro || '',
+      regional: contact.regional || '',
       evento: contact.evento || '',
       sentimento: contact.sentimento || '',
     });
@@ -153,6 +157,7 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
       sobrenome: contact.sobrenome || '',
       cidade: contact.cidade || '',
       bairro: contact.bairro || '',
+      regional: contact.regional || '',
       evento: contact.evento || '',
       sentimento: contact.sentimento || '',
     }));
@@ -310,6 +315,19 @@ const ContactProfileModal: React.FC<ContactProfileModalProps> = ({
                       />
                     ) : (
                       <p className="text-sm font-medium mt-1">{contact.bairro || 'Não informado'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="regional">Regional</Label>
+                    {mode === 'edit' ? (
+                      <Input
+                        id="regional"
+                        value={editData.regional || ''}
+                        onChange={(e) => setEditData({ ...editData, regional: e.target.value })}
+                        placeholder="Ex.: Norte, Sul, PR-01"
+                      />
+                    ) : (
+                      <p className="text-sm font-medium mt-1">{contact.regional || 'Não informado'}</p>
                     )}
                   </div>
                 </div>

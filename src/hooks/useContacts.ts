@@ -30,6 +30,7 @@ export interface Contact {
   sobrenome?: string;
   cidade?: string;
   bairro?: string;
+  regional?: string | null;
   responsavel_cadastro?: string;
   status_envio?: string;
   ultima_instancia?: string;
@@ -144,6 +145,7 @@ export const useContacts = (params: ContactsParams = {}) => {
         sobrenome: contact.sobrenome,
         cidade: contact.cidade,
         bairro: contact.bairro,
+        regional: contact.regional ?? null,
         responsavel_cadastro: contact.responsavel_cadastro,
         status_envio: contact.status_envio,
         ultima_instancia: contact.ultima_instancia,
@@ -358,6 +360,14 @@ export const useContacts = (params: ContactsParams = {}) => {
           evento: updateData.evento,
           sentimento: updateData.sentimento,
           updated_at: new Date().toISOString(),
+          ...(updateData.regional !== undefined
+            ? {
+                regional:
+                  updateData.regional === '' || updateData.regional === null
+                    ? null
+                    : updateData.regional,
+              }
+            : {}),
         })
         .eq('id_contact_event', parseInt(id))
         .select()
