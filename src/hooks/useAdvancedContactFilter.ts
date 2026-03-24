@@ -143,55 +143,9 @@ export const useAdvancedContactFilter = (filters: FilterOptions) => {
     enabled: !!organization?.id,
   });
 
-  /** Regional vindo de new_contact_message (último registro por celular, quando possível) */
-  const { data: regionalByPhone, isLoading: regionalLoading } = useQuery({
-    queryKey: ['new-contact-message-regionals', organization?.id],
-    queryFn: async (): Promise<Map<string, string>> => {
-      if (!organization?.id) return new Map();
-
-      const map = new Map<string, string>();
-      const pageSize = 1000;
-      let from = 0;
-
-      const fetchPage = async (withCreatedOrder: boolean) => {
-        let q = supabase
-          .from('new_contact_message')
-          .select('celular, regional')
-          .eq('organization_id', organization.id)
-          .not('regional', 'is', null)
-          .range(from, from + pageSize - 1);
-        if (withCreatedOrder) {
-          q = q.order('created_at', { ascending: false });
-        }
-        return q;
-      };
-
-      let useOrder = true;
-      for (;;) {
-        const { data, error } = await fetchPage(useOrder);
-        if (error) {
-          if (useOrder) {
-            useOrder = false;
-            from = 0;
-            map.clear();
-            continue;
-          }
-          console.warn('[AdvancedContactFilter] new_contact_message (regional):', error.message);
-          return new Map();
-        }
-        if (!data?.length) break;
-        for (const row of data) {
-          const phone = (row.celular || '').trim();
-          const reg = (row.regional || '').trim();
-          if (phone && reg && !map.has(phone)) map.set(phone, reg);
-        }
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return map;
-    },
-    enabled: !!organization?.id,
-  });
+  // Regional now comes only from new_contact_event (new_contact_message removed from types)
+  const regionalByPhone = new Map<string, string>();
+  const regionalLoading = false;
 
   /** Contatos com regional: prioridade new_contact_event; fallback new_contact_message por celular */
   const contactsWithRegional = useMemo(() => {
