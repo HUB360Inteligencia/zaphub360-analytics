@@ -151,27 +151,24 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div className="space-y-4">
       {/* Painel de Filtros */}
-      <div className="lg:col-span-2">
-        <FilterPanel
-          filters={filters}
-          onFiltersChange={setFilters}
-          filterData={filterData}
-          events={eventsTyped}
-          campaigns={campaignsTyped}
-          tags={tags}
-          filteredCount={filteredCount}
-          totalContacts={totalContacts}
-          selectedInFilter={selectedInFilter}
-          totalSelected={selectedContacts.length}
-          regionalsOptionsLoading={regionalsOptionsLoading}
-        />
-      </div>
+      <FilterPanel
+        filters={filters}
+        onFiltersChange={setFilters}
+        filterData={filterData}
+        events={eventsTyped}
+        campaigns={campaignsTyped}
+        tags={tags}
+        filteredCount={filteredCount}
+        totalContacts={totalContacts}
+        selectedInFilter={selectedInFilter}
+        totalSelected={selectedContacts.length}
+        regionalsOptionsLoading={regionalsOptionsLoading}
+      />
 
-      {/* Lista de Contatos - Expandida */}
-      <div className="lg:col-span-3">
-        <Card>
+      {/* Lista de Contatos */}
+      <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
@@ -229,7 +226,7 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            <div className="space-y-3 max-h-[65vh] overflow-y-auto">
               {searchFilteredContacts.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -323,7 +320,6 @@ export const AdvancedContactSelector: React.FC<AdvancedContactSelectorProps> = (
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 };
