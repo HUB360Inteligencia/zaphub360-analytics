@@ -72,23 +72,7 @@ async function fetchDistinctRegionalsFromTables(orgId: string): Promise<string[]
     from += PAGE_SIZE;
   }
 
-  from = 0;
-  for (;;) {
-    const { data, error } = await supabase
-      .from('new_contact_message')
-      .select('regional')
-      .eq('organization_id', orgId)
-      .not('regional', 'is', null)
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) {
-      console.warn('[AdvancedContactFilter] distinct regional (new_contact_message):', error.message);
-      break;
-    }
-    if (!data?.length) break;
-    ingestPage(data);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
+  // new_contact_message removed from types - regional now comes only from new_contact_event
 
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
