@@ -1132,38 +1132,6 @@ export type Database = {
         }
         Relationships: []
       }
-      new_contact_message: {
-        Row: {
-          celular: string
-          created_at: string | null
-          id: string
-          organization_id: string
-          regional: string | null
-        }
-        Insert: {
-          celular: string
-          created_at?: string | null
-          id?: string
-          organization_id: string
-          regional?: string | null
-        }
-        Update: {
-          celular?: string
-          created_at?: string | null
-          id?: string
-          organization_id?: string
-          regional?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "new_contact_message_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organizations: {
         Row: {
           created_at: string | null
@@ -1627,9 +1595,9 @@ export type Database = {
       }
       get_hourly_activity: {
         Args: {
-          p_end_date: string
+          p_end_date?: string
           p_organization_id: string
-          p_start_date: string
+          p_start_date?: string
         }
         Returns: {
           hour: number
