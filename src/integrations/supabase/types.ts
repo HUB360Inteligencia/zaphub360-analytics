@@ -1063,6 +1063,7 @@ export type Database = {
           organization_id: string | null
           perfil: string | null
           perfil_contato: string | null
+          regional: string | null
           responsavel_cadastro: string | null
           sentimento: string | null
           sentimento_rp: string | null
@@ -1090,6 +1091,7 @@ export type Database = {
           organization_id?: string | null
           perfil?: string | null
           perfil_contato?: string | null
+          regional?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
@@ -1117,6 +1119,7 @@ export type Database = {
           organization_id?: string | null
           perfil?: string | null
           perfil_contato?: string | null
+          regional?: string | null
           responsavel_cadastro?: string | null
           sentimento?: string | null
           sentimento_rp?: string | null
@@ -1592,9 +1595,9 @@ export type Database = {
       }
       get_hourly_activity: {
         Args: {
-          p_end_date: string
+          p_end_date?: string
           p_organization_id: string
-          p_start_date: string
+          p_start_date?: string
         }
         Returns: {
           hour: number
