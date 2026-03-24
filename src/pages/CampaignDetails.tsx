@@ -26,6 +26,7 @@ import {
 } from 'recharts';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { useCampaignAnalytics } from '@/hooks/useCampaignAnalytics';
+import { useEventInstances } from '@/hooks/useEventInstances';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -49,6 +50,7 @@ const CampaignDetails = () => {
   const { organization } = useAuth();
   
   const campaign = campaigns?.find(c => c.id === id);
+  const { data: campaignInstances } = useEventInstances(id || '');
 
   // UI state para confirmação/execução de pause/resume e undo temporário
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
@@ -606,6 +608,28 @@ const { data: campaignMessages, isLoading: messagesLoading, error: messagesError
               <p className="text-sm">{campaign.horario_disparo_inicio} - {campaign.horario_disparo_fim}</p>
             </div>
           </div>
+
+          {campaignInstances && campaignInstances.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <p className="text-sm text-muted-foreground mb-3">Instâncias Configuradas</p>
+              <div className="flex flex-wrap gap-2">
+                {campaignInstances.map((ci) => (
+                  <Badge
+                    key={ci.id_instancia}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        ci.instances_safe?.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                      }`}
+                    />
+                    {ci.instances_safe?.name} ({ci.instances_safe?.phone_number})
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
